@@ -120,26 +120,24 @@ async function loadPortfolio() {
 }
 
 async function metadataFor(token) {
-  // Prefer metadata already indexed by Blockscout. This is faster and avoids
-  // needing a second browser request to IPFS when the indexer already has it.
-  if (token?.metadata && typeof token.metadata === 'object') {
-    return token.metadata;
+  // After reveal, the contract's current tokenURI is the source of truth.
+  // Indexer metadata can stay cached on the old hidden artwork for a while.
+  if (token?.tokenURI) {
+    try {
+      if (token.tokenURI.startsWith('data:application/json;base64,')) {
+        return JSON.parse(atob(token.tokenURI.split(',')[1]));
+      }
+      if (token.tokenURI.startsWith('data:application/json,')) {
+        return JSON.parse(decodeURIComponent(token.tokenURI.split(',').slice(1).join(',')));
+      }
+      const res = await fetch(toGateway(token.tokenURI), { cache: 'no-store' });
+      if (res.ok) return await res.json();
+    } catch (_) {}
   }
 
-  if (!token.tokenURI) return {};
-  try {
-    if (token.tokenURI.startsWith('data:application/json;base64,')) {
-      return JSON.parse(atob(token.tokenURI.split(',')[1]));
-    }
-    if (token.tokenURI.startsWith('data:application/json,')) {
-      return JSON.parse(decodeURIComponent(token.tokenURI.split(',').slice(1).join(',')));
-    }
-    const res = await fetch(toGateway(token.tokenURI));
-    if (!res.ok) return {};
-    return await res.json();
-  } catch (_) {
-    return {};
-  }
+  // Fall back to Blockscout only if live tokenURI metadata cannot be loaded.
+  if (token?.metadata && typeof token.metadata === 'object') return token.metadata;
+  return {};
 }
 
 async function renderToken(token) {
