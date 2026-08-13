@@ -100,7 +100,7 @@ async function loadPortfolio() {
     const tokens = portfolio.tokens || [];
     if (!portfolio.enumerable) {
       manual.classList.add('show');
-      grid.innerHTML = '<div class="empty">Your collection contract does not expose wallet enumeration. Enter a Token ID above and we will verify ownership directly on-chain.</div>';
+      grid.innerHTML = '<div class="empty">Automatic NFT discovery is temporarily unavailable. Enter a Token ID above and we will verify ownership directly on-chain.</div>';
     } else {
       manual.classList.remove('show');
       if (!tokens.length) {
@@ -120,6 +120,12 @@ async function loadPortfolio() {
 }
 
 async function metadataFor(token) {
+  // Prefer metadata already indexed by Blockscout. This is faster and avoids
+  // needing a second browser request to IPFS when the indexer already has it.
+  if (token?.metadata && typeof token.metadata === 'object') {
+    return token.metadata;
+  }
+
   if (!token.tokenURI) return {};
   try {
     if (token.tokenURI.startsWith('data:application/json;base64,')) {
@@ -140,12 +146,17 @@ async function renderToken(token) {
   const tokenId = String(token.tokenId);
   const staked = new Set((portfolio?.activeTokenIds || []).map(String)).has(tokenId);
   const meta = await metadataFor(token);
-  const image = toGateway(meta.image || meta.image_url || '');
+  const image = toGateway(
+    meta.image ||
+    meta.image_url ||
+    token.imageUrl ||
+    ''
+  );
   const card = document.createElement('article');
   card.className = `nft${staked ? ' staked' : ''}`;
   card.dataset.tokenId = tokenId;
   card.innerHTML = `
-    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="lazy">` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
+    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="nft-placeholder" style="display:none">#${tokenId}</div>` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
     <div class="nft-body">
       <div class="nft-title"><h3>${meta.name || `TOTZ #${tokenId}`}</h3><span class="rate">100 PTS/DAY</span></div>
       <div class="nft-meta">${staked ? '✅ Soft staked · NFT remains in wallet' : 'Ready to soft stake'}</div>
