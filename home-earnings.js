@@ -1,4 +1,11 @@
 (() => {
+  if (!document.querySelector('script[data-home-art-slider]')) {
+    const artScript = document.createElement('script');
+    artScript.src = 'home-art-slider.js';
+    artScript.dataset.homeArtSlider = '1';
+    document.head.appendChild(artScript);
+  }
+
   if (document.getElementById('earnings-calculator')) return;
 
   const ECONOMY_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-staking-economy';
