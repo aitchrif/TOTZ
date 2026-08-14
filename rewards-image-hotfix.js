@@ -1,8 +1,8 @@
 (() => {
   const gateways = [
-    'https://ipfs.io/ipfs',
     'https://dweb.link/ipfs',
-    'https://gateway.pinata.cloud/ipfs'
+    'https://gateway.pinata.cloud/ipfs',
+    'https://ipfs.io/ipfs'
   ];
 
   function parseIpfsUrl(value) {
@@ -37,9 +37,7 @@
     return null;
   }
 
-  function gatewayUrl(cid, path, index) {
-    return `${gateways[index]}/${cid}${path ? `/${path}` : ''}`;
-  }
+  const gatewayUrl = (cid, path, base) => `${base}/${cid}${path ? `/${path}` : ''}`;
 
   function addPlaceholder(img) {
     const media = img.closest('.prize-media');
@@ -67,31 +65,45 @@
       return;
     }
 
-    img.dataset.ipfsCid = parsed.cid;
-    img.dataset.ipfsPath = parsed.path || '';
-    img.dataset.ipfsGateway = '0';
-    // Replace fragile/custom IPFS gateway links with a stable public path immediately.
-    img.src = gatewayUrl(parsed.cid, parsed.path || '', 0);
+    const media = img.closest('.prize-media');
+    img.style.visibility = 'hidden';
+    let settled = false;
+    let failed = 0;
+
+    const win = (url) => {
+      if (settled) return;
+      settled = true;
+      img.onload = () => { img.style.visibility = 'visible'; };
+      img.onerror = () => { img.style.display = 'none'; addPlaceholder(img); };
+      img.src = url;
+      if (media) media.dataset.imageReady = '1';
+    };
+
+    gateways.forEach((base) => {
+      const url = gatewayUrl(parsed.cid, parsed.path || '', base);
+      const probe = new Image();
+      probe.referrerPolicy = 'no-referrer';
+      probe.decoding = 'async';
+      probe.onload = () => win(url);
+      probe.onerror = () => {
+        failed += 1;
+        if (!settled && failed === gateways.length) {
+          settled = true;
+          img.style.display = 'none';
+          addPlaceholder(img);
+        }
+      };
+      probe.src = url;
+    });
+
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        img.style.display = 'none';
+        addPlaceholder(img);
+      }
+    }, 8000);
   }
-
-  document.addEventListener('error', (event) => {
-    const img = event.target;
-    if (!(img instanceof HTMLImageElement) || !img.closest('.prize-media')) return;
-
-    const cid = img.dataset.ipfsCid;
-    if (!cid) return;
-    const current = Number(img.dataset.ipfsGateway || 0);
-    const next = current + 1;
-
-    if (next >= gateways.length) {
-      img.style.display = 'none';
-      addPlaceholder(img);
-      return;
-    }
-
-    img.dataset.ipfsGateway = String(next);
-    img.src = gatewayUrl(cid, img.dataset.ipfsPath || '', next);
-  }, true);
 
   const scan = (root = document) => root.querySelectorAll?.('.prize-media img').forEach(prepare);
   scan();
