@@ -111,7 +111,7 @@
     const parent = node.parentElement;
     if (!parent || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA','CODE'].includes(parent.tagName)) return;
     const text = node.nodeValue || '';
-    const next = text.replace(/Live points/gi, '$TOTZ Balance').replace(/TOTZ points/gi, '$TOTZ').replace(/your points/gi, 'your $TOTZ').replace(/\bPTS\b/g, '$TOTZ');
+    const next = text.replace(/No NFT transfer, no custody — your NFT stays where it belongs\./g, 'No NFT transfer, no custody. Your NFT stays where it belongs.').replace(/Live points/gi, '$TOTZ Balance').replace(/TOTZ points/gi, '$TOTZ').replace(/your points/gi, 'your $TOTZ').replace(/\bPTS\b/g, '$TOTZ');
     if (next !== text) node.nodeValue = next;
   }
 
