@@ -119,3 +119,11 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+(() => {
+  if (document.querySelector('script[data-totz-ui-brand]')) return;
+  const script = document.createElement('script');
+  script.src = 'totz-ui-brand.js';
+  script.dataset.totzUiBrand = '1';
+  document.head.appendChild(script);
+})();
