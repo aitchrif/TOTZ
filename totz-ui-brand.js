@@ -75,22 +75,24 @@
 
     ${(isStaking || isRewards) ? `
       .totz-section-dock{
-        position:fixed;left:18px;top:50%;transform:translateY(-50%);z-index:9998;
-        display:flex;flex-direction:column;gap:7px;padding:7px;
-        width:116px;background:rgba(255,255,255,.93);backdrop-filter:blur(14px);
+        position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:9998;
+        display:flex;flex-direction:column;gap:6px;padding:8px;
+        width:132px;box-sizing:border-box;overflow:hidden;
+        background:rgba(255,255,255,.95);backdrop-filter:blur(14px);
         -webkit-backdrop-filter:blur(14px);
         border:2px solid var(--sky2,#8ED2E2);border-radius:22px;
         box-shadow:0 14px 34px rgba(43,33,64,.16)
       }
       .totz-section-dock::before{
-        content:'TOTZ';display:block;text-align:center;padding:3px 4px 1px;
+        content:'TOTZ';display:block;text-align:center;padding:3px 4px 2px;
         color:var(--soft,#5B5270);font-family:'Baloo 2',cursive;font-size:.62rem;
         font-weight:900;letter-spacing:.14em
       }
       .totz-section-dock a{
-        position:relative;min-height:43px;display:flex;align-items:center;justify-content:flex-start;gap:8px;
+        position:relative;width:100%;min-width:0;min-height:43px;box-sizing:border-box;overflow:hidden;
+        display:flex;align-items:center;justify-content:flex-start;gap:8px;
         padding:8px 10px;border-radius:14px;color:var(--ink,#2B2140);
-        font-family:'Nunito',sans-serif;font-size:.69rem;font-weight:900;letter-spacing:.025em;
+        font-family:'Nunito',sans-serif;font-size:.68rem;font-weight:900;letter-spacing:.018em;
         transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease
       }
       .totz-section-dock a:hover{transform:translateX(2px);background:var(--cream,#FFF3DC)}
@@ -98,7 +100,7 @@
         background:var(--ink,#2B2140);color:#fff;box-shadow:0 6px 15px rgba(43,33,64,.18)
       }
       .totz-section-dock a.active::before{
-        content:'';position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+        content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);
         width:5px;height:22px;border-radius:999px;background:var(--coral,#FF7A66)
       }
       .totz-section-dock .dock-icon{
@@ -106,26 +108,29 @@
         border-radius:9px;background:var(--cream,#FFF3DC);font-size:.9rem;line-height:1
       }
       .totz-section-dock a.active .dock-icon{background:rgba(255,255,255,.14)}
-      .totz-section-dock .dock-label{white-space:nowrap}
+      .totz-section-dock .dock-label{
+        min-width:0;white-space:nowrap;overflow:hidden;text-overflow:clip;line-height:1
+      }
 
       @media(max-width:1280px) and (min-width:721px){
-        .totz-section-dock{width:54px;left:9px;padding:6px;border-radius:18px}
+        .totz-section-dock{width:56px;left:9px;padding:6px;border-radius:18px}
         .totz-section-dock::before{font-size:.5rem;letter-spacing:.05em}
         .totz-section-dock a{justify-content:center;padding:7px;min-height:42px}
-        .totz-section-dock a.active::before{left:-9px;height:18px}
+        .totz-section-dock a.active::before{left:-7px;height:18px}
         .totz-section-dock .dock-label{display:none}
       }
       @media(max-width:720px){
         body{padding-bottom:72px!important}
         .totz-section-dock{
           top:auto;left:50%;bottom:10px;transform:translateX(-50%);
-          width:auto;min-width:220px;flex-direction:row;justify-content:center;
+          width:auto;min-width:300px;max-width:calc(100vw - 20px);
+          flex-direction:row;justify-content:center;
           padding:6px;border-radius:19px;gap:5px
         }
         .totz-section-dock::before{display:none}
-        .totz-section-dock a{min-width:99px;min-height:41px;justify-content:center;padding:7px 11px}
+        .totz-section-dock a{min-width:0;flex:1;min-height:41px;justify-content:center;padding:7px 9px}
         .totz-section-dock a.active::before{left:50%;top:auto;bottom:-7px;transform:translateX(-50%);width:28px;height:4px}
-        .totz-section-dock .dock-label{display:inline}
+        .totz-section-dock .dock-label{display:inline;font-size:.62rem}
       }
     ` : ''}
   `;
@@ -137,6 +142,9 @@
     dock.className = 'totz-section-dock';
     dock.setAttribute('aria-label', 'TOTZ pages');
     dock.innerHTML = `
+      <a href="index.html" title="Home" aria-label="Home">
+        <span class="dock-icon">🏠</span><span class="dock-label">HOME</span>
+      </a>
       <a href="staking.html" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking">
         <span class="dock-icon">☁️</span><span class="dock-label">STAKING</span>
       </a>
