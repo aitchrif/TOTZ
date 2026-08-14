@@ -44,7 +44,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
   }
 }
 
-async function api(body, retries = 1) {
+async function api(body, retries = 1, timeoutMs = 9000) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -53,13 +53,13 @@ async function api(body, retries = 1) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         cache: 'no-store'
-      }, 15000);
+      }, timeoutMs);
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.error) throw new Error(data.error || `Request failed (${res.status})`);
       return data;
     } catch (error) {
       lastError = error;
-      if (attempt < retries) await sleep(700);
+      if (attempt < retries) await sleep(350);
     }
   }
   throw lastError;
@@ -109,7 +109,7 @@ async function connectWallet() {
     showStatus('Connected. Loading your TOTZ…', 'ok');
     await loadPortfolio(true);
   } catch (error) {
-    showStatus(error.name === 'AbortError' ? 'The first request took too long. Trying again should be instant.' : (error.message || 'Could not connect wallet.'), 'error');
+    showStatus(error.name === 'AbortError' ? 'The collection indexer took too long. Please try again.' : (error.message || 'Could not connect wallet.'), 'error');
   } finally {
     connecting = false;
     connectBtn.disabled = false;
@@ -122,16 +122,16 @@ async function loadPortfolio(force = false) {
 
   const walletAtStart = wallet;
   portfolioLoad = (async () => {
-    grid.innerHTML = '<div class="empty">Checking Robinhood Chain…</div>';
+    grid.innerHTML = '<div class="empty">Finding your TOTZ…</div>';
     try {
-      const nextPortfolio = await api({ action: 'portfolio', wallet: walletAtStart }, 1);
+      const nextPortfolio = await api({ action: 'portfolio', wallet: walletAtStart }, 1, 7500);
       if (wallet !== walletAtStart) return;
       portfolio = nextPortfolio;
 
       $('walletStat').textContent = shortWallet(wallet);
-      $('ownedStat').textContent = portfolio.balance ?? 0;
+      $('ownedStat').textContent = portfolio.balanceDisplay || portfolio.balance || 0;
       $('stakedStat').textContent = portfolio.activeTokenIds?.length ?? 0;
-      $('pointsStat').textContent = Number(portfolio.totalPoints || 0).toLocaleString();
+      $('pointsStat').textContent = Number(portfolio.totalPoints || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
 
       const tokens = portfolio.tokens || [];
       if (!portfolio.enumerable) {
@@ -150,7 +150,7 @@ async function loadPortfolio(force = false) {
       const capNote = portfolio.capped ? ` Showing the first ${portfolio.maxEnumerated} NFTs.` : '';
       showStatus(`Found ${portfolio.balance} TOTZ. ${portfolio.activeTokenIds?.length || 0} currently soft staked.${capNote}`, 'ok');
     } catch (error) {
-      showStatus(error.name === 'AbortError' ? 'Robinhood Chain took too long to respond. Please try again.' : (error.message || 'Could not load your TOTZ.'), 'error');
+      showStatus(error.name === 'AbortError' ? 'The collection indexer took too long to respond. Please try again.' : (error.message || 'Could not load your TOTZ.'), 'error');
       grid.innerHTML = '<div class="empty">Could not load collection data. Try again in a moment.</div>';
     } finally {
       portfolioLoad = null;
@@ -161,8 +161,6 @@ async function loadPortfolio(force = false) {
 }
 
 async function metadataFor(token) {
-  // After reveal, the contract's current tokenURI is the source of truth.
-  // Indexer metadata can stay cached on the old hidden artwork for a while.
   if (token?.tokenURI) {
     try {
       if (token.tokenURI.startsWith('data:application/json;base64,')) {
@@ -171,40 +169,76 @@ async function metadataFor(token) {
       if (token.tokenURI.startsWith('data:application/json,')) {
         return JSON.parse(decodeURIComponent(token.tokenURI.split(',').slice(1).join(',')));
       }
-      const res = await fetchWithTimeout(toGateway(token.tokenURI), { cache: 'no-store' }, 8000);
+      const res = await fetchWithTimeout(toGateway(token.tokenURI), { cache: 'no-store' }, 6500);
       if (res.ok) return await res.json();
     } catch (_) {}
   }
-
-  // Fall back to Blockscout only if live tokenURI metadata cannot be loaded.
   if (token?.metadata && typeof token.metadata === 'object') return token.metadata;
   return {};
+}
+
+function looksUnrevealed(meta) {
+  const name = String(meta?.name || '').toLowerCase();
+  return name.includes('incoming') || name.includes('unrevealed') || name.includes('hidden') || name.includes('mystery');
+}
+
+async function hydrateLiveToken(tokenId, card) {
+  try {
+    const live = await api({ action: 'live_token', wallet, tokenId }, 0, 8500);
+    const meta = await metadataFor(live);
+    const image = toGateway(meta.image || meta.image_url || '');
+    if (!image || !card?.isConnected) return;
+
+    const media = card.querySelector('.nft-media');
+    const title = card.querySelector('.nft-title h3');
+    if (title && meta.name) title.textContent = meta.name;
+    if (media) {
+      media.innerHTML = `<img src="${image}" alt="TOTZ #${tokenId}" loading="eager" decoding="async" referrerpolicy="no-referrer"><div class="nft-placeholder" style="display:none">#${tokenId}</div>`;
+      const img = media.querySelector('img');
+      img?.addEventListener('error', () => {
+        img.style.display = 'none';
+        const fallback = media.querySelector('.nft-placeholder');
+        if (fallback) fallback.style.display = 'grid';
+      }, { once: true });
+    }
+  } catch (_) {
+    // Live metadata is an enhancement only; staking remains usable if public RPC is slow.
+  }
 }
 
 async function renderToken(token) {
   const tokenId = String(token.tokenId);
   const staked = new Set((portfolio?.activeTokenIds || []).map(String)).has(tokenId);
   const meta = await metadataFor(token);
-  const image = toGateway(
-    meta.image ||
-    meta.image_url ||
-    token.imageUrl ||
-    ''
-  );
+  const staleReveal = looksUnrevealed(meta);
+  const image = staleReveal ? null : toGateway(meta.image || meta.image_url || token.imageUrl || '');
+  const displayName = staleReveal ? `TOTZ #${tokenId}` : (meta.name || `TOTZ #${tokenId}`);
+
   const card = document.createElement('article');
   card.className = `nft${staked ? ' staked' : ''}`;
   card.dataset.tokenId = tokenId;
   card.innerHTML = `
-    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="nft-placeholder" style="display:none">#${tokenId}</div>` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
+    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="eager" decoding="async" referrerpolicy="no-referrer"><div class="nft-placeholder" style="display:none">#${tokenId}</div>` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
     <div class="nft-body">
-      <div class="nft-title"><h3>${meta.name || `TOTZ #${tokenId}`}</h3><span class="rate">100 PTS/DAY</span></div>
+      <div class="nft-title"><h3>${displayName}</h3><span class="rate">100 PTS/DAY</span></div>
       <div class="nft-meta">${staked ? '✅ Soft staked · NFT remains in wallet' : 'Ready to soft stake'}</div>
       <div class="nft-actions">
         <button class="btn ${staked ? 'ghost' : 'primary'}" data-action="${staked ? 'unstake' : 'stake'}">${staked ? 'UNSTAKE' : 'STAKE'}</button>
       </div>
     </div>`;
+
+  const firstImg = card.querySelector('.nft-media img');
+  firstImg?.addEventListener('error', () => {
+    firstImg.style.display = 'none';
+    const fallback = card.querySelector('.nft-placeholder');
+    if (fallback) fallback.style.display = 'grid';
+  }, { once: true });
+
   card.querySelector('button').addEventListener('click', () => signedAction(staked ? 'unstake' : 'stake', tokenId));
   grid.appendChild(card);
+
+  // Do not block the page on Robinhood RPC. Reveal metadata upgrades in the background.
+  hydrateLiveToken(tokenId, card);
 }
 
 function stakingMessage(action, tokenId, timestamp) {
@@ -235,7 +269,7 @@ async function signedAction(action, tokenId) {
       params: [utf8ToHex(message), wallet]
     });
     showStatus(`${action === 'stake' ? 'Staking' : 'Unstaking'} TOTZ #${tokenId}…`);
-    await api({ action, wallet, tokenId, timestamp, signature }, 1);
+    await api({ action, wallet, tokenId, timestamp, signature }, 1, 10000);
     await loadPortfolio(true);
     showStatus(`TOTZ #${tokenId} ${action === 'stake' ? 'is now soft staked' : 'has been unstaked'}.`, 'ok');
   } catch (error) {
@@ -252,7 +286,7 @@ async function verifyManualToken() {
   }
   try {
     showStatus(`Verifying TOTZ #${tokenId} on Robinhood Chain…`);
-    const token = await api({ action: 'verify_token', wallet, tokenId }, 1);
+    const token = await api({ action: 'verify_token', wallet, tokenId }, 1, 10000);
     grid.innerHTML = '';
     await renderToken(token);
     showStatus(`Ownership verified for TOTZ #${tokenId}.`, 'ok');
