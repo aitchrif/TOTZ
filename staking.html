@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TOTZ — Soft Staking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://ipfs.io" crossorigin>
+<link rel="preconnect" href="https://dweb.link" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--cream:#FFF3DC;--cream2:#FFEAC2;--cloud:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF7A66;--coral2:#F0533D;--shadow:0 14px 32px rgba(43,33,64,.12)}
@@ -35,5 +37,40 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0
 <div class="footer">© 2026 TOTZ · Soft staking never asks for NFT transfer approval.</div>
 </div>
 <script src="staking.js"></script>
+<script>
+(() => {
+  const cid = 'QmSuozQEVRcxNSwn7huCb8sZMhqhedENfMNRsYwEVBZm1K';
+  const gateways = [
+    'https://ipfs.io/ipfs',
+    'https://dweb.link/ipfs',
+    'https://gateway.pinata.cloud/ipfs'
+  ];
+
+  const ipfsImage = (tokenId, gatewayIndex = 0) => `${gateways[gatewayIndex]}/${cid}/${Number(tokenId)}`;
+
+  // Override the old Supabase thumbnail URL before any NFT card is rendered.
+  window.thumbUrl = (tokenId) => ipfsImage(tokenId, 0);
+
+  // If one public IPFS gateway is slow/unavailable, move to the next one automatically.
+  document.addEventListener('error', (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement) || !img.closest('.nft-media')) return;
+
+    const card = img.closest('.nft');
+    const tokenId = card?.dataset.tokenId;
+    const current = Number(img.dataset.ipfsGateway || 0);
+    const next = current + 1;
+    if (!tokenId || next >= gateways.length) return;
+
+    const placeholder = card.querySelector('.nft-placeholder');
+    img.dataset.ipfsGateway = String(next);
+    img.addEventListener('load', () => {
+      img.style.display = '';
+      if (placeholder) placeholder.style.display = 'none';
+    }, { once: true });
+    img.src = ipfsImage(tokenId, next);
+  }, true);
+})();
+</script>
 </body>
 </html>
