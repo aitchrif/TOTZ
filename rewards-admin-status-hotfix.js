@@ -103,5 +103,11 @@ renderRaffles = function() {
     script.dataset.raffleDraw = '1';
     document.head.appendChild(script);
   }
+  if (!document.querySelector('script[data-admin-staking-stats]')) {
+    const script = document.createElement('script');
+    script.src = 'admin-staking-stats.js';
+    script.dataset.adminStakingStats = '1';
+    document.head.appendChild(script);
+  }
   if (wallet && raffles.length) renderRaffles();
 })();
