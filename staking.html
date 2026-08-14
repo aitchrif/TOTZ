@@ -48,10 +48,8 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0
 
   const ipfsImage = (tokenId, gatewayIndex = 0) => `${gateways[gatewayIndex]}/${cid}/${Number(tokenId)}`;
 
-  // Override the old Supabase thumbnail URL before any NFT card is rendered.
   window.thumbUrl = (tokenId) => ipfsImage(tokenId, 0);
 
-  // If one public IPFS gateway is slow/unavailable, move to the next one automatically.
   document.addEventListener('error', (event) => {
     const img = event.target;
     if (!(img instanceof HTMLImageElement) || !img.closest('.nft-media')) return;
@@ -72,5 +70,6 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0
   }, true);
 })();
 </script>
+<script src="staking-hotfix.js"></script>
 </body>
 </html>
