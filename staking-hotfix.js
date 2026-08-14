@@ -95,3 +95,11 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   script.dataset.totzUiBrand = '1';
   document.head.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-staking-economy]')) return;
+  const script = document.createElement('script');
+  script.src = 'staking-economy.js';
+  script.dataset.stakingEconomy = '1';
+  document.head.appendChild(script);
+})();
