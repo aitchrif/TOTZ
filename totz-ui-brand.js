@@ -1,9 +1,10 @@
 (() => {
-  const page = (location.pathname.split('/').pop() || '').toLowerCase();
-  const isHome = page === '' || page === 'index.html';
-  const isStaking = page === 'staking.html';
-  const isRewards = page === 'rewards.html';
-  const isAdmin = page === 'rewards-admin.html';
+  const rawPage = (location.pathname.split('/').pop() || '').toLowerCase();
+  const page = rawPage.replace(/\.html$/i, '');
+  const isHome = page === '' || page === 'index';
+  const isStaking = page === 'staking';
+  const isRewards = page === 'rewards';
+  const isAdmin = page === 'rewards-admin';
   const hasDock = isHome || isStaking || isRewards;
 
   const style = document.createElement('style');
@@ -70,9 +71,9 @@
     dock.className = 'totz-section-dock';
     dock.setAttribute('aria-label', 'TOTZ pages');
     dock.innerHTML = `
-      <a href="index.html" class="${isHome ? 'active' : ''}" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
-      <a href="staking.html" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
-      <a href="rewards.html" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
+      <a href="/" class="${isHome ? 'active' : ''}" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
+      <a href="/staking" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
+      <a href="/rewards" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
     document.body.appendChild(dock);
   }
 
@@ -114,10 +115,25 @@
     if (next !== text) node.nodeValue = next;
   }
 
+  function cleanAnchor(anchor) {
+    if (!(anchor instanceof HTMLAnchorElement)) return;
+    const href = anchor.getAttribute('href');
+    if (!href || /^(?:https?:|mailto:|tel:|#|javascript:)/i.test(href)) return;
+    const cleanMap = {
+      'index.html': '/', './index.html': '/',
+      'staking.html': '/staking', './staking.html': '/staking',
+      'rewards.html': '/rewards', './rewards.html': '/rewards',
+      'rewards-admin.html': '/rewards-admin', './rewards-admin.html': '/rewards-admin'
+    };
+    if (cleanMap[href]) anchor.setAttribute('href', cleanMap[href]);
+  }
+
   function rewrite(root) {
     if (!root) return;
     if (root.nodeType === Node.TEXT_NODE) return rewriteTextNode(root);
     if (!(root instanceof Element) && root !== document.body) return;
+    if (root instanceof HTMLAnchorElement) cleanAnchor(root);
+    root.querySelectorAll?.('a[href]').forEach(cleanAnchor);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
