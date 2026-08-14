@@ -33,13 +33,13 @@ renderRaffles = function() {
         <div>
           <h3>${escapeHtml(r.title)}</h3>
           <div class="meta">
-            ${escapeHtml(r.prize_name)} · ${Number(r.entry_cost)} PTS / entry<br>
+            ${escapeHtml(r.prize_name)} · ${Number(r.entry_cost)} $TOTZ / entry<br>
             ${r.max_entries_per_wallet ? `Max ${r.max_entries_per_wallet} / wallet` : 'Unlimited entries'} · ${timingLine}
           </div>
         </div>
         <span class="tag ${live ? 'on' : 'off'}">${statusText}</span>
       </div>
-      <div class="meta">${Number(r.totalEntries || 0)} total entries · ${Number(r.totalPointsSpent || 0).toLocaleString()} PTS spent</div>
+      <div class="meta">${Number(r.totalEntries || 0)} total entries · ${Number(r.totalPointsSpent || 0).toLocaleString()} $TOTZ spent</div>
       <div class="raffle-actions">
         <button class="btn sky edit-btn">EDIT</button>
         <button class="btn ${r.active ? 'ghost' : 'dark'} active-btn" ${ended ? 'disabled' : ''}>${r.active ? 'PAUSE' : 'ACTIVATE'}</button>
@@ -50,3 +50,11 @@ renderRaffles = function() {
     list.appendChild(el);
   }
 };
+
+(() => {
+  if (document.querySelector('script[data-totz-ui-brand]')) return;
+  const script = document.createElement('script');
+  script.src = 'totz-ui-brand.js';
+  script.dataset.totzUiBrand = '1';
+  document.head.appendChild(script);
+})();
