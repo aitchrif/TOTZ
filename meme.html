@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ Meme Generator Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--white:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#625976;--coral:#FF7A66;--coral2:#F0533D;--shadow:0 16px 40px rgba(43,33,64,.13)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif}button,input,select{font:inherit}.wrap{max-width:1240px;margin:auto;padding:24px 5vw 60px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:28px}.brand{display:flex;align-items:center;gap:10px;font-family:'Baloo 2';font-weight:800;font-size:1.5rem}.brand-dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}.preview-pill{background:#fff;border:2px solid var(--sky2);padding:8px 13px;border-radius:999px;font-size:.78rem;font-weight:900}.hero{text-align:center;margin:22px auto 30px;max-width:760px}.eyebrow{display:inline-flex;background:var(--lime);padding:7px 13px;border-radius:999px;font-size:.74rem;font-weight:900;letter-spacing:.06em}.hero h1{font-family:'Baloo 2';font-size:clamp(2.4rem,5vw,4.6rem);line-height:.95;margin:16px 0 10px}.hero h1 span{color:var(--coral2)}.hero p{margin:0;color:var(--soft);font-weight:700;line-height:1.55}.app{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(320px,.88fr);gap:24px;align-items:start}.stage-card,.panel{background:#fff;border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}.stage-card{padding:18px}.stage-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.stage-head h2{font-family:'Baloo 2';margin:0;font-size:1.35rem}.token-chip{background:var(--cream);padding:6px 10px;border-radius:999px;font-size:.76rem;font-weight:900}.canvas-shell{position:relative;aspect-ratio:1/1;border-radius:22px;overflow:hidden;background:linear-gradient(145deg,var(--sky),var(--cream2));display:grid;place-items:center}.canvas-shell canvas{width:100%;height:100%;display:block}.loading{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.75);backdrop-filter:blur(5px);font-family:'Baloo 2';font-size:1.15rem;font-weight:800}.loading[hidden]{display:none}.stage-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.btn{border:0;border-radius:999px;padding:12px 18px;font-family:'Baloo 2';font-weight:800;cursor:pointer;transition:transform .14s ease,opacity .14s ease}.btn:hover{transform:translateY(-1px)}.btn.primary{background:var(--coral);color:#fff;box-shadow:0 6px 0 var(--coral2)}.btn.dark{background:var(--ink);color:#fff}.btn.sky{background:var(--sky);color:var(--ink)}.btn.ghost{background:#fff;border:2px solid var(--ink);color:var(--ink)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}.panel{padding:22px}.panel h2{font-family:'Baloo 2';font-size:1.45rem;margin:0 0 4px}.panel-sub{color:var(--soft);font-size:.87rem;font-weight:700;margin-bottom:18px}.group{padding:15px 0;border-top:1px dashed #d8d4df}.group:first-of-type{border-top:0;padding-top:0}.label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.77rem;text-transform:uppercase;letter-spacing:.05em;font-weight:900;color:var(--soft);margin-bottom:8px}.row{display:flex;gap:9px}.field{width:100%;border:2px solid #d7d4de;border-radius:14px;padding:11px 12px;outline:none;background:#fff;color:var(--ink);font-weight:800}.field:focus{border-color:var(--sky2)}.token-row{display:grid;grid-template-columns:1fr auto auto;gap:8px}.range-row{display:grid;grid-template-columns:1fr 56px;gap:10px;align-items:center}.range-row input[type=range]{width:100%;accent-color:var(--coral)}.range-value{text-align:center;background:var(--cream);border-radius:12px;padding:8px 5px;font-weight:900}.toggle-row{display:flex;gap:8px;flex-wrap:wrap}.choice{border:2px solid #d9d5e1;background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font-weight:900;font-size:.8rem;cursor:pointer}.choice.active{background:var(--ink);border-color:var(--ink);color:#fff}.stickers{display:flex;gap:8px;flex-wrap:wrap}.sticker{border:2px solid var(--sky2);background:#fff;border-radius:14px;padding:9px 11px;font-weight:900;cursor:pointer}.sticker.active{background:var(--lime);border-color:var(--lime)}.hint{background:var(--cream);border-radius:14px;padding:11px 12px;color:var(--soft);font-size:.78rem;font-weight:700;line-height:1.45;margin-top:12px}.status{margin-top:12px;border-radius:14px;padding:10px 12px;font-size:.8rem;font-weight:800;background:#eef6c9}.status.error{background:#ffe0dc;color:#8b2b1f}.footer{text-align:center;margin-top:34px;color:var(--soft);font-size:.78rem;font-weight:700}.mini-note{font-size:.72rem;color:var(--soft);font-weight:700}.clouds{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:-1}.cloud{position:absolute;width:110px;height:54px;border:3px solid rgba(43,33,64,.04);border-radius:999px;background:rgba(255,255,255,.25)}.cloud:before,.cloud:after{content:'';position:absolute;background:inherit;border:inherit;border-radius:50%}.cloud:before{width:52px;height:52px;left:20px;top:-27px}.cloud:after{width:65px;height:65px;right:16px;top:-35px}.cloud.c1{left:4%;top:24%}.cloud.c2{right:7%;top:68%;transform:scale(.8)}
+@media(max-width:920px){.app{grid-template-columns:1fr}.panel{order:1}.stage-card{order:2}.wrap{padding-left:4vw;padding-right:4vw}.hero{margin-top:12px}}
+@media(max-width:560px){.topbar{align-items:flex-start}.preview-pill{font-size:.68rem}.stage-card,.panel{border-radius:22px}.stage-card{padding:12px}.panel{padding:17px}.token-row{grid-template-columns:1fr 1fr}.token-row input{grid-column:1/-1}.stage-actions .btn{flex:1}.hero h1{font-size:2.65rem}}
+</style>
+</head>
+<body>
+<div class="clouds"><span class="cloud c1"></span><span class="cloud c2"></span></div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><span class="brand-dot"></span>TOTZ</div>
+    <div class="preview-pill">🧪 MEME GENERATOR PREVIEW</div>
+  </div>
+
+  <section class="hero">
+    <span class="eyebrow">☁️ COMMUNITY TOOL</span>
+    <h1>Make memes with <span>your TOTZ.</span></h1>
+    <p>Pick any TOTZ, add your message, drop a sticker, and export a ready-to-post square meme.</p>
+  </section>
+
+  <main class="app">
+    <section class="stage-card">
+      <div class="stage-head">
+        <h2>Live preview</h2>
+        <span class="token-chip" id="tokenChip">TOTZ #57</span>
+      </div>
+      <div class="canvas-shell">
+        <canvas id="memeCanvas" width="1080" height="1080"></canvas>
+        <div class="loading" id="loading">Loading TOTZ...</div>
+      </div>
+      <div class="stage-actions">
+        <button class="btn primary" id="downloadBtn">DOWNLOAD PNG</button>
+        <button class="btn sky" id="randomBottomBtn">RANDOM TOTZ</button>
+        <button class="btn ghost" id="resetBtn">RESET TEXT</button>
+      </div>
+      <div id="status" class="status">Ready. This preview runs entirely in your browser.</div>
+    </section>
+
+    <aside class="panel">
+      <h2>Meme controls</h2>
+      <div class="panel-sub">Nothing is uploaded. The image is composed locally in your browser.</div>
+
+      <div class="group">
+        <div class="label"><span>Choose TOTZ</span><span>1 - 4000</span></div>
+        <div class="token-row">
+          <input id="tokenInput" class="field" type="number" min="1" max="4000" value="57" inputmode="numeric">
+          <button id="loadBtn" class="btn dark">LOAD</button>
+          <button id="randomBtn" class="btn sky">RANDOM</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Top text</span><span id="topCount">0/70</span></div>
+        <input id="topText" class="field" maxlength="70" placeholder="WHEN YOU STAKE YOUR TOTZ">
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Bottom text</span><span id="bottomCount">0/70</span></div>
+        <input id="bottomText" class="field" maxlength="70" placeholder="AND THE CLOUD STARTS PRINTING $TOTZ">
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Text size</span><span>px</span></div>
+        <div class="range-row">
+          <input id="fontSize" type="range" min="44" max="110" value="72">
+          <div id="fontSizeValue" class="range-value">72</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Text style</span><span>Outline included</span></div>
+        <div class="toggle-row">
+          <button class="choice active" data-color="white">WHITE</button>
+          <button class="choice" data-color="black">BLACK</button>
+          <button class="choice" data-color="lime">$TOTZ LIME</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Sticker</span><span>Optional</span></div>
+        <div class="stickers">
+          <button class="sticker active" data-sticker="">NONE</button>
+          <button class="sticker" data-sticker="$TOTZ">$TOTZ</button>
+          <button class="sticker" data-sticker="☁️">☁️</button>
+          <button class="sticker" data-sticker="👑">👑</button>
+          <button class="sticker" data-sticker="GM">GM</button>
+          <button class="sticker" data-sticker="WEN">WEN</button>
+        </div>
+        <div class="hint">This is only the first test. Later we can add draggable stickers, speech bubbles, backgrounds, connected-wallet NFT selection, 16:9 export, and Share on X.</div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="footer">TOTZ Meme Generator • Private preview concept • Not linked from the live Holder Hub</div>
+</div>
+
+<script>
+(() => {
+  const CID = 'QmSuozQEVRcxNSwn7huCb8sZMhqhedENfMNRsYwEVBZm1K';
+  const gateways = [
+    `https://dweb.link/ipfs/${CID}`,
+    `https://ipfs.io/ipfs/${CID}`,
+    `https://gateway.pinata.cloud/ipfs/${CID}`
+  ];
+
+  const canvas = document.getElementById('memeCanvas');
+  const ctx = canvas.getContext('2d');
+  const loading = document.getElementById('loading');
+  const status = document.getElementById('status');
+  const tokenInput = document.getElementById('tokenInput');
+  const tokenChip = document.getElementById('tokenChip');
+  const topText = document.getElementById('topText');
+  const bottomText = document.getElementById('bottomText');
+  const fontSize = document.getElementById('fontSize');
+  const fontSizeValue = document.getElementById('fontSizeValue');
+  const topCount = document.getElementById('topCount');
+  const bottomCount = document.getElementById('bottomCount');
+
+  let image = null;
+  let tokenId = 57;
+  let textColor = 'white';
+  let sticker = '';
+
+  const colorMap = { white:'#ffffff', black:'#17131f', lime:'#cbdb2a' };
+
+  function setStatus(message, error=false){
+    status.textContent = message;
+    status.className = error ? 'status error' : 'status';
+  }
+
+  function validToken(value){
+    const n = Number(value);
+    return Number.isInteger(n) && n >= 1 && n <= 4000 ? n : null;
+  }
+
+  function coverImage(img){
+    const cw = canvas.width, ch = canvas.height;
+    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    ctx.drawImage(img, (cw-w)/2, (ch-h)/2, w, h);
+  }
+
+  function fitLines(text, maxWidth, size){
+    const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    ctx.font = `900 ${size}px Impact, Arial Black, sans-serif`;
+    const lines = [];
+    let line = words[0];
+    for(let i=1;i<words.length;i++){
+      const test = line + ' ' + words[i];
+      if(ctx.measureText(test).width <= maxWidth) line = test;
+      else { lines.push(line); line = words[i]; }
+    }
+    lines.push(line);
+    return lines.slice(0,3);
+  }
+
+  function drawOutlinedLine(text, x, y, size){
+    const fill = colorMap[textColor] || '#fff';
+    const outline = textColor === 'black' ? '#fff' : '#17131f';
+    ctx.font = `900 ${size}px Impact, Arial Black, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(8, size * .12);
+    ctx.strokeStyle = outline;
+    ctx.strokeText(text.toUpperCase(), x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(text.toUpperCase(), x, y);
+  }
+
+  function drawTextBlock(text, fromTop=true){
+    if(!text.trim()) return;
+    const size = Number(fontSize.value);
+    const lines = fitLines(text, canvas.width - 120, size);
+    const lineGap = size * 1.02;
+    const total = (lines.length - 1) * lineGap;
+    let startY = fromTop ? 72 + size/2 : canvas.height - 72 - size/2 - total;
+    lines.forEach((line,i) => drawOutlinedLine(line, canvas.width/2, startY + i*lineGap, size));
+  }
+
+  function drawSticker(){
+    if(!sticker) return;
+    const pad = 22;
+    const x = canvas.width - 56;
+    const y = 58;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.font = sticker === '$TOTZ' || sticker === 'GM' || sticker === 'WEN' ? '900 64px Impact, Arial Black, sans-serif' : '72px serif';
+    const width = ctx.measureText(sticker).width + pad*2;
+    ctx.fillStyle = 'rgba(43,33,64,.88)';
+    roundRect(ctx, x-width, y, width, 104, 28);
+    ctx.fill();
+    ctx.fillStyle = sticker === '$TOTZ' ? '#cbdb2a' : '#fff';
+    ctx.fillText(sticker, x-pad, y+17);
+  }
+
+  function roundRect(c,x,y,w,h,r){
+    const rr=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+rr,y);c.arcTo(x+w,y,x+w,y+h,rr);c.arcTo(x+w,y+h,x,y+h,rr);c.arcTo(x,y+h,x,y,rr);c.arcTo(x,y,x+w,y,rr);c.closePath();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(image) coverImage(image);
+    else { ctx.fillStyle='#bfe6ee'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+    const gradTop = ctx.createLinearGradient(0,0,0,260); gradTop.addColorStop(0,'rgba(0,0,0,.36)'); gradTop.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=gradTop; ctx.fillRect(0,0,canvas.width,280);
+    const gradBottom = ctx.createLinearGradient(0,canvas.height-280,0,canvas.height); gradBottom.addColorStop(0,'rgba(0,0,0,0)'); gradBottom.addColorStop(1,'rgba(0,0,0,.38)'); ctx.fillStyle=gradBottom; ctx.fillRect(0,canvas.height-280,canvas.width,280);
+    drawTextBlock(topText.value,true);
+    drawTextBlock(bottomText.value,false);
+    drawSticker();
+    ctx.fillStyle='rgba(255,255,255,.82)'; ctx.font='800 24px Nunito, Arial, sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText(`TOTZ #${tokenId}`,28,canvas.height-24);
+  }
+
+  async function loadFromGateway(id, index=0){
+    if(index >= gateways.length) throw new Error('Could not load this TOTZ from IPFS. Try another token or try again.');
+    return new Promise((resolve,reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('gateway'));
+      img.src = `${gateways[index]}/${id}`;
+    }).catch(() => loadFromGateway(id,index+1));
+  }
+
+  async function loadToken(value){
+    const id = validToken(value);
+    if(!id){ setStatus('Use a token ID between 1 and 4000.',true); return; }
+    tokenId = id; tokenInput.value = id; tokenChip.textContent = `TOTZ #${id}`;
+    loading.hidden = false; loading.textContent = `Loading TOTZ #${id}...`;
+    try{
+      image = await loadFromGateway(id);
+      render();
+      loading.hidden = true;
+      setStatus(`TOTZ #${id} loaded. Add text and download your meme.`);
+    }catch(e){
+      loading.hidden = true;
+      setStatus(e.message || 'Could not load NFT.',true);
+    }
+  }
+
+  function randomToken(){ const id = Math.floor(Math.random()*4000)+1; loadToken(id); }
+
+  function updateCounters(){ topCount.textContent=`${topText.value.length}/70`; bottomCount.textContent=`${bottomText.value.length}/70`; }
+
+  document.getElementById('loadBtn').onclick = () => loadToken(tokenInput.value);
+  document.getElementById('randomBtn').onclick = randomToken;
+  document.getElementById('randomBottomBtn').onclick = randomToken;
+  tokenInput.addEventListener('keydown', e => { if(e.key==='Enter') loadToken(tokenInput.value); });
+  [topText,bottomText].forEach(el => el.addEventListener('input', () => { updateCounters(); render(); }));
+  fontSize.addEventListener('input', () => { fontSizeValue.textContent=fontSize.value; render(); });
+
+  document.querySelectorAll('[data-color]').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); textColor=btn.dataset.color; render();
+  });
+  document.querySelectorAll('[data-sticker]').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('[data-sticker]').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); sticker=btn.dataset.sticker; render();
+  });
+
+  document.getElementById('resetBtn').onclick = () => { topText.value=''; bottomText.value=''; sticker=''; document.querySelectorAll('[data-sticker]').forEach(b=>b.classList.toggle('active',b.dataset.sticker==='')); updateCounters(); render(); };
+
+  document.getElementById('downloadBtn').onclick = () => {
+    try{
+      render();
+      const a = document.createElement('a');
+      a.download = `TOTZ-${tokenId}-meme.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      setStatus('PNG generated successfully.');
+    }catch(e){
+      setStatus('Export was blocked by the image gateway. The final version can use our own lightweight image proxy to guarantee downloads.',true);
+    }
+  };
+
+  topText.value='WHEN YOU STAKE YOUR TOTZ';
+  bottomText.value='AND THE CLOUD STARTS PRINTING $TOTZ';
+  updateCounters();
+  loadToken(57);
+})();
+</script>
+</body>
+</html>
