@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ — Rewards Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://ipfs.io" crossorigin>
+<link rel="preconnect" href="https://dweb.link" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--cloud:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF7A66;--coral2:#F0533D;--shadow:0 14px 32px rgba(43,33,64,.12)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif}h1,h2,h3,.logo{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}.wrap{max-width:1180px;margin:auto;padding:0 5vw 70px}nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}.logo{font-size:1.6rem;font-weight:800;display:flex;gap:10px;align-items:center}.dot{width:14px;height:14px;background:var(--coral);border-radius:50%}.nav-actions{display:flex;gap:10px;align-items:center}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 15px;font-weight:800;font-size:.88rem}.pill.dark{background:var(--ink);color:var(--cream)}
+.hero{text-align:center;padding:48px 0 28px}.eyebrow{display:inline-flex;background:var(--lime);padding:7px 14px;border-radius:999px;font-weight:900;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}.hero h1{font-size:clamp(2.6rem,6vw,4.8rem);line-height:.98;margin:18px auto 12px;max-width:850px}.hero h1 span{color:var(--coral2)}.hero p{max-width:720px;margin:auto;color:var(--soft);font-size:1.06rem;font-weight:700;line-height:1.6}.safe{display:inline-flex;gap:8px;align-items:center;margin-top:18px;background:#fff;border-radius:999px;padding:9px 14px;font-weight:800;box-shadow:var(--shadow);font-size:.86rem}
+.connect-card{background:#fff;border:2.5px solid var(--sky2);border-radius:30px;box-shadow:var(--shadow);padding:28px;margin:28px auto;max-width:920px}.connect-top{display:flex;justify-content:space-between;gap:20px;align-items:center}.connect-copy h2{margin:0;font-size:1.7rem}.connect-copy p{margin:5px 0 0;color:var(--soft);font-weight:700}.wallet-chip{font-family:monospace;background:var(--ink);color:white;padding:7px 11px;border-radius:999px;font-size:.83rem}.btn{border:0;cursor:pointer;font-family:'Baloo 2',cursive;font-weight:800;border-radius:999px;padding:14px 24px;font-size:1rem}.btn.primary{background:var(--coral);color:white;box-shadow:0 7px 0 var(--coral2)}.btn.primary:active{transform:translateY(3px);box-shadow:0 4px 0 var(--coral2)}.btn:disabled{opacity:.48;cursor:not-allowed;box-shadow:none}.status{margin-top:17px;background:var(--cream);border-radius:18px;padding:14px 16px;font-weight:800;display:none}.status.show{display:block}.status.error{background:#ffe0dc;color:#8b2b1f}.status.ok{background:#eef6c9}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 38px}.stat{background:#fff;border-radius:22px;padding:20px;box-shadow:var(--shadow)}.stat small{font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.06em}.stat strong{display:block;font-family:'Baloo 2';font-size:1.8rem;margin-top:4px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin:38px 0 16px}.section-head h2{margin:0;font-size:2rem}.section-head p{margin:3px 0 0;color:var(--soft);font-weight:700}.badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:var(--sky);font-size:.75rem;font-weight:900}.raffles{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}.raffle-card{background:#fff;border-radius:26px;overflow:hidden;box-shadow:var(--shadow);border:2px solid rgba(142,210,226,.8)}.prize-media{aspect-ratio:16/9;background:linear-gradient(145deg,var(--sky),var(--cream2));display:grid;place-items:center;position:relative;overflow:hidden}.prize-media img{width:100%;height:100%;object-fit:cover}.prize-placeholder{font-size:5rem;filter:drop-shadow(0 8px 10px rgba(43,33,64,.12))}.beta-badge{position:absolute;top:14px;left:14px;background:#fff2af;border:1px solid #dfc74f;border-radius:999px;padding:6px 10px;font-size:.72rem;font-weight:900}.raffle-body{padding:20px}.raffle-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.type-badge{display:inline-flex;background:var(--ink);color:#fff;border-radius:999px;padding:4px 8px;font-size:.68rem;font-weight:900;letter-spacing:.06em}.raffle-top h3{font-size:1.5rem;line-height:1.05;margin:7px 0 0}.cost-badge{white-space:nowrap;background:var(--lime);border-radius:999px;padding:7px 10px;font-size:.76rem;font-weight:900}.prize-name{font-weight:900;margin:14px 0 5px}.raffle-desc{color:var(--soft);font-weight:700;line-height:1.5;margin:0 0 16px}.raffle-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.raffle-info span{background:var(--cream);border-radius:14px;padding:11px}.raffle-info b{display:block;color:var(--soft);font-size:.72rem;text-transform:uppercase}.raffle-info strong{display:block;margin-top:3px;font-size:.93rem}.entry-box{display:flex;justify-content:space-between;gap:14px;align-items:center;border-top:1px dashed var(--sky2);padding-top:16px;margin-top:16px}.qty-control{display:grid;grid-template-columns:38px 58px 38px;border:2px solid var(--sky2);border-radius:999px;overflow:hidden}.qty-control button,.qty-control input{border:0;background:white;text-align:center;font-weight:900;color:var(--ink);font-family:'Nunito';font-size:1rem}.qty-control button{cursor:pointer}.qty-control input{width:100%;outline:none;-moz-appearance:textfield}.qty-control input::-webkit-outer-spin-button,.qty-control input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.entry-total{text-align:right}.entry-total small{display:block;color:var(--soft);font-size:.68rem;font-weight:900}.entry-total strong{display:block;font-family:'Baloo 2';font-size:1.25rem}.enter-btn{width:100%;margin-top:14px}.fine-note{text-align:center;color:var(--soft);font-size:.77rem;font-weight:700;margin:10px 0 0}.empty{background:#fff;border:2px dashed var(--sky2);border-radius:24px;padding:42px;text-align:center;color:var(--soft);font-weight:800;grid-column:1/-1}.footer{text-align:center;margin-top:60px;color:var(--soft);font-weight:700;font-size:.85rem}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.raffles{grid-template-columns:1fr}.connect-top{align-items:flex-start;flex-direction:column}.connect-top .btn{width:100%}}@media(max-width:560px){.nav-actions .pill:first-child{display:none}.stats{grid-template-columns:1fr 1fr}.hero{padding-top:25px}.connect-card{padding:20px}.raffle-top,.entry-box{align-items:stretch;flex-direction:column}.cost-badge{align-self:flex-start}.entry-total{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <a class="logo" href="index.html"><span class="dot"></span>TOTZ</a>
+  <div class="nav-actions"><a class="pill" href="staking.html">Staking</a><a class="pill dark" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">Follow on X</a></div>
+</nav>
+<section class="hero">
+  <span class="eyebrow">🎟️ Spend your PTS</span>
+  <h1>Earn with TOTZ. <span>Use your points.</span></h1>
+  <p>Your staking PTS are your reward balance. Use them for raffles and future holder perks without sending a transaction.</p>
+  <div class="safe">🔒 Wallet signature only · No gas · No NFT transfer</div>
+</section>
+<section class="connect-card">
+  <div class="connect-top">
+    <div class="connect-copy"><h2 id="connectTitle">Connect your wallet</h2><p id="connectSub">Load your TOTZ points and available rewards.</p></div>
+    <button id="connectBtn" class="btn primary">CONNECT WALLET</button>
+  </div>
+  <div id="status" class="status"></div>
+</section>
+<section id="dashboard" hidden>
+  <div class="stats">
+    <div class="stat"><small>Available PTS</small><strong id="availableStat">0</strong></div>
+    <div class="stat"><small>Lifetime Earned</small><strong id="earnedStat">0</strong></div>
+    <div class="stat"><small>PTS Spent</small><strong id="spentStat">0</strong></div>
+    <div class="stat"><small>Raffle Entries</small><strong id="entriesStat">0</strong></div>
+  </div>
+  <div class="section-head"><div><h2>Rewards</h2><p>Choose how you want to use your PTS.</p></div><span class="badge">MORE REWARDS COMING</span></div>
+  <div id="raffleGrid" class="raffles"><div class="empty">Connect your wallet to load raffles.</div></div>
+</section>
+<div class="footer">© 2026 TOTZ · PTS are off-chain reward points and are not transferable tokens.</div>
+</div>
+<script src="rewards.js"></script>
+<script src="rewards-image-hotfix.js"></script>
+</body>
+</html>

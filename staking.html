@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ — Soft Staking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://ipfs.io" crossorigin>
+<link rel="preconnect" href="https://dweb.link" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--cloud:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF7A66;--coral2:#F0533D;--shadow:0 14px 32px rgba(43,33,64,.12)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif}h1,h2,h3,.logo,.display{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}.wrap{max-width:1180px;margin:auto;padding:0 5vw 70px}.cloud-field{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:-1}.cloud-field img{position:absolute;opacity:.12;filter:grayscale(1);animation:drift 48s linear infinite}.cloud-field img:nth-child(1){width:120px;top:12%;left:-12%}.cloud-field img:nth-child(2){width:80px;top:55%;left:-20%;animation-delay:-16s}.cloud-field img:nth-child(3){width:150px;top:75%;left:-25%;animation-delay:-30s}@keyframes drift{to{transform:translateX(135vw)}}
+nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}.logo{font-size:1.6rem;font-weight:800;display:flex;gap:10px;align-items:center}.dot{width:14px;height:14px;background:var(--coral);border-radius:50%}.nav-actions{display:flex;gap:10px;align-items:center}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 15px;font-weight:800;font-size:.88rem}.pill.dark{background:var(--ink);color:var(--cream)}
+.hero{text-align:center;padding:48px 0 34px}.eyebrow{display:inline-flex;background:var(--lime);padding:7px 14px;border-radius:999px;font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}.hero h1{font-size:clamp(2.5rem,6vw,4.8rem);line-height:.98;margin:18px auto 14px;max-width:830px}.hero h1 span{color:var(--coral2)}.hero p{max-width:700px;margin:auto;color:var(--soft);font-size:1.08rem;font-weight:700;line-height:1.6}.safe{display:inline-flex;gap:8px;align-items:center;margin-top:18px;background:#fff;border-radius:999px;padding:9px 14px;font-weight:800;box-shadow:var(--shadow);font-size:.86rem}
+.connect-card{background:var(--cloud);border:2.5px solid var(--sky2);border-radius:30px;box-shadow:var(--shadow);padding:28px;margin:28px auto;max-width:920px}.connect-top{display:flex;justify-content:space-between;gap:20px;align-items:center}.connect-copy h2{margin:0;font-size:1.7rem}.connect-copy p{margin:5px 0 0;color:var(--soft);font-weight:700}.btn{border:0;cursor:pointer;font-family:'Baloo 2',cursive;font-weight:800;border-radius:999px;padding:14px 24px;font-size:1rem}.btn.primary{background:var(--coral);color:white;box-shadow:0 7px 0 var(--coral2)}.btn.primary:active{transform:translateY(3px);box-shadow:0 4px 0 var(--coral2)}.btn.ghost{background:var(--cream);border:2px solid var(--ink);color:var(--ink)}.btn:disabled{opacity:.45;cursor:not-allowed}.status{margin-top:17px;background:var(--cream);border-radius:18px;padding:14px 16px;font-weight:800;display:none}.status.show{display:block}.status.error{background:#ffe0dc;color:#8b2b1f}.status.ok{background:#eef6c9}.wallet-chip{font-family:monospace;background:var(--ink);color:white;padding:7px 11px;border-radius:999px;font-size:.83rem}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0}.stat{background:white;border-radius:22px;padding:20px;box-shadow:var(--shadow)}.stat small{font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.06em}.stat strong{display:block;font-family:'Baloo 2';font-size:1.8rem;margin-top:4px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin:38px 0 16px}.section-head h2{margin:0;font-size:2rem}.section-head p{margin:3px 0 0;color:var(--soft);font-weight:700}.nfts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.nft{background:white;border-radius:24px;box-shadow:var(--shadow);overflow:hidden;border:2px solid transparent}.nft.staked{border-color:var(--lime)}.nft-media{aspect-ratio:1;background:linear-gradient(145deg,var(--sky),var(--cream2));display:grid;place-items:center;overflow:hidden}.nft-media img{width:100%;height:100%;object-fit:cover}.nft-placeholder{font-family:'Baloo 2';font-weight:800;font-size:2rem;color:var(--soft)}.nft-body{padding:17px}.nft-title{display:flex;justify-content:space-between;gap:8px;align-items:center}.nft-title h3{margin:0;font-size:1.2rem}.rate{font-size:.76rem;background:var(--lime);padding:5px 9px;border-radius:999px;font-weight:900}.nft-meta{margin:8px 0 14px;color:var(--soft);font-size:.9rem;font-weight:700}.nft-actions{display:flex;gap:9px}.nft-actions .btn{padding:10px 15px;font-size:.88rem;flex:1}.empty{background:white;border:2px dashed var(--sky2);border-radius:24px;padding:38px;text-align:center;color:var(--soft);font-weight:800;grid-column:1/-1}.manual{display:none;margin-top:18px;padding-top:18px;border-top:1px dashed var(--sky2)}.manual.show{display:block}.manual-row{display:flex;gap:10px}.manual input{flex:1;border:2px solid var(--sky2);border-radius:999px;padding:13px 16px;font:700 1rem 'Nunito';outline:0}.fine{font-size:.82rem;color:var(--soft);font-weight:700;line-height:1.5}.badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:var(--sky);font-size:.75rem;font-weight:900}.footer{text-align:center;margin-top:60px;color:var(--soft);font-weight:700;font-size:.85rem}.preview{background:#fff2af;border:1px solid #dfc74f;padding:10px 14px;border-radius:14px;margin:0 auto 20px;max-width:900px;font-weight:800;text-align:center;display:none}.preview.show{display:block}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.nfts{grid-template-columns:repeat(2,1fr)}.connect-top{align-items:flex-start;flex-direction:column}.connect-top .btn{width:100%}}@media(max-width:560px){.nav-actions .pill:first-child{display:none}.nfts{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.hero{padding-top:25px}.connect-card{padding:20px}.manual-row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="cloud-field"><img src="assets/totz-logo.png"><img src="assets/totz-logo.png"><img src="assets/totz-logo.png"></div>
+<div class="wrap">
+<nav><a class="logo" href="index.html"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="index.html">Home</a><a class="pill dark" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">Follow on X</a></div></nav>
+<section class="hero"><span class="eyebrow">☁️ Holder rewards</span><h1>Keep your TOTZ. <span>Earn while you hold.</span></h1><p>Soft stake without transferring your NFT. Your TOTZ stays in your wallet, you can unstake anytime, and rewards stop if ownership changes.</p><div class="safe">🔒 No NFT approval · No NFT transfer</div></section>
+<div id="preview" class="preview">BETA MODE — the TOTZ contract is connected. Database rewards activate after the Supabase staking table is installed.</div>
+<section class="connect-card">
+  <div class="connect-top"><div class="connect-copy"><h2 id="connectTitle">Connect your wallet</h2><p id="connectSub">We check your TOTZ directly on Robinhood Chain.<br><span style="font-size:.78rem;opacity:.72">Contract: 0x107c…9d5a</span></p></div><button id="connectBtn" class="btn primary">CONNECT WALLET</button></div>
+  <div id="status" class="status"></div>
+  <div id="manual" class="manual"><p class="fine"><b>Collection detected, but token enumeration is not available yet.</b> Enter a token ID you own; the server will verify <code>ownerOf()</code> before staking.</p><div class="manual-row"><input id="tokenIdInput" inputmode="numeric" placeholder="Token ID, e.g. 2841"><button id="loadTokenBtn" class="btn ghost">VERIFY NFT</button></div></div>
+</section>
+<section id="dashboard" hidden>
+<div class="stats"><div class="stat"><small>Wallet</small><strong id="walletStat" style="font-size:1rem;margin-top:10px">—</strong></div><div class="stat"><small>TOTZ owned</small><strong id="ownedStat">0</strong></div><div class="stat"><small>Staked</small><strong id="stakedStat">0</strong></div><div class="stat"><small>Live points</small><strong id="pointsStat">0</strong></div></div>
+<div class="section-head"><div><h2>My TOTZ</h2><p>Select the ones you want to soft stake.</p></div><span class="badge">100 PTS / DAY / NFT</span></div>
+<div id="nftGrid" class="nfts"><div class="empty">Connect your wallet to load your TOTZ.</div></div>
+</section>
+<div class="footer">© 2026 TOTZ · Soft staking never asks for NFT transfer approval.</div>
+</div>
+<script src="staking.js"></script>
+<script>
+(() => {
+  const cid = 'QmSuozQEVRcxNSwn7huCb8sZMhqhedENfMNRsYwEVBZm1K';
+  const gateways = [
+    'https://ipfs.io/ipfs',
+    'https://dweb.link/ipfs',
+    'https://gateway.pinata.cloud/ipfs'
+  ];
+
+  const ipfsImage = (tokenId, gatewayIndex = 0) => `${gateways[gatewayIndex]}/${cid}/${Number(tokenId)}`;
+
+  window.thumbUrl = (tokenId) => ipfsImage(tokenId, 0);
+
+  document.addEventListener('error', (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement) || !img.closest('.nft-media')) return;
+
+    const card = img.closest('.nft');
+    const tokenId = card?.dataset.tokenId;
+    const current = Number(img.dataset.ipfsGateway || 0);
+    const next = current + 1;
+    if (!tokenId || next >= gateways.length) return;
+
+    const placeholder = card.querySelector('.nft-placeholder');
+    img.dataset.ipfsGateway = String(next);
+    img.addEventListener('load', () => {
+      img.style.display = '';
+      if (placeholder) placeholder.style.display = 'none';
+    }, { once: true });
+    img.src = ipfsImage(tokenId, next);
+  }, true);
+})();
+</script>
+<script src="staking-hotfix.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ — Rewards Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--cloud:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF7A66;--coral2:#F0533D;--shadow:0 14px 32px rgba(43,33,64,.12)}
+*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif}h1,h2,h3,.logo{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}.wrap{max-width:1180px;margin:auto;padding:0 5vw 70px}nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}.logo{font-size:1.6rem;font-weight:800;display:flex;gap:10px;align-items:center}.dot{width:14px;height:14px;background:var(--coral);border-radius:50%}.nav-actions{display:flex;gap:10px}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 15px;font-weight:800;font-size:.88rem}.pill.dark{background:var(--ink);color:var(--cream)}
+.hero{text-align:center;padding:42px 0 24px}.eyebrow{display:inline-flex;background:var(--lime);padding:7px 14px;border-radius:999px;font-weight:900;font-size:.78rem}.hero h1{font-size:clamp(2.5rem,6vw,4.4rem);line-height:1;margin:16px 0 10px}.hero h1 span{color:var(--coral2)}.hero p{color:var(--soft);font-weight:700}.card{background:#fff;border:2.5px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow);padding:24px;margin:20px 0}.connect-row{display:flex;justify-content:space-between;gap:18px;align-items:center}.btn{border:0;cursor:pointer;font-family:'Baloo 2';font-weight:800;border-radius:999px;padding:12px 20px;font-size:.95rem}.btn.primary{background:var(--coral);color:#fff;box-shadow:0 6px 0 var(--coral2)}.btn.dark{background:var(--ink);color:#fff}.btn.ghost{background:var(--cream);border:2px solid var(--ink);color:var(--ink)}.btn.sky{background:var(--sky);color:var(--ink)}.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}.status{display:none;margin-top:14px;border-radius:16px;padding:13px 15px;font-weight:800}.status.show{display:block}.status.ok{background:#eef6c9}.status.error{background:#ffe0dc;color:#8b2b1f}.wallet-chip{font-family:monospace;background:var(--ink);color:#fff;padding:7px 11px;border-radius:999px;font-size:.82rem}
+.dashboard{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;align-items:start}.form-card{position:sticky;top:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:.78rem;font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}.field input,.field textarea{border:2px solid var(--sky2);border-radius:14px;padding:11px 12px;font:700 .95rem 'Nunito';outline:none;background:#fff}.field textarea{min-height:90px;resize:vertical}.check{display:flex;align-items:center;gap:8px;font-weight:800}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.preview{margin-top:12px;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,var(--sky),var(--cream2));aspect-ratio:16/9;display:grid;place-items:center}.preview img{width:100%;height:100%;object-fit:cover}.preview span{font-size:3rem}.list-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.raffle-list{display:grid;gap:14px}.raffle{background:#fff;border:2px solid var(--sky2);border-radius:22px;padding:16px;box-shadow:var(--shadow)}.raffle-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.raffle h3{margin:0;font-size:1.25rem;line-height:1.1}.meta{color:var(--soft);font-weight:700;font-size:.86rem;line-height:1.5;margin-top:7px}.tag{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:.72rem;font-weight:900;background:var(--cream)}.tag.on{background:#eef6c9}.tag.off{background:#ffe0dc}.raffle-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.raffle-actions .btn{padding:8px 13px;font-size:.8rem}.empty{padding:28px;text-align:center;color:var(--soft);font-weight:800;border:2px dashed var(--sky2);border-radius:20px;background:#fff}
+@media(max-width:900px){.dashboard{grid-template-columns:1fr}.form-card{position:static}}@media(max-width:600px){.connect-row,.raffle-top{flex-direction:column;align-items:stretch}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.nav-actions .pill:first-child{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a class="logo" href="index.html"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="rewards.html">Rewards</a><a class="pill dark" href="staking.html">Staking</a></div></nav>
+<section class="hero"><span class="eyebrow">🛠️ ADMIN ONLY</span><h1>Rewards <span>Control Room</span></h1><p>Create and edit raffles without touching the code.</p></section>
+<section class="card"><div class="connect-row"><div><h2 id="connectTitle" style="margin:0">Connect Admin Wallet</h2><p id="connectSub" style="margin:4px 0 0;color:var(--soft);font-weight:700">Admin actions require a wallet signature.</p></div><button id="connectBtn" class="btn primary">CONNECT ADMIN</button></div><div id="status" class="status"></div></section>
+<section id="adminArea" hidden class="dashboard">
+  <div class="card form-card">
+    <div class="list-head"><div><h2 id="formTitle" style="margin:0">New Raffle</h2><div class="meta">Create a new reward or edit an existing one.</div></div><button id="newBtn" class="btn sky">NEW</button></div>
+    <form id="raffleForm">
+      <input id="raffleId" type="hidden">
+      <div class="form-grid" style="margin-top:16px">
+        <div class="field full"><label>Title</label><input id="title" maxlength="120" placeholder="Community NFT Raffle" required></div>
+        <div class="field full"><label>Description</label><textarea id="description" maxlength="1200" placeholder="Describe the reward..."></textarea></div>
+        <div class="field full"><label>Prize Name</label><input id="prizeName" maxlength="160" placeholder="TOTZ #123" required></div>
+        <div class="field full"><label>Prize Image URL</label><input id="prizeImageUrl" maxlength="2048" placeholder="https://... or IPFS gateway URL"></div>
+        <div class="field"><label>PTS / Entry</label><input id="entryCost" type="number" min="0.001" step="0.001" value="10" required></div>
+        <div class="field"><label>Max Entries / Wallet</label><input id="maxEntries" type="number" min="1" step="1" placeholder="Blank = Unlimited"></div>
+        <div class="field"><label>Starts At</label><input id="startsAt" type="datetime-local" required></div>
+        <div class="field"><label>Ends At</label><input id="endsAt" type="datetime-local" required></div>
+        <div class="field full"><label class="check"><input id="active" type="checkbox"> Publish / Active</label></div>
+      </div>
+      <div class="preview" id="imagePreview"><span>🎟️</span></div>
+      <div class="actions"><button id="saveBtn" class="btn primary" type="submit">CREATE RAFFLE</button><button id="cancelBtn" class="btn ghost" type="button">CLEAR</button></div>
+    </form>
+  </div>
+  <div>
+    <div class="list-head" style="margin-bottom:12px"><div><h2 style="margin:0">Your Rewards</h2><div class="meta">Edit, pause or reactivate any raffle.</div></div><button id="refreshBtn" class="btn sky">REFRESH</button></div>
+    <div id="raffleList" class="raffle-list"><div class="empty">Connect admin wallet to load rewards.</div></div>
+  </div>
+</section>
+</div>
+<script src="rewards-admin.js"></script>
+<script src="rewards-admin-status-hotfix.js"></script>
+</body>
+</html>
