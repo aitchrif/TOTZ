@@ -75,36 +75,56 @@
 
     ${(isStaking || isRewards) ? `
       .totz-section-dock{
-        position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:9998;
+        position:fixed;left:18px;top:50%;transform:translateY(-50%);z-index:9998;
         display:flex;flex-direction:column;gap:7px;padding:7px;
-        width:94px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
-        border:2px solid var(--sky2,#8ED2E2);border-radius:20px;
-        box-shadow:0 12px 30px rgba(43,33,64,.14)
+        width:116px;background:rgba(255,255,255,.93);backdrop-filter:blur(14px);
+        -webkit-backdrop-filter:blur(14px);
+        border:2px solid var(--sky2,#8ED2E2);border-radius:22px;
+        box-shadow:0 14px 34px rgba(43,33,64,.16)
+      }
+      .totz-section-dock::before{
+        content:'TOTZ';display:block;text-align:center;padding:3px 4px 1px;
+        color:var(--soft,#5B5270);font-family:'Baloo 2',cursive;font-size:.62rem;
+        font-weight:900;letter-spacing:.14em
       }
       .totz-section-dock a{
-        min-height:42px;display:flex;align-items:center;justify-content:flex-start;gap:7px;
-        padding:7px 9px;border-radius:13px;color:var(--ink,#2B2140);
-        font-family:'Nunito',sans-serif;font-size:.7rem;font-weight:900;letter-spacing:.02em;
-        transition:transform .14s ease,background .14s ease,color .14s ease
+        position:relative;min-height:43px;display:flex;align-items:center;justify-content:flex-start;gap:8px;
+        padding:8px 10px;border-radius:14px;color:var(--ink,#2B2140);
+        font-family:'Nunito',sans-serif;font-size:.69rem;font-weight:900;letter-spacing:.025em;
+        transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease
       }
-      .totz-section-dock a:hover{transform:translateY(-1px);background:var(--cream,#FFF3DC)}
-      .totz-section-dock a.active{background:var(--ink,#2B2140);color:#fff}
-      .totz-section-dock .dock-icon{font-size:1.05rem;line-height:1;flex:0 0 auto}
+      .totz-section-dock a:hover{transform:translateX(2px);background:var(--cream,#FFF3DC)}
+      .totz-section-dock a.active{
+        background:var(--ink,#2B2140);color:#fff;box-shadow:0 6px 15px rgba(43,33,64,.18)
+      }
+      .totz-section-dock a.active::before{
+        content:'';position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+        width:5px;height:22px;border-radius:999px;background:var(--coral,#FF7A66)
+      }
+      .totz-section-dock .dock-icon{
+        width:25px;height:25px;display:grid;place-items:center;flex:0 0 25px;
+        border-radius:9px;background:var(--cream,#FFF3DC);font-size:.9rem;line-height:1
+      }
+      .totz-section-dock a.active .dock-icon{background:rgba(255,255,255,.14)}
       .totz-section-dock .dock-label{white-space:nowrap}
 
-      @media(max-width:1240px) and (min-width:721px){
-        .totz-section-dock{width:50px;right:8px;padding:5px;border-radius:17px}
-        .totz-section-dock a{justify-content:center;padding:7px;min-height:40px}
+      @media(max-width:1280px) and (min-width:721px){
+        .totz-section-dock{width:54px;left:9px;padding:6px;border-radius:18px}
+        .totz-section-dock::before{font-size:.5rem;letter-spacing:.05em}
+        .totz-section-dock a{justify-content:center;padding:7px;min-height:42px}
+        .totz-section-dock a.active::before{left:-9px;height:18px}
         .totz-section-dock .dock-label{display:none}
       }
       @media(max-width:720px){
         body{padding-bottom:72px!important}
         .totz-section-dock{
-          top:auto;right:50%;bottom:10px;transform:translateX(50%);
-          width:auto;min-width:214px;flex-direction:row;justify-content:center;
-          padding:6px;border-radius:18px
+          top:auto;left:50%;bottom:10px;transform:translateX(-50%);
+          width:auto;min-width:220px;flex-direction:row;justify-content:center;
+          padding:6px;border-radius:19px;gap:5px
         }
-        .totz-section-dock a{min-width:96px;min-height:40px;justify-content:center;padding:7px 11px}
+        .totz-section-dock::before{display:none}
+        .totz-section-dock a{min-width:99px;min-height:41px;justify-content:center;padding:7px 11px}
+        .totz-section-dock a.active::before{left:50%;top:auto;bottom:-7px;transform:translateX(-50%);width:28px;height:4px}
         .totz-section-dock .dock-label{display:inline}
       }
     ` : ''}
