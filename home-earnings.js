@@ -4,7 +4,7 @@
   const ECONOMY_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-staking-economy';
   let base = 1;
   let legendary = 1.5;
-  let one = 1.75;
+  const LEGENDARY_SUPPLY = 36;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -15,7 +15,7 @@
     .earnings-top .section-head p{margin-bottom:0}
     .live-economy{display:inline-flex;align-items:center;gap:7px;background:var(--lime,#CBDB2A);padding:8px 12px;border-radius:999px;font-size:.72rem;font-weight:900;white-space:nowrap}
     .live-economy::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--coral-deep,#F0533D);box-shadow:0 0 0 4px rgba(240,83,61,.12)}
-    .rate-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .rate-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     .rate-card{background:var(--cream,#FFF3DC);border:1.5px solid rgba(43,33,64,.08);border-radius:20px;padding:18px}
     .rate-card .rate-label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--ink-soft,#5B5270);font-size:.73rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
     .rate-card strong{display:block;font-family:'Baloo 2',cursive;font-size:1.7rem;line-height:1;margin-top:9px;color:var(--ink,#2B2140)}
@@ -30,7 +30,7 @@
     .calc-card{background:var(--cream,#FFF3DC)}
     .calc-card h3,.calc-result h3{font-size:1.32rem;margin:0 0 4px;font-family:'Baloo 2',cursive}
     .calc-sub{margin:0 0 16px;color:var(--ink-soft,#5B5270);font-size:.79rem;font-weight:750;line-height:1.45}
-    .calc-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+    .calc-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
     .calc-field label,.calc-loyalty label{display:block;margin-bottom:5px;color:var(--ink-soft,#5B5270);font-size:.68rem;font-weight:900;text-transform:uppercase;letter-spacing:.045em}
     .calc-field input,.calc-loyalty select{width:100%;height:46px;border:2px solid rgba(43,33,64,.13);background:#fff;color:var(--ink,#2B2140);border-radius:13px;padding:0 12px;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:900;outline:none}
     .calc-field input:focus,.calc-loyalty select:focus{border-color:var(--sky-deep,#8ED2E2);box-shadow:0 0 0 3px rgba(142,210,226,.17)}
@@ -65,7 +65,7 @@
         <div class="section-head">
           <span class="eyebrow">⚡ $TOTZ EARNINGS</span>
           <h2>Know your rate.</h2>
-          <p>Every staked TOTZ starts from the same base economy, with extra weight for special tiers and longer continuous staking streaks.</p>
+          <p>Regular TOTZ earn the base rate. The 36 Legendary TOTZ are the collection's unique 1/1s and receive one special multiplier.</p>
         </div>
         <span class="live-economy" id="economyStatus">LIVE ECONOMY</span>
       </div>
@@ -77,14 +77,9 @@
           <p>Standard earning rate for every regular TOTZ while soft staked.</p>
         </article>
         <article class="rate-card">
-          <div class="rate-label"><span>Legendary</span><span class="rate-tag" id="legendaryMult">1.5×</span></div>
+          <div class="rate-label"><span>Legendary · 1/1</span><span class="rate-tag" id="legendaryMult">1.5×</span></div>
           <strong><span id="legendaryRate">1.5</span> / day</strong>
-          <p>Legendary TOTZ earn a visible boost while keeping the economy balanced.</p>
-        </article>
-        <article class="rate-card">
-          <div class="rate-label"><span>1/1 TOTZ</span><span class="rate-tag" id="oneMult">1.75×</span></div>
-          <strong><span id="oneRate">1.75</span> / day</strong>
-          <p>The rarest staking tier receives the strongest special multiplier.</p>
+          <p>There are <strong style="display:inline;font:inherit">36 Legendary TOTZ</strong>. Each is a unique 1/1 and earns the Legendary boost.</p>
         </article>
       </div>
 
@@ -98,19 +93,15 @@
       <div class="calc-layout">
         <div class="calc-card">
           <h3>Earnings calculator</h3>
-          <p class="calc-sub">Enter the TOTZ you plan to stake and choose a streak tier to estimate your earning rate.</p>
+          <p class="calc-sub">Enter the Regular and Legendary TOTZ you plan to stake, then choose a streak tier.</p>
           <div class="calc-fields">
             <div class="calc-field">
               <label for="calcRegular">Regular</label>
               <input id="calcRegular" type="number" min="0" max="4000" step="1" value="1" inputmode="numeric">
             </div>
             <div class="calc-field">
-              <label for="calcLegendary">Legendary</label>
-              <input id="calcLegendary" type="number" min="0" max="4000" step="1" value="0" inputmode="numeric">
-            </div>
-            <div class="calc-field">
-              <label for="calcOne">1/1</label>
-              <input id="calcOne" type="number" min="0" max="4000" step="1" value="0" inputmode="numeric">
+              <label for="calcLegendary">Legendary · 1/1 (max 36)</label>
+              <input id="calcLegendary" type="number" min="0" max="36" step="1" value="0" inputmode="numeric">
             </div>
           </div>
           <div class="calc-loyalty">
@@ -146,20 +137,19 @@
 
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
-  const count = (id) => Math.max(0, Math.min(4000, Math.floor(Number($(id)?.value || 0))));
+  const regularCount = () => Math.max(0, Math.min(4000, Math.floor(Number($('calcRegular')?.value || 0))));
+  const legendaryCount = () => Math.max(0, Math.min(LEGENDARY_SUPPLY, Math.floor(Number($('calcLegendary')?.value || 0))));
 
   function refreshCalculator() {
     const loyalty = Math.max(1, Number($('calcLoyalty')?.value || 1));
-    const dailyBase = count('calcRegular') * base
-      + count('calcLegendary') * base * legendary
-      + count('calcOne') * base * one;
+    const dailyBase = regularCount() * base + legendaryCount() * base * legendary;
     const daily = dailyBase * loyalty;
     $('calcDaily').textContent = fmt(daily);
     $('calcWeekly').textContent = fmt(daily * 7);
     $('calcMonthly').textContent = fmt(daily * 30);
   }
 
-  ['calcRegular', 'calcLegendary', 'calcOne', 'calcLoyalty'].forEach((id) => {
+  ['calcRegular', 'calcLegendary', 'calcLoyalty'].forEach((id) => {
     $(id)?.addEventListener(id === 'calcLoyalty' ? 'change' : 'input', refreshCalculator);
   });
 
@@ -171,12 +161,9 @@
       const economy = data.economy || {};
       base = Number(economy.baseRatePerDay || 1);
       legendary = Number(economy.specialTiers?.legendary?.multiplier || 1.5);
-      one = Number(economy.specialTiers?.one_of_one?.multiplier || 1.75);
       $('regularRate').textContent = fmt(base);
       $('legendaryMult').textContent = `${fmt(legendary)}×`;
       $('legendaryRate').textContent = fmt(base * legendary);
-      $('oneMult').textContent = `${fmt(one)}×`;
-      $('oneRate').textContent = fmt(base * one);
       $('economyStatus').textContent = 'LIVE ECONOMY';
     } catch (_) {
       $('economyStatus').textContent = 'CURRENT ECONOMY';
