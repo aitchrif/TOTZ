@@ -139,6 +139,38 @@
     document.body.appendChild(dock);
   }
 
+  async function silentStakingConnect() {
+    if (!isStaking || !window.ethereum) return;
+    try {
+      if (typeof wallet !== 'undefined' && wallet) return;
+      if (typeof loadPortfolio !== 'function') return;
+
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts?.length) return;
+
+      wallet = accounts[0].toLowerCase();
+
+      const walletButton = document.getElementById('connectBtn');
+      if (walletButton && typeof shortWallet === 'function') walletButton.textContent = shortWallet(wallet);
+
+      const title = document.getElementById('connectTitle');
+      if (title) title.textContent = 'Wallet connected';
+
+      const sub = document.getElementById('connectSub');
+      if (sub && typeof shortWallet === 'function') {
+        sub.innerHTML = `Your TOTZ stay in <span class="wallet-chip">${shortWallet(wallet)}</span>. Nothing is transferred.`;
+      }
+
+      const dash = document.getElementById('dashboard');
+      if (dash) dash.hidden = false;
+
+      if (typeof showStatus === 'function') showStatus('Connected. Loading your TOTZ…', 'ok');
+      await loadPortfolio(true);
+    } catch (_) {
+      // Silent reconnect should never interrupt the user or open a wallet prompt.
+    }
+  }
+
   function rewriteTextNode(node) {
     if (!node || node.nodeType !== Node.TEXT_NODE) return;
     const parent = node.parentElement;
@@ -164,6 +196,14 @@
 
   installSectionDock();
   rewrite(document.body);
+
+  if (isStaking) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(silentStakingConnect, 0), { once:true });
+    } else {
+      setTimeout(silentStakingConnect, 0);
+    }
+  }
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
