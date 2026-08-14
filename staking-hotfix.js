@@ -42,7 +42,7 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   }
 };
 
-// Rewards Hub integration: staking PTS are a persistent wallet balance.
+// Rewards Hub integration: staking rewards are a persistent wallet balance.
 (() => {
   const REWARDS_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-rewards';
 
@@ -58,7 +58,7 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
 
   const pointsEl = document.getElementById('pointsStat');
   const pointsLabel = pointsEl?.parentElement?.querySelector('small');
-  if (pointsLabel) pointsLabel.textContent = 'Available PTS';
+  if (pointsLabel) pointsLabel.textContent = '$TOTZ Balance';
 
   async function syncSpendablePoints() {
     const address = window.ethereum?.selectedAddress;
@@ -86,4 +86,12 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   setInterval(() => {
     if (document.visibilityState === 'visible') syncSpendablePoints();
   }, 15000);
+})();
+
+(() => {
+  if (document.querySelector('script[data-totz-ui-brand]')) return;
+  const script = document.createElement('script');
+  script.src = 'totz-ui-brand.js';
+  script.dataset.totzUiBrand = '1';
+  document.head.appendChild(script);
 })();
