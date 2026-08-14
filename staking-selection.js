@@ -19,12 +19,16 @@
   `;
   document.head.appendChild(style);
 
+  function setButtonText(button, text) {
+    if (button && button.textContent !== text) button.textContent = text;
+  }
+
   function canonicalIds() {
     return [...selected].map(Number).sort((a, b) => a - b).map(String);
   }
 
   function isStakedCard(card) {
-    return card.classList.contains('staked') || card.querySelector('[data-action="unstake"]');
+    return card.classList.contains('staked') || Boolean(card.querySelector('[data-action="unstake"]'));
   }
 
   function syncToolbar() {
@@ -32,21 +36,27 @@
     const stakeBtn = document.getElementById('stakeSelectedBtn');
     const clearBtn = document.getElementById('clearSelectionBtn');
     if (stakeBtn) {
-      stakeBtn.disabled = selectionBusy || count === 0;
-      stakeBtn.textContent = selectionBusy ? 'WORKING…' : `STAKE SELECTED (${count})`;
+      const disabled = selectionBusy || count === 0;
+      if (stakeBtn.disabled !== disabled) stakeBtn.disabled = disabled;
+      setButtonText(stakeBtn, selectionBusy ? 'WORKING…' : `STAKE SELECTED (${count})`);
     }
-    if (clearBtn) clearBtn.disabled = selectionBusy || count === 0;
+    if (clearBtn) {
+      const disabled = selectionBusy || count === 0;
+      if (clearBtn.disabled !== disabled) clearBtn.disabled = disabled;
+    }
   }
 
   function syncCard(card) {
     const id = String(card.dataset.tokenId || '');
     const button = card.querySelector('.nft-select-toggle');
     if (!id || !button) return;
-    if (isStakedCard(card)) selected.delete(id);
-    const on = selected.has(id) && !isStakedCard(card);
+    const staked = isStakedCard(card);
+    if (staked) selected.delete(id);
+    const on = selected.has(id) && !staked;
     card.classList.toggle('selecting', on);
-    button.setAttribute('aria-pressed', on ? 'true' : 'false');
-    button.textContent = on ? '✓ SELECTED' : '○ SELECT';
+    const pressed = on ? 'true' : 'false';
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
+    setButtonText(button, on ? '✓ SELECTED' : '○ SELECT');
   }
 
   function toggleCard(card) {
@@ -61,9 +71,9 @@
 
   function decorateCard(card) {
     if (!(card instanceof HTMLElement) || !card.classList.contains('nft')) return;
+    if (isStakedCard(card)) return;
     const media = card.querySelector('.nft-media');
     if (!media || media.querySelector('.nft-select-toggle')) return;
-    if (isStakedCard(card)) return;
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -176,12 +186,24 @@
     }
   }
 
-  const observer = new MutationObserver(() => {
-    installToolbar();
-    decorateAll();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
   installToolbar();
   decorateAll();
+
+  const grid = document.getElementById('nftGrid');
+  if (grid) {
+    const observer = new MutationObserver((mutations) => {
+      let addedNft = false;
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.classList.contains('nft')) {
+            decorateCard(node);
+            addedNft = true;
+          }
+        }
+      }
+      if (addedNft) syncToolbar();
+    });
+    observer.observe(grid, { childList: true, subtree: false });
+  }
 })();
