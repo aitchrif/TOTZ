@@ -107,7 +107,8 @@
     const currentRate = Number(economy.baseRatePerDay || 1) * tokenMultiplier * (stake ? streak.multiplier : 1);
 
     const rate = card.querySelector('.rate');
-    if (rate) rate.textContent = `${formatRate(currentRate)} $TOTZ/DAY`;
+    const rateText = `${formatRate(currentRate)} $TOTZ/DAY`;
+    if (rate && rate.textContent !== rateText) rate.textContent = rateText;
 
     if (boost?.tier === 'legendary' || boost?.tier === 'one_of_one') card.classList.add('legendary-stake');
     else card.classList.remove('legendary-stake');
@@ -131,13 +132,15 @@
     } else {
       chips.push('<span class="economy-chip">1 $TOTZ/day when staked</span>');
     }
-    line.innerHTML = chips.join('');
+    const nextHtml = chips.join('');
+    if (line.innerHTML !== nextHtml) line.innerHTML = nextHtml;
   }
 
   function refreshUI() {
     ensurePanel();
     const baseBadge = document.querySelector('#dashboard .section-head .badge');
-    if (baseBadge) baseBadge.textContent = '1 $TOTZ / DAY BASE';
+    const badgeText = '1 $TOTZ / DAY BASE';
+    if (baseBadge && baseBadge.textContent !== badgeText) baseBadge.textContent = badgeText;
     document.querySelectorAll('.nft').forEach(decorateCard);
   }
 
@@ -155,7 +158,19 @@
     refreshUI();
   }
 
-  const observer = new MutationObserver(() => refreshUI());
+  let refreshQueued = false;
+  const queueRefresh = () => {
+    if (refreshQueued) return;
+    refreshQueued = true;
+    requestAnimationFrame(() => {
+      refreshQueued = false;
+      refreshUI();
+    });
+  };
+
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.some((m) => m.addedNodes?.length)) queueRefresh();
+  });
   const dashboard = document.getElementById('dashboard');
   if (dashboard) observer.observe(dashboard, { childList: true, subtree: true });
 
