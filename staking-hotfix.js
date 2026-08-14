@@ -103,3 +103,11 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   script.dataset.stakingEconomy = '1';
   document.head.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-staking-selection]')) return;
+  const script = document.createElement('script');
+  script.src = 'staking-selection.js';
+  script.dataset.stakingSelection = '1';
+  document.head.appendChild(script);
+})();
