@@ -5,6 +5,8 @@ const CONTRACT = '0x107c4e7cf931b18e022d40184d03d00b4ec99d5a';
 
 let wallet = null;
 let portfolio = null;
+let portfolioLoad = null;
+let connecting = false;
 
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
@@ -28,15 +30,39 @@ function toGateway(uri) {
   return uri;
 }
 
-async function api(body) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.error) throw new Error(data.error || `Request failed (${res.status})`);
-  return data;
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function api(body, retries = 1) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        cache: 'no-store'
+      }, 15000);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) throw new Error(data.error || `Request failed (${res.status})`);
+      return data;
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) await sleep(700);
+    }
+  }
+  throw lastError;
 }
 
 async function ensureRobinhoodChain() {
@@ -67,6 +93,8 @@ async function connectWallet() {
     showStatus('No EVM wallet detected. Open this page in MetaMask, Robinhood Wallet, or another EVM wallet browser.', 'error');
     return;
   }
+  if (connecting) return;
+  connecting = true;
   connectBtn.disabled = true;
   showStatus('Connecting wallet…');
   try {
@@ -79,44 +107,57 @@ async function connectWallet() {
     $('connectSub').innerHTML = `Your TOTZ stay in <span class="wallet-chip">${shortWallet(wallet)}</span>. Nothing is transferred.`;
     dashboard.hidden = false;
     showStatus('Connected. Loading your TOTZ…', 'ok');
-    await loadPortfolio();
+    await loadPortfolio(true);
   } catch (error) {
-    showStatus(error.message || 'Could not connect wallet.', 'error');
+    showStatus(error.name === 'AbortError' ? 'The first request took too long. Trying again should be instant.' : (error.message || 'Could not connect wallet.'), 'error');
   } finally {
+    connecting = false;
     connectBtn.disabled = false;
   }
 }
 
-async function loadPortfolio() {
+async function loadPortfolio(force = false) {
   if (!wallet) return;
-  grid.innerHTML = '<div class="empty">Checking Robinhood Chain…</div>';
-  try {
-    portfolio = await api({ action: 'portfolio', wallet });
-    $('walletStat').textContent = shortWallet(wallet);
-    $('ownedStat').textContent = portfolio.balance ?? 0;
-    $('stakedStat').textContent = portfolio.activeTokenIds?.length ?? 0;
-    $('pointsStat').textContent = Number(portfolio.totalPoints || 0).toLocaleString();
+  if (portfolioLoad && !force) return portfolioLoad;
 
-    const tokens = portfolio.tokens || [];
-    if (!portfolio.enumerable) {
-      manual.classList.add('show');
-      grid.innerHTML = '<div class="empty">Automatic NFT discovery is temporarily unavailable. Enter a Token ID above and we will verify ownership directly on-chain.</div>';
-    } else {
-      manual.classList.remove('show');
-      if (!tokens.length) {
-        grid.innerHTML = '<div class="empty">No TOTZ found in this wallet on Robinhood Chain.</div>';
+  const walletAtStart = wallet;
+  portfolioLoad = (async () => {
+    grid.innerHTML = '<div class="empty">Checking Robinhood Chain…</div>';
+    try {
+      const nextPortfolio = await api({ action: 'portfolio', wallet: walletAtStart }, 1);
+      if (wallet !== walletAtStart) return;
+      portfolio = nextPortfolio;
+
+      $('walletStat').textContent = shortWallet(wallet);
+      $('ownedStat').textContent = portfolio.balance ?? 0;
+      $('stakedStat').textContent = portfolio.activeTokenIds?.length ?? 0;
+      $('pointsStat').textContent = Number(portfolio.totalPoints || 0).toLocaleString();
+
+      const tokens = portfolio.tokens || [];
+      if (!portfolio.enumerable) {
+        manual.classList.add('show');
+        grid.innerHTML = '<div class="empty">Automatic NFT discovery is temporarily unavailable. Enter a Token ID above and we will verify ownership directly on-chain.</div>';
       } else {
-        grid.innerHTML = '';
-        for (const token of tokens) await renderToken(token);
+        manual.classList.remove('show');
+        if (!tokens.length) {
+          grid.innerHTML = '<div class="empty">No TOTZ found in this wallet on Robinhood Chain.</div>';
+        } else {
+          grid.innerHTML = '';
+          await Promise.all(tokens.map(renderToken));
+        }
       }
-    }
 
-    const capNote = portfolio.capped ? ` Showing the first ${portfolio.maxEnumerated} NFTs.` : '';
-    showStatus(`Found ${portfolio.balance} TOTZ. ${portfolio.activeTokenIds?.length || 0} currently soft staked.${capNote}`, 'ok');
-  } catch (error) {
-    showStatus(error.message || 'Could not load your TOTZ.', 'error');
-    grid.innerHTML = '<div class="empty">Could not load collection data. Try again in a moment.</div>';
-  }
+      const capNote = portfolio.capped ? ` Showing the first ${portfolio.maxEnumerated} NFTs.` : '';
+      showStatus(`Found ${portfolio.balance} TOTZ. ${portfolio.activeTokenIds?.length || 0} currently soft staked.${capNote}`, 'ok');
+    } catch (error) {
+      showStatus(error.name === 'AbortError' ? 'Robinhood Chain took too long to respond. Please try again.' : (error.message || 'Could not load your TOTZ.'), 'error');
+      grid.innerHTML = '<div class="empty">Could not load collection data. Try again in a moment.</div>';
+    } finally {
+      portfolioLoad = null;
+    }
+  })();
+
+  return portfolioLoad;
 }
 
 async function metadataFor(token) {
@@ -130,7 +171,7 @@ async function metadataFor(token) {
       if (token.tokenURI.startsWith('data:application/json,')) {
         return JSON.parse(decodeURIComponent(token.tokenURI.split(',').slice(1).join(',')));
       }
-      const res = await fetch(toGateway(token.tokenURI), { cache: 'no-store' });
+      const res = await fetchWithTimeout(toGateway(token.tokenURI), { cache: 'no-store' }, 8000);
       if (res.ok) return await res.json();
     } catch (_) {}
   }
@@ -154,7 +195,7 @@ async function renderToken(token) {
   card.className = `nft${staked ? ' staked' : ''}`;
   card.dataset.tokenId = tokenId;
   card.innerHTML = `
-    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="nft-placeholder" style="display:none">#${tokenId}</div>` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
+    <div class="nft-media">${image ? `<img src="${image}" alt="TOTZ #${tokenId}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="nft-placeholder" style="display:none">#${tokenId}</div>` : `<div class="nft-placeholder">#${tokenId}</div>`}</div>
     <div class="nft-body">
       <div class="nft-title"><h3>${meta.name || `TOTZ #${tokenId}`}</h3><span class="rate">100 PTS/DAY</span></div>
       <div class="nft-meta">${staked ? '✅ Soft staked · NFT remains in wallet' : 'Ready to soft stake'}</div>
@@ -194,8 +235,8 @@ async function signedAction(action, tokenId) {
       params: [utf8ToHex(message), wallet]
     });
     showStatus(`${action === 'stake' ? 'Staking' : 'Unstaking'} TOTZ #${tokenId}…`);
-    await api({ action, wallet, tokenId, timestamp, signature });
-    await loadPortfolio();
+    await api({ action, wallet, tokenId, timestamp, signature }, 1);
+    await loadPortfolio(true);
     showStatus(`TOTZ #${tokenId} ${action === 'stake' ? 'is now soft staked' : 'has been unstaked'}.`, 'ok');
   } catch (error) {
     showStatus(error.message || `${action} failed.`, 'error');
@@ -211,7 +252,7 @@ async function verifyManualToken() {
   }
   try {
     showStatus(`Verifying TOTZ #${tokenId} on Robinhood Chain…`);
-    const token = await api({ action: 'verify_token', wallet, tokenId });
+    const token = await api({ action: 'verify_token', wallet, tokenId }, 1);
     grid.innerHTML = '';
     await renderToken(token);
     showStatus(`Ownership verified for TOTZ #${tokenId}.`, 'ok');
@@ -228,11 +269,13 @@ $('tokenIdInput').addEventListener('keydown', (event) => {
 
 if (window.ethereum) {
   window.ethereum.on?.('accountsChanged', (accounts) => {
-    if (!accounts?.length) location.reload();
-    wallet = accounts[0].toLowerCase();
-    loadPortfolio();
+    if (!accounts?.length) return location.reload();
+    const nextWallet = accounts[0].toLowerCase();
+    const changed = nextWallet !== wallet;
+    wallet = nextWallet;
+    if (changed && !connecting) loadPortfolio(true);
   });
   window.ethereum.on?.('chainChanged', () => {
-    if (wallet) loadPortfolio();
+    if (wallet && !connecting) loadPortfolio(true);
   });
 }
