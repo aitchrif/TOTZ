@@ -7,11 +7,5 @@
       "destination": "/admin",
       "permanent": true
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/admin",
-      "destination": "/rewards-admin.html"
-    }
   ]
 }
