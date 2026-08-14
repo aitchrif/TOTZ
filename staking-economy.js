@@ -11,8 +11,7 @@
       { days: 90, multiplier: 1.15, label: '90D+' }
     ],
     specialTiers: {
-      legendary: { multiplier: 1.50, label: 'Legendary' },
-      one_of_one: { multiplier: 1.75, label: '1/1' }
+      legendary: { multiplier: 1.50, label: 'Legendary · 1/1', supply: 36 }
     }
   };
 
@@ -23,12 +22,12 @@
   style.textContent = `
     .economy-panel{background:#fff;border:2px solid var(--sky2);border-radius:26px;padding:22px;margin:26px 0 12px;box-shadow:var(--shadow)}
     .economy-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}.economy-head h2{margin:0;font-size:1.55rem}.economy-head p{margin:4px 0 0;color:var(--soft);font-weight:700;line-height:1.5;max-width:700px}.economy-live{background:var(--lime);border-radius:999px;padding:6px 10px;font-weight:900;font-size:.72rem;white-space:nowrap}
-    .economy-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.economy-item{background:var(--cream);border-radius:17px;padding:13px}.economy-item b{display:block;font-family:'Baloo 2';font-size:1.05rem}.economy-item span{display:block;color:var(--soft);font-size:.78rem;font-weight:800;line-height:1.4;margin-top:2px}
+    .economy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.economy-item{background:var(--cream);border-radius:17px;padding:13px}.economy-item b{display:block;font-family:'Baloo 2';font-size:1.05rem}.economy-item span{display:block;color:var(--soft);font-size:.78rem;font-weight:800;line-height:1.4;margin-top:2px}
     .economy-note{margin:14px 0 0;color:var(--soft);font-size:.8rem;font-weight:800;line-height:1.5}
     .economy-card-line{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:-5px 0 12px}.economy-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;background:var(--cream);font-size:.7rem;font-weight:900;color:var(--soft)}.economy-chip.special{background:#fff2af;color:var(--ink)}
     .nft.legendary-stake{border-color:#dfc74f}.nft.legendary-stake .rate{background:#fff2af}
-    @media(max-width:850px){.economy-grid{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:560px){.economy-head{flex-direction:column}.economy-grid{grid-template-columns:1fr 1fr}.economy-panel{padding:17px}}
+    @media(max-width:850px){.economy-grid{grid-template-columns:1fr}}
+    @media(max-width:560px){.economy-head{flex-direction:column}.economy-panel{padding:17px}}
   `;
   document.head.appendChild(style);
 
@@ -81,15 +80,14 @@
       <div class="economy-head">
         <div>
           <h2>How $TOTZ earning works</h2>
-          <p>Every staked TOTZ starts at 1 $TOTZ / day. Each NFT builds its own loyalty streak automatically, while special TOTZ earn a little more.</p>
+          <p>Every staked TOTZ starts at 1 $TOTZ / day. Each NFT builds its own loyalty streak automatically. The collection's 36 Legendary TOTZ are unique 1/1s and earn a special boost.</p>
         </div>
         <span class="economy-live">LIVE RATE</span>
       </div>
       <div class="economy-grid">
-        <div class="economy-item"><b>1 $TOTZ / day</b><span>Base rate for every staked TOTZ.</span></div>
+        <div class="economy-item"><b>1 $TOTZ / day</b><span>Base rate for every regular staked TOTZ.</span></div>
         <div class="economy-item"><b>+5% → +15%</b><span>7D +5% · 30D +10% · 90D+ +15% loyalty.</span></div>
-        <div class="economy-item"><b>1.5× Legendary</b><span>A visible boost without overpowering regular holders.</span></div>
-        <div class="economy-item"><b>1.75× 1/1</b><span>The rarest TOTZ get a small extra edge.</span></div>
+        <div class="economy-item"><b>1.5× Legendary · 1/1</b><span>36 unique Legendary TOTZ receive the special multiplier.</span></div>
       </div>
       <p class="economy-note">Unstaking keeps the $TOTZ already earned, but that NFT's loyalty streak resets when it is staked again.</p>`;
     dashboard.insertBefore(panel, sectionHead);
@@ -122,10 +120,7 @@
     }
 
     const chips = [];
-    if (boost) {
-      const tierLabel = boost.tier === 'one_of_one' ? '1/1' : (boost.tier === 'legendary' ? 'Legendary' : boost.tier);
-      chips.push(`<span class="economy-chip special">${tierLabel} · ${formatRate(tokenMultiplier)}×</span>`);
-    }
+    if (boost) chips.push(`<span class="economy-chip special">Legendary · 1/1 · ${formatRate(tokenMultiplier)}×</span>`);
     if (stake) {
       chips.push(`<span class="economy-chip">${streak.label}</span>`);
       if (streak.bonus > 0) chips.push(`<span class="economy-chip">+${streak.bonus}% loyalty</span>`);
