@@ -6,6 +6,9 @@
   const CHAIN_HEX = '0x1237';
   const CONTRACT = '0x107c4e7cf931b18e022d40184d03d00b4ec99d5a';
   const W = 960, H = 540, FPS = 60, DT = 1 / FPS, DTMS = 1000 / FPS, MAXRUN = 180000;
+  // SHIELD + RESCUE HEART BALANCE
+  const SHIELD_SECONDS = 8;
+  const HEART_MIN_TIME = 25000, HEART_COOLDOWN = 35000, HEART_MAX_SPAWNS = 2, HEART_CHANCE = .22;
 
   const skins = {
     royal: { name: 'Royal Gold', need: 0, aura: '#ffd25a', trail: '#f0bd39' },
@@ -84,7 +87,7 @@
   }
 
   function freshState() {
-    return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };
+    return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };
   }
   function freshPlayer() { return { x: 165, y: 190, w: 86, h: 155, vy: 0, inv: 0, rot: 0 }; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -264,12 +267,18 @@
     pickups.push({ type: 'coin', x: W + 40 + w / 2, y: coinY, r: 15, taken: false, pulse: vrand(0, Math.PI * 2) });
     state.gateNo++;
     if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });
+    const heartEligible = state.lives === 1 && state.t >= HEART_MIN_TIME && state.heartsSpawned < HEART_MAX_SPAWNS && state.t - state.lastHeartSpawn >= HEART_COOLDOWN && state.gateNo % 4 === 0;
+    if (heartEligible && gameRand() < HEART_CHANCE) {
+      const heartY = gapY + gapH * (.35 + gameRand() * .30);
+      pickups.push({ type: 'heart', x: W + 40 + w / 2 + 78, y: heartY, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });
+      state.heartsSpawned++; state.lastHeartSpawn = state.t;
+    }
   }
   function hitGate(g) { const px = player.x + 20, py = player.y + 18, pw = player.w - 35, ph = player.h - 32; return px < g.x + g.w && px + pw > g.x && (py < g.gapY || py + ph > g.gapY + g.gapH); }
   function damage(g) {
     if (player.inv > 0 || g.hit) return true;
     g.hit = true;
-    if (state.shield) {
+    if (state.shield > 0) {
       state.shield = 0; burst(player.x + 45, player.y + 70, skins[selectedSkin].aura, 24); chord([680, 840], .07, .03); showCallout('SHIELD SAVED!', 'cyan'); pulseHud('life'); vibrate(18); return true;
     }
     state.lives--; state.hits++; player.inv = 1.15; player.vy = -180; state.combo = 1; state.comboTimer = 0; state.shake = 11; state.flash = .22;
@@ -283,8 +292,16 @@
       burst(p.x, p.y, '#ffd25a', 15); floatText.push({ x: p.x, y: p.y - 8, text: '+1', color: '#fff0a0', life: .62, vy: -38 });
       tone(820 + state.combo * 70, .045, .035); pulseHud('coins');
       if (state.combo >= 3 && state.combo > lastComboShown) { showCallout(state.combo === 5 ? 'MAX COMBO x5!' : `COMBO x${state.combo}`, state.combo === 5 ? 'lime' : 'gold'); chord([760, 920, 1080].slice(0, state.combo - 1), .045, .022); lastComboShown = state.combo; }
-    } else {
-      state.shield = 1; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: 'SHIELD', color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout('SHIELD UP!', 'cyan'); pulseHud('life');
+    } else if (p.type === 'shield') {
+      if (state.shield <= 0) {
+        state.shield = SHIELD_SECONDS; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: `${SHIELD_SECONDS}s SHIELD`, color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout(`SHIELD ${SHIELD_SECONDS}s`, 'cyan'); pulseHud('life');
+      } else {
+        floatText.push({ x: p.x, y: p.y - 8, text: 'NO REFRESH', color: '#c9f7ff', life: .62, vy: -26 }); tone(420, .04, .018);
+      }
+    } else if (p.type === 'heart') {
+      if (state.lives === 1) {
+        state.lives = 2; state.heartsCollected++; burst(p.x, p.y, '#ff7a86', 28); floatText.push({ x: p.x, y: p.y - 8, text: '+1 LIFE', color: '#ffd8dc', life: .9, vy: -34 }); chord([620, 820, 1040], .08, .032); showCallout('RESCUE HEART! +1 ❤️', 'coral'); pulseHud('life'); vibrate([18, 22, 18]);
+      }
     }
   }
   function burst(x, y, color, n) { const count = Math.max(2, Math.round(n * quality().particleScale)); for (let i = 0; i < count; i++) particles.push({ x, y, vx: vrand(-145, 145), vy: vrand(-145, 115), life: vrand(.35, .8), color, size: vrand(2, 6), spin: vrand(-5, 5) }); }
@@ -310,6 +327,11 @@
     if (player.y < 8) { player.y = 8; player.vy = 50; }
     if (player.y + player.h > H - 10) { player.y = H - player.h - 10; player.vy = -130; if (player.inv <= 0 && !damage({ hit: false })) ended = true; }
     if (player.inv > 0) player.inv -= DT;
+    if (state.shield > 0) {
+      const beforeShield = state.shield;
+      state.shield = Math.max(0, state.shield - DT);
+      if (beforeShield > 0 && state.shield === 0) { showCallout('SHIELD DOWN', 'cyan'); tone(260, .055, .018); pulseHud('life'); }
+    }
     if (state.comboTimer > 0) { state.comboTimer -= DT; if (state.comboTimer <= 0) { state.combo = 1; lastComboShown = 1; } }
     if (!ended) for (const g of gates) { g.x -= state.speed * DT; if (hitGate(g) && !damage(g)) { ended = true; break; } maybeNearMiss(g); }
     if (!ended) {
@@ -361,7 +383,7 @@
   }
 
   function syncHud() {
-    $('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield ? '🛡️' : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`;
+    $('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield > 0 ? `  🛡️${state.shield.toFixed(1)}s` : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`;
     if (state.coins !== lastCoinHud) { pulseHud('coins'); lastCoinHud = state.coins; }
     if (state.lives !== lastLifeHud) { pulseHud('life'); lastLifeHud = state.lives; }
     const comboChip = $('combo')?.closest('.hud-chip'); comboChip?.classList.toggle('combo-hot', state.combo >= 4);
@@ -397,15 +419,16 @@
   function drawPickup(p) {
     ctx.save(); ctx.translate(p.x, p.y); const pulse = 1 + Math.sin(state.t / 150 + p.pulse) * .08; ctx.scale(pulse, pulse);
     if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = Math.round(24 * quality().shadow); ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }
-    else { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = Math.round(28 * quality().shadow); ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }
+    else if (p.type === 'shield') { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = Math.round(28 * quality().shadow); ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }
+    else { ctx.shadowColor = '#ff7a86'; ctx.shadowBlur = Math.round(30 * quality().shadow); ctx.fillStyle = '#ff7a86'; ctx.beginPath(); ctx.arc(-6, -3, 9, 0, Math.PI * 2); ctx.arc(6, -3, 9, 0, Math.PI * 2); ctx.lineTo(0, 15); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
     ctx.restore();
   }
   function drawTrail() { const s = skins[selectedSkin] || skins.royal; for (const t of trail) { ctx.globalAlpha = clamp(t.life / .48, 0, 1) * .42; ctx.fillStyle = s.trail; ctx.beginPath(); ctx.arc(t.x, t.y, t.s * (t.life / .48), 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
   function drawPlayer() {
     const s = skins[selectedSkin] || skins.royal, wobble = Math.sin(state.t / 145) * .025, squash = clamp(Math.abs(player.vy) / 900, 0, .045), bob = Math.sin(state.t / 210) * 2.5;
     ctx.save(); ctx.translate(player.x + player.w / 2, player.y + player.h / 2 + bob); ctx.rotate(player.rot + wobble); ctx.scale(1 + squash, 1 - squash * .55); ctx.globalAlpha = player.inv > 0 && Math.floor(player.inv * 12) % 2 ? .45 : 1;
-    ctx.shadowColor = s.aura; ctx.shadowBlur = Math.round((state.shield ? 42 : 24) * quality().shadow); if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); }
-    ctx.shadowBlur = 0; if (state.shield) { const rr = 65 + Math.sin(state.t / 90) * 4; ctx.strokeStyle = `rgba(141,233,255,${.65 + Math.sin(state.t / 110) * .2})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-12, -10, rr - 8, Math.PI * 1.05, Math.PI * 1.52); ctx.stroke(); }
+    ctx.shadowColor = s.aura; ctx.shadowBlur = Math.round((state.shield > 0 ? 42 : 24) * quality().shadow); if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowBlur = 0; if (state.shield > 0) { const rr = 65 + Math.sin(state.t / 90) * 4; ctx.strokeStyle = `rgba(141,233,255,${.65 + Math.sin(state.t / 110) * .2})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-12, -10, rr - 8, Math.PI * 1.05, Math.PI * 1.52); ctx.stroke(); }
     ctx.restore();
   }
   function drawFloatText() { ctx.save(); ctx.textAlign = 'center'; ctx.font = '900 17px Nunito,system-ui'; for (const f of floatText) { ctx.globalAlpha = clamp(f.life / .8, 0, 1); ctx.fillStyle = f.color; ctx.shadowColor = 'rgba(43,33,64,.35)'; ctx.shadowBlur = Math.round(8 * quality().shadow); ctx.fillText(f.text, f.x, f.y); } ctx.restore(); }
