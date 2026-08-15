@@ -1,0 +1,80 @@
+name: Cloud Dash Rescue Balance
+
+on:
+  push:
+    branches: [cloud-dash-preview]
+    paths:
+      - '.github/workflows/cloud-dash-rescue-balance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+          fetch-depth: 0
+      - name: Balance shield and add rare rescue hearts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('cloud-dash-v4.js')
+          s=p.read_text()
+          marker='// SHIELD + RESCUE HEART BALANCE'
+          if marker in s:
+              print('Balance patch already installed.')
+              raise SystemExit(0)
+
+          s=s.replace("  const W = 960, H = 540, FPS = 60, DT = 1 / FPS, DTMS = 1000 / FPS, MAXRUN = 180000;", "  const W = 960, H = 540, FPS = 60, DT = 1 / FPS, DTMS = 1000 / FPS, MAXRUN = 180000;\n  // SHIELD + RESCUE HEART BALANCE\n  const SHIELD_SECONDS = 8;\n  const HEART_MIN_TIME = 25000, HEART_COOLDOWN = 35000, HEART_MAX_SPAWNS = 2, HEART_CHANCE = .22;", 1)
+
+          old="return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };"
+          new="return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };"
+          assert old in s, 'freshState anchor missing'
+          s=s.replace(old,new,1)
+
+          old="""    state.gateNo++;\n    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });\n"""
+          new="""    state.gateNo++;\n    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });\n    const heartEligible = state.lives === 1 && state.t >= HEART_MIN_TIME && state.heartsSpawned < HEART_MAX_SPAWNS && state.t - state.lastHeartSpawn >= HEART_COOLDOWN && state.gateNo % 4 === 0;\n    if (heartEligible && gameRand() < HEART_CHANCE) {\n      const heartY = gapY + gapH * (.35 + gameRand() * .30);\n      pickups.push({ type: 'heart', x: W + 40 + w / 2 + 78, y: heartY, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });\n      state.heartsSpawned++; state.lastHeartSpawn = state.t;\n    }\n"""
+          assert old in s, 'spawn anchor missing'
+          s=s.replace(old,new,1)
+
+          s=s.replace("    if (state.shield) {\n      state.shield = 0;", "    if (state.shield > 0) {\n      state.shield = 0;", 1)
+
+          old="""    } else {\n      state.shield = 1; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: 'SHIELD', color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout('SHIELD UP!', 'cyan'); pulseHud('life');\n    }\n"""
+          new="""    } else if (p.type === 'shield') {\n      if (state.shield <= 0) {\n        state.shield = SHIELD_SECONDS; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: `${SHIELD_SECONDS}s SHIELD`, color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout(`SHIELD ${SHIELD_SECONDS}s`, 'cyan'); pulseHud('life');\n      } else {\n        floatText.push({ x: p.x, y: p.y - 8, text: 'NO REFRESH', color: '#c9f7ff', life: .62, vy: -26 }); tone(420, .04, .018);\n      }\n    } else if (p.type === 'heart') {\n      if (state.lives === 1) {\n        state.lives = 2; state.heartsCollected++; burst(p.x, p.y, '#ff7a86', 28); floatText.push({ x: p.x, y: p.y - 8, text: '+1 LIFE', color: '#ffd8dc', life: .9, vy: -34 }); chord([620, 820, 1040], .08, .032); showCallout('RESCUE HEART! +1 ❤️', 'coral'); pulseHud('life'); vibrate([18, 22, 18]);\n      }\n    }\n"""
+          assert old in s, 'collect anchor missing'
+          s=s.replace(old,new,1)
+
+          old="""    if (player.inv > 0) player.inv -= DT;\n    if (state.comboTimer > 0) { state.comboTimer -= DT; if (state.comboTimer <= 0) { state.combo = 1; lastComboShown = 1; } }\n"""
+          new="""    if (player.inv > 0) player.inv -= DT;\n    if (state.shield > 0) {\n      const beforeShield = state.shield;\n      state.shield = Math.max(0, state.shield - DT);\n      if (beforeShield > 0 && state.shield === 0) { showCallout('SHIELD DOWN', 'cyan'); tone(260, .055, .018); pulseHud('life'); }\n    }\n    if (state.comboTimer > 0) { state.comboTimer -= DT; if (state.comboTimer <= 0) { state.combo = 1; lastComboShown = 1; } }\n"""
+          assert old in s, 'shield timer anchor missing'
+          s=s.replace(old,new,1)
+
+          old="$('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield ? '🛡️' : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`;"
+          new="$('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield > 0 ? `  🛡️${state.shield.toFixed(1)}s` : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`;"
+          assert old in s, 'hud anchor missing'
+          s=s.replace(old,new,1)
+
+          old="""    if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = Math.round(24 * quality().shadow); ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }\n    else { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = Math.round(28 * quality().shadow); ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }\n"""
+          new="""    if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = Math.round(24 * quality().shadow); ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }\n    else if (p.type === 'shield') { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = Math.round(28 * quality().shadow); ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }\n    else { ctx.shadowColor = '#ff7a86'; ctx.shadowBlur = Math.round(30 * quality().shadow); ctx.fillStyle = '#ff7a86'; ctx.beginPath(); ctx.arc(-6, -3, 9, 0, Math.PI * 2); ctx.arc(6, -3, 9, 0, Math.PI * 2); ctx.lineTo(0, 15); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }\n"""
+          assert old in s, 'draw pickup anchor missing'
+          s=s.replace(old,new,1)
+
+          s=s.replace("ctx.shadowBlur = Math.round((state.shield ? 42 : 24) * quality().shadow);", "ctx.shadowBlur = Math.round((state.shield > 0 ? 42 : 24) * quality().shadow);", 1)
+          s=s.replace("ctx.shadowBlur = 0; if (state.shield) {", "ctx.shadowBlur = 0; if (state.shield > 0) {", 1)
+
+          p.write_text(s)
+          print('Patched bytes', len(s.encode()))
+          PY
+      - name: Validate JavaScript
+        run: node --check cloud-dash-v4.js
+      - name: Commit balance patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js
+          git commit -m "Balance timed shields and rare rescue hearts"
+          git push origin HEAD:cloud-dash-preview
