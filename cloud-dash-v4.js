@@ -27,6 +27,62 @@
   let state = freshState();
   let player = freshPlayer();
 
+  // AUTO PERFORMANCE MODE — visual quality only; gameplay physics never change.
+  const QUALITY = [
+    { name: 'LOW', particleScale: .38, trailEvery: 3, sparkleStep: 4, shadow: 0, speedLines: false },
+    { name: 'BALANCED', particleScale: .68, trailEvery: 2, sparkleStep: 2, shadow: .55, speedLines: true },
+    { name: 'HIGH', particleScale: 1, trailEvery: 1, sparkleStep: 1, shadow: 1, speedLines: true }
+  ];
+  let qualityLevel = 2, perfFrames = 0, perfWindowStart = 0, perfLowStreak = 0, perfHighStreak = 0, perfFps = 60;
+  const quality = () => QUALITY[qualityLevel];
+
+  function ensurePerfBadge() {
+    let badge = $('perfBadge');
+    if (badge) return badge;
+    const foot = document.querySelector('.game-foot');
+    if (!foot) return null;
+    badge = document.createElement('span');
+    badge.id = 'perfBadge';
+    badge.style.cssText = 'margin-left:auto;padding:6px 9px;border-radius:999px;background:#eef6c9;color:#46521b;font-size:.58rem;font-weight:1000;white-space:nowrap;transition:background .25s,color .25s';
+    foot.appendChild(badge);
+    return badge;
+  }
+  function updatePerfBadge() {
+    const badge = ensurePerfBadge(); if (!badge) return;
+    badge.textContent = `AUTO • ${quality().name} • ${Math.max(0, Math.round(perfFps))} FPS`;
+    if (qualityLevel === 2) { badge.style.background = '#eef6c9'; badge.style.color = '#46521b'; }
+    else if (qualityLevel === 1) { badge.style.background = '#fff3dc'; badge.style.color = '#665b78'; }
+    else { badge.style.background = '#ffe0dc'; badge.style.color = '#8b2b1f'; }
+  }
+  function setQuality(level) {
+    qualityLevel = clamp(level, 0, QUALITY.length - 1);
+    perfLowStreak = 0; perfHighStreak = 0;
+    updatePerfBadge();
+  }
+  function initPerformanceMode() {
+    const cores = Number(navigator.hardwareConcurrency || 8);
+    const memory = Number(navigator.deviceMemory || 8);
+    const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    qualityLevel = (cores <= 2 || memory <= 2) ? 0 : (cores <= 4 || memory <= 4 || reduced) ? 1 : 2;
+    perfWindowStart = performance.now(); perfFrames = 0; perfFps = 60;
+    updatePerfBadge();
+  }
+  function samplePerformance(now) {
+    if (document.hidden) { perfFrames = 0; perfWindowStart = now; return; }
+    perfFrames++;
+    if (!perfWindowStart) perfWindowStart = now;
+    const elapsed = now - perfWindowStart;
+    if (elapsed < 1800) return;
+    perfFps = perfFrames * 1000 / elapsed;
+    if (perfFps < 48) { perfLowStreak++; perfHighStreak = 0; }
+    else if (perfFps > 56) { perfHighStreak++; perfLowStreak = Math.max(0, perfLowStreak - 1); }
+    else { perfLowStreak = Math.max(0, perfLowStreak - 1); perfHighStreak = 0; }
+    if ((perfFps < 39 || perfLowStreak >= 2) && qualityLevel > 0) setQuality(qualityLevel - 1);
+    else if (perfHighStreak >= 4 && qualityLevel < 2) setQuality(qualityLevel + 1);
+    else updatePerfBadge();
+    perfFrames = 0; perfWindowStart = now;
+  }
+
   function freshState() {
     return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };
   }
@@ -231,7 +287,7 @@
       state.shield = 1; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: 'SHIELD', color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout('SHIELD UP!', 'cyan'); pulseHud('life');
     }
   }
-  function burst(x, y, color, n) { for (let i = 0; i < n; i++) particles.push({ x, y, vx: vrand(-145, 145), vy: vrand(-145, 115), life: vrand(.35, .8), color, size: vrand(2, 6), spin: vrand(-5, 5) }); }
+  function burst(x, y, color, n) { const count = Math.max(2, Math.round(n * quality().particleScale)); for (let i = 0; i < count; i++) particles.push({ x, y, vx: vrand(-145, 145), vy: vrand(-145, 115), life: vrand(.35, .8), color, size: vrand(2, 6), spin: vrand(-5, 5) }); }
 
   function maybeNearMiss(g) {
     if (g.nearChecked || g.hit || g.x + g.w >= player.x + 6) return;
@@ -266,8 +322,9 @@
     particles = particles.filter(p => p.life > 0);
     for (const f of floatText) { f.y += f.vy * DT; f.life -= DT; }
     floatText = floatText.filter(f => f.life > 0);
-    trail.push({ x: player.x + 28, y: player.y + player.h * .72, life: .48, s: vrand(5, 10) });
-    if (trail.length > 38) trail.shift(); for (const t of trail) { t.x -= state.speed * DT * .16; t.life -= DT; } trail = trail.filter(t => t.life > 0);
+    if (state.step % quality().trailEvery === 0) trail.push({ x: player.x + 28, y: player.y + player.h * .72, life: .48, s: vrand(5, 10) });
+    const trailCap = qualityLevel === 2 ? 38 : qualityLevel === 1 ? 27 : 17;
+    while (trail.length > trailCap) trail.shift(); for (const t of trail) { t.x -= state.speed * DT * .16; t.life -= DT; } trail = trail.filter(t => t.life > 0);
     state.shake = Math.max(0, state.shake - 35 * DT); state.flash = Math.max(0, state.flash - DT); state.step++; state.score = scoreFormula(); syncHud();
     if (ended) finishRun(false);
   }
@@ -321,40 +378,44 @@
     const top = mixColor('#86d9ee', '#7767b7', dusk * .9), mid = mixColor('#d7f4f6', '#e5a6bb', dusk * .65), bottom = mixColor('#fff0c7', '#ffcb91', phase * .65);
     const grad = ctx.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, top); grad.addColorStop(.62, mid); grad.addColorStop(1, bottom); ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
     const sunX = 760 - phase * 80, sunY = 100 + phase * 42; const rg = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 95); rg.addColorStop(0, `rgba(255,244,184,${.55 - dusk * .15})`); rg.addColorStop(1, 'rgba(255,244,184,0)'); ctx.fillStyle = rg; ctx.fillRect(sunX - 100, sunY - 100, 200, 200);
-    for (const s of sparkles) { const tw = .35 + Math.sin(state.t / 550 + s.p) * .25; ctx.globalAlpha = clamp(s.a * tw + dusk * .15, .05, .75); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
+    for (let i = 0; i < sparkles.length; i += quality().sparkleStep) { const s = sparkles[i], tw = .35 + Math.sin(state.t / 550 + s.p) * .25; ctx.globalAlpha = clamp(s.a * tw + dusk * .15, .05, .75); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
-    for (const c of bgClouds.filter(c => c.layer === 0)) drawCloud(c.x, c.y, c.s * .72, .18);
-    for (const c of bgClouds.filter(c => c.layer === 1)) drawCloud(c.x, c.y, c.s, .33);
-    for (const c of bgClouds.filter(c => c.layer === 2)) drawCloud(c.x, c.y, c.s * 1.15, .5);
-    if (state.speed > 300) { ctx.strokeStyle = `rgba(255,255,255,${Math.min(.16, (state.speed - 300) / 500)})`; ctx.lineWidth = 2; for (let i = 0; i < 12; i++) { const y = (i * 47 + state.t / 5) % H; const x = (i * 91 + state.t / 3) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 55, y + 3); ctx.stroke(); } }
+    for (const c of bgClouds) {
+      if (qualityLevel === 0 && c.layer === 0) continue;
+      if (c.layer === 0) drawCloud(c.x, c.y, c.s * .72, .18);
+      else if (c.layer === 1) drawCloud(c.x, c.y, c.s, .33);
+      else drawCloud(c.x, c.y, c.s * 1.15, .5);
+    }
+    if (state.speed > 300 && quality().speedLines) { ctx.strokeStyle = `rgba(255,255,255,${Math.min(.16, (state.speed - 300) / 500)})`; ctx.lineWidth = 2; const lineCount = qualityLevel === 2 ? 12 : 7; for (let i = 0; i < lineCount; i++) { const y = (i * 47 + state.t / 5) % H; const x = (i * 91 + state.t / 3) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 55, y + 3); ctx.stroke(); } }
   }
   function drawGate(g) {
     ctx.save(); const edge = ctx.createLinearGradient(g.x, 0, g.x + g.w, 0); edge.addColorStop(0, '#32384f'); edge.addColorStop(.48, '#6d7797'); edge.addColorStop(1, '#3d445f'); ctx.fillStyle = edge;
-    ctx.shadowColor = 'rgba(35,39,58,.22)'; ctx.shadowBlur = 12; ctx.fillRect(g.x, 0, g.w, g.gapY - 8); ctx.fillRect(g.x, g.gapY + g.gapH + 8, g.w, H); ctx.shadowBlur = 0;
+    ctx.shadowColor = 'rgba(35,39,58,.22)'; ctx.shadowBlur = Math.round(12 * quality().shadow); ctx.fillRect(g.x, 0, g.w, g.gapY - 8); ctx.fillRect(g.x, g.gapY + g.gapH + 8, g.w, H); ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(g.x + 8, 0, 5, Math.max(0, g.gapY - 8)); ctx.fillRect(g.x + 8, g.gapY + g.gapH + 8, 5, H);
     ctx.fillStyle = '#7e89a9'; for (let y = 18; y < g.gapY - 18; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } for (let y = g.gapY + g.gapH + 25; y < H; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
   }
   function drawPickup(p) {
     ctx.save(); ctx.translate(p.x, p.y); const pulse = 1 + Math.sin(state.t / 150 + p.pulse) * .08; ctx.scale(pulse, pulse);
-    if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = 24; ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }
-    else { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = 28; ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }
+    if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = Math.round(24 * quality().shadow); ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }
+    else { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = Math.round(28 * quality().shadow); ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }
     ctx.restore();
   }
   function drawTrail() { const s = skins[selectedSkin] || skins.royal; for (const t of trail) { ctx.globalAlpha = clamp(t.life / .48, 0, 1) * .42; ctx.fillStyle = s.trail; ctx.beginPath(); ctx.arc(t.x, t.y, t.s * (t.life / .48), 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
   function drawPlayer() {
     const s = skins[selectedSkin] || skins.royal, wobble = Math.sin(state.t / 145) * .025, squash = clamp(Math.abs(player.vy) / 900, 0, .045), bob = Math.sin(state.t / 210) * 2.5;
     ctx.save(); ctx.translate(player.x + player.w / 2, player.y + player.h / 2 + bob); ctx.rotate(player.rot + wobble); ctx.scale(1 + squash, 1 - squash * .55); ctx.globalAlpha = player.inv > 0 && Math.floor(player.inv * 12) % 2 ? .45 : 1;
-    ctx.shadowColor = s.aura; ctx.shadowBlur = state.shield ? 42 : 24; if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowColor = s.aura; ctx.shadowBlur = Math.round((state.shield ? 42 : 24) * quality().shadow); if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); }
     ctx.shadowBlur = 0; if (state.shield) { const rr = 65 + Math.sin(state.t / 90) * 4; ctx.strokeStyle = `rgba(141,233,255,${.65 + Math.sin(state.t / 110) * .2})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-12, -10, rr - 8, Math.PI * 1.05, Math.PI * 1.52); ctx.stroke(); }
     ctx.restore();
   }
-  function drawFloatText() { ctx.save(); ctx.textAlign = 'center'; ctx.font = '900 17px Nunito,system-ui'; for (const f of floatText) { ctx.globalAlpha = clamp(f.life / .8, 0, 1); ctx.fillStyle = f.color; ctx.shadowColor = 'rgba(43,33,64,.35)'; ctx.shadowBlur = 8; ctx.fillText(f.text, f.x, f.y); } ctx.restore(); }
+  function drawFloatText() { ctx.save(); ctx.textAlign = 'center'; ctx.font = '900 17px Nunito,system-ui'; for (const f of floatText) { ctx.globalAlpha = clamp(f.life / .8, 0, 1); ctx.fillStyle = f.color; ctx.shadowColor = 'rgba(43,33,64,.35)'; ctx.shadowBlur = Math.round(8 * quality().shadow); ctx.fillText(f.text, f.x, f.y); } ctx.restore(); }
   function draw() {
     ctx.save(); if (state.shake) ctx.translate(vrand(-state.shake, state.shake), vrand(-state.shake, state.shake)); drawBg(); drawTrail(); for (const g of gates) drawGate(g); for (const p of pickups) drawPickup(p); drawPlayer();
-    for (const p of particles) { ctx.globalAlpha = clamp(p.life / .7, 0, 1); ctx.fillStyle = p.color; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.spin * p.life); ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size); ctx.restore(); } ctx.globalAlpha = 1; drawFloatText();
+    const particleStep = qualityLevel === 0 ? 2 : 1;
+    for (let i = 0; i < particles.length; i += particleStep) { const p = particles[i]; ctx.globalAlpha = clamp(p.life / .7, 0, 1); ctx.fillStyle = p.color; if (qualityLevel === 0) ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); else { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.spin * p.life); ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size); ctx.restore(); } } ctx.globalAlpha = 1; drawFloatText();
     if (state.flash) { ctx.fillStyle = `rgba(255,110,90,${state.flash})`; ctx.fillRect(0, 0, W, H); } ctx.restore();
   }
-  function loop(now) { if (!state.running) return; const frame = Math.min(.1, (now - last) / 1000 || DT); last = now; acc += frame; while (acc >= DT && state.running) { stepGame(); acc -= DT; } draw(); if (state.running) raf = requestAnimationFrame(loop); }
+  function loop(now) { if (!state.running) return; samplePerformance(now); const frame = Math.min(.1, (now - last) / 1000 || DT); last = now; acc += frame; while (acc >= DT && state.running) { stepGame(); acc -= DT; } draw(); if (state.running) raf = requestAnimationFrame(loop); }
 
   function press(v) { if (v === hold) return; hold = v; if (state.running && mode === 'ranked') replayRaw.push([state.step, v ? 1 : 0]); if (v && state.running) { tone(300, .025, .015); burst(player.x + 22, player.y + player.h * .73, skins[selectedSkin].trail, 3); } }
   function tone(freq, dur = .05, vol = .04) { if (!soundOn) return; try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = freq; o.type = freq > 800 ? 'triangle' : 'sine'; g.gain.value = vol; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + dur); o.stop(audioCtx.currentTime + dur); } catch (_) {} }
@@ -377,6 +438,7 @@
 
   function boot() {
     injectPremiumUI();
+    initPerformanceMode();
     $('best').textContent = state.best.toLocaleString();
     $('connectBtn').addEventListener('click', () => connectWallet().catch(e => status(e.message || String(e), true)));
     $('startBtn').addEventListener('click', startRun);
