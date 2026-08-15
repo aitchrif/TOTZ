@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOTZ Cloud Dash Replay</title>
+<style>html,body{margin:0;min-height:100%;background:#fff3dc;font-family:system-ui,sans-serif}.boot{min-height:100vh;display:grid;place-items:center;color:#2b2140;font-weight:800;text-align:center;padding:24px}.boot b{display:block;font-size:1.3rem;margin-bottom:6px}.err{color:#8b2b1f}</style>
+</head>
+<body>
+<div class="boot" id="boot"><div><b>☁️ Loading Cloud Dash Replay…</b><span>Applying replay build fixes.</span></div></div>
+<script>
+(async()=>{
+  let html=await fetch('/cloud-dash-replay.html?fixed=1',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Could not load game build.');return r.text();});
+
+  // Fix the malformed keyup listener that prevented the whole inline game script from parsing.
+  html=html.replace(
+    "window.addEventListener('keyup',e=>{if(e.code==='Space')press(false});",
+    "window.addEventListener('keyup',e=>{if(e.code==='Space')press(false)});"
+  );
+
+  // Rebuild the exact canonical wallet-signature message used by the server.
+  html=html.replace(
+    /function startMessage\(ts,name,skin\)\{[\s\S]*?\}\s*function mulberry32/,
+    function(){
+      return "function startMessage(ts,name,skin){return['TOTZ Cloud Dash','Action: start_ranked',`Wallet: ${wallet}`,`Name: ${name}`,`Skin: ${skin}`,`Chain ID: ${CHAIN_ID}`,`Contract: ${CONTRACT}`,`Timestamp: ${ts}`].join('\\n');}\nfunction mulberry32";
+    }
+  );
+
+  document.open();
+  document.write(html);
+  document.close();
+})().catch(e=>{
+  const boot=document.getElementById('boot');
+  if(boot)boot.innerHTML='<div class="err"><b>Could not load Cloud Dash.</b><span>'+String(e.message||e)+'</span></div>';
+});
+</script>
+</body>
+</html>
