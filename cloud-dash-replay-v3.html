@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOTZ Cloud Dash Replay V3</title>
+<style>
+html,body{margin:0;min-height:100%;background:#fff3dc;font-family:system-ui,sans-serif}.boot{min-height:100vh;display:grid;place-items:center;text-align:center;padding:24px;color:#2b2140;font-weight:800}.boot b{display:block;font-size:1.35rem;margin-bottom:6px}.err{color:#8b2b1f;max-width:720px;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="boot" id="boot"><div><b>☁️ Loading Cloud Dash Replay V3…</b><span>Starting verified game engine.</span></div></div>
+<script>
+(async function bootReplay(){
+  try{
+    const source=await fetch('/cloud-dash-replay.html?v=3',{cache:'no-store'}).then(async r=>{
+      if(!r.ok) throw new Error('Could not load replay build ('+r.status+').');
+      return r.text();
+    });
+
+    const scriptMatch=source.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/i);
+    if(!scriptMatch) throw new Error('Game script was not found.');
+
+    let gameScript=scriptMatch[1];
+    gameScript=gameScript.replace(
+      "window.addEventListener('keyup',e=>{if(e.code==='Space')press(false});",
+      "window.addEventListener('keyup',e=>{if(e.code==='Space')press(false)});"
+    );
+    gameScript=gameScript.replace(
+      /function startMessage\(ts,name,skin\)\{[\s\S]*?\}\s*function mulberry32/,
+      "function startMessage(ts,name,skin){return ['TOTZ Cloud Dash','Action: start_ranked',`Wallet: ${wallet}`,`Name: ${name}`,`Skin: ${skin}`,`Chain ID: ${CHAIN_ID}`,`Contract: ${CONTRACT}`,`Timestamp: ${ts}`].join('\\n');}\nfunction mulberry32"
+    );
+
+    const cleanHtml=source.replace(/<script>[\s\S]*?<\/script>\s*<\/body>/i,'</body>');
+    document.open();
+    document.write(cleanHtml);
+    document.close();
+
+    await new Promise(resolve=>setTimeout(resolve,0));
+
+    window.addEventListener('error',function(e){
+      const status=document.getElementById('status');
+      if(status) status.textContent='Game error: '+(e.message||'Unknown JavaScript error');
+    });
+    window.addEventListener('unhandledrejection',function(e){
+      const status=document.getElementById('status');
+      if(status) status.textContent='Game error: '+String(e.reason?.message||e.reason||'Unhandled error');
+    });
+
+    const script=document.createElement('script');
+    script.textContent=gameScript;
+    document.body.appendChild(script);
+
+    setTimeout(function(){
+      const btn=document.getElementById('startBtn');
+      const status=document.getElementById('status');
+      if(!btn){ return; }
+      if(typeof btn.onclick!=='function'){
+        if(status) status.textContent='Game engine did not attach. Refresh this page once.';
+        btn.style.background='#8b2b1f';
+      }else if(status && !status.textContent){
+        status.textContent='Ready. Connect wallet or start Ranked.';
+      }
+    },250);
+  }catch(e){
+    const boot=document.getElementById('boot');
+    if(boot) boot.innerHTML='<div class="err"><b>Cloud Dash could not start.</b><span>'+String(e.message||e)+'</span></div>';
+  }
+})();
+</script>
+</body>
+</html>
