@@ -1,0 +1,58 @@
+name: Cloud Dash Shield Rarity
+
+on:
+  push:
+    branches: [cloud-dash-preview]
+    paths:
+      - '.github/workflows/cloud-dash-shield-rarity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+          fetch-depth: 0
+      - name: Make shields rarer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('cloud-dash-v4.js')
+          s=p.read_text()
+          marker='// RARER SHIELD SPAWNS'
+          if marker in s:
+              print('Shield rarity patch already installed.')
+              raise SystemExit(0)
+
+          old="""  const SHIELD_SECONDS = 8;\n  const HEART_MIN_TIME = 25000, HEART_COOLDOWN = 35000, HEART_MAX_SPAWNS = 2, HEART_CHANCE = .22;\n"""
+          new="""  const SHIELD_SECONDS = 8;\n  // RARER SHIELD SPAWNS\n  const SHIELD_MIN_TIME = 12000, SHIELD_COOLDOWN = 15000, SHIELD_GATE_MOD = 8, SHIELD_CHANCE = .70;\n  const HEART_MIN_TIME = 25000, HEART_COOLDOWN = 35000, HEART_MAX_SPAWNS = 2, HEART_CHANCE = .22;\n"""
+          assert old in s, 'shield constants anchor missing'
+          s=s.replace(old,new,1)
+
+          old="heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, combo:"
+          new="heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, lastShieldSpawn: -999999, combo:"
+          assert old in s, 'state anchor missing'
+          s=s.replace(old,new,1)
+
+          old="""    state.gateNo++;\n    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });\n    const heartEligible = state.lives === 1 && state.t >= HEART_MIN_TIME && state.heartsSpawned < HEART_MAX_SPAWNS && state.t - state.lastHeartSpawn >= HEART_COOLDOWN && state.gateNo % 4 === 0;\n"""
+          new="""    state.gateNo++;\n    const shieldEligible = state.shield <= 0 && state.t >= SHIELD_MIN_TIME && state.t - state.lastShieldSpawn >= SHIELD_COOLDOWN && state.gateNo % SHIELD_GATE_MOD === 0;\n    if (shieldEligible && gameRand() < SHIELD_CHANCE) {\n      pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });\n      state.lastShieldSpawn = state.t;\n    }\n    const heartEligible = state.lives === 1 && state.t >= HEART_MIN_TIME && state.heartsSpawned < HEART_MAX_SPAWNS && state.t - state.lastHeartSpawn >= HEART_COOLDOWN && state.gateNo % 4 === 0;\n"""
+          assert old in s, 'shield spawn anchor missing'
+          s=s.replace(old,new,1)
+
+          p.write_text(s)
+          print('Patched bytes', len(s.encode()))
+          PY
+      - name: Validate JavaScript
+        run: node --check cloud-dash-v4.js
+      - name: Commit shield rarity patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js
+          git commit -m "Make Cloud Dash shields rarer"
+          git push origin HEAD:cloud-dash-preview
