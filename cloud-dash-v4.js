@@ -22,7 +22,8 @@
   let wallet = null, profile = null, mode = 'ranked', selectedSkin = 'royal';
   let session = null, finishToken = null, babyImg = null, soundOn = true, audioCtx = null;
   let hold = false, last = 0, acc = 0, raf = 0, gameRand = Math.random, replayRaw = [];
-  let gates = [], pickups = [], particles = [], bgClouds = [];
+  let gates = [], pickups = [], particles = [], bgClouds = [], trail = [], floatText = [], sparkles = [];
+  let leaderScope = 'all', lastComboShown = 1, lastCoinHud = 0, lastLifeHud = 3, runWasBest = false;
   let state = freshState();
   let player = freshPlayer();
 
@@ -31,11 +32,75 @@
   }
   function freshPlayer() { return { x: 165, y: 190, w: 86, h: 155, vy: 0, inv: 0, rot: 0 }; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function hexToRgb(hex) { const h = hex.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function mixColor(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return `rgb(${Math.round(lerp(A[0], B[0], t))},${Math.round(lerp(A[1], B[1], t))},${Math.round(lerp(A[2], B[2], t))})`; }
   function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function short(v) { return v ? `${v.slice(0, 6)}…${v.slice(-4)}` : 'NO WALLET'; }
   function status(msg, bad = false) { const el = $('status'); el.textContent = msg; el.classList.toggle('bad', bad); }
   function hexText(text) { return '0x' + Array.from(new TextEncoder().encode(text)).map(b => b.toString(16).padStart(2, '0')).join(''); }
   function scoreFormula() { return Math.max(0, Math.floor(Math.round(state.t) / 15) + state.coins * 120 + Math.max(0, state.maxCombo - 1) * 75 - state.hits * 100); }
+
+  function injectPremiumUI() {
+    const style = document.createElement('style');
+    style.textContent = `
+      .game-shell{position:relative;isolation:isolate;box-shadow:0 24px 70px rgba(43,33,64,.18),0 0 0 1px rgba(255,255,255,.8) inset!important}
+      .canvas-wrap:after{content:'';position:absolute;z-index:2;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 35%,transparent 20%,rgba(38,32,64,.06) 72%,rgba(38,32,64,.18) 110%);mix-blend-mode:multiply}
+      .hud-chip{transition:transform .18s cubic-bezier(.2,.9,.2,1.4),box-shadow .18s,background .18s}
+      .hud-chip.juice{transform:scale(1.14);box-shadow:0 8px 24px rgba(43,33,64,.18)}
+      .combo-hot{background:linear-gradient(135deg,#fff0a0,#ffd25a)!important;box-shadow:0 0 26px rgba(255,210,90,.55)!important}
+      .premium-callout{position:absolute;z-index:5;left:50%;top:27%;transform:translate(-50%,-50%) scale(.72);opacity:0;pointer-events:none;font:800 clamp(1.05rem,3vw,2rem)/1 'Baloo 2',sans-serif;color:#fff;text-shadow:0 3px 0 rgba(43,33,64,.35),0 10px 30px rgba(43,33,64,.28);letter-spacing:.02em;white-space:nowrap}
+      .premium-callout.show{animation:totzPop .72s cubic-bezier(.2,.9,.2,1.15)}
+      .premium-callout.gold{color:#fff0a0}.premium-callout.cyan{color:#c9f7ff}.premium-callout.coral{color:#ffd7d0}.premium-callout.lime{color:#efff8a}
+      @keyframes totzPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.55) rotate(-5deg)}25%{opacity:1;transform:translate(-50%,-58%) scale(1.12) rotate(2deg)}70%{opacity:1;transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-92%) scale(.9)}}
+      .run-progress{position:absolute;z-index:4;left:15%;right:15%;bottom:11px;height:5px;border-radius:999px;background:rgba(255,255,255,.35);overflow:hidden;box-shadow:0 3px 12px rgba(43,33,64,.08);pointer-events:none}
+      .run-progress i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#cbdb2a,#ffd25a,#ff7a66);box-shadow:0 0 15px rgba(255,210,90,.6);transition:width .15s linear}
+      .speed-badge{position:absolute;z-index:4;right:12px;bottom:22px;padding:5px 8px;border-radius:999px;background:rgba(43,33,64,.72);color:#fff;font:800 .58rem 'Nunito',sans-serif;letter-spacing:.06em;opacity:.72;pointer-events:none;backdrop-filter:blur(6px)}
+      .result-extra{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:-4px 0 12px}.result-extra div{background:#f7f3ff;border-radius:13px;padding:8px}.result-extra small{display:block;color:#665b78;font-size:.52rem;font-weight:900}.result-extra strong{font:800 .92rem 'Baloo 2'}
+      .new-best{display:none;margin:8px auto 0;width:max-content;padding:5px 9px;border-radius:999px;background:#ffd25a;color:#5d4214;font-size:.62rem;font-weight:1000;box-shadow:0 7px 20px rgba(255,210,90,.3)}.new-best.show{display:block;animation:bestPop .55s cubic-bezier(.2,.9,.2,1.2)}
+      @keyframes bestPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+      .leader-tabs-premium{display:flex;gap:5px;margin-bottom:9px}.leader-tabs-premium button{border:0;background:#fff3dc;color:#665b78;border-radius:999px;padding:6px 9px;font-size:.64rem;font-weight:900;cursor:pointer}.leader-tabs-premium button.active{background:#2b2140;color:#fff}
+      .leader-row.me{outline:2px solid #ffd25a;background:#fff1b8!important}.leader-row:first-child{background:linear-gradient(135deg,#fff4bd,#fff3dc)}
+      .skin{transition:transform .18s,box-shadow .18s,border-color .18s}.skin:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(43,33,64,.1)}.skin.active{box-shadow:0 0 0 2px rgba(43,33,64,.08),0 12px 28px rgba(43,33,64,.12)!important}
+      .mission{transition:transform .2s,background .2s}.mission.live{transform:translateX(2px)}
+      .mission .live-progress{display:block;margin-top:2px;color:#8d7c4f;font-size:.58rem;font-weight:900}
+      .overlay-card{animation:cardIn .35s ease both}@keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+      .start{transition:transform .18s,filter .18s,box-shadow .18s}.start:hover{filter:saturate(1.12) brightness(1.02);transform:translateY(-1px)}
+      .profilebar,.card{transition:box-shadow .25s,transform .25s}.card:hover{box-shadow:0 20px 55px rgba(43,33,64,.13)}
+      @media(max-width:680px){.run-progress{left:22%;right:22%;bottom:8px}.speed-badge{bottom:18px}.premium-callout{top:31%}.result-extra{grid-template-columns:repeat(3,1fr)}}`;
+    document.head.appendChild(style);
+
+    const wrap = document.querySelector('.canvas-wrap');
+    const callout = document.createElement('div'); callout.id = 'premiumCallout'; callout.className = 'premium-callout'; wrap.appendChild(callout);
+    const progress = document.createElement('div'); progress.className = 'run-progress'; progress.innerHTML = '<i id="runProgressFill"></i>'; wrap.appendChild(progress);
+    const speed = document.createElement('div'); speed.className = 'speed-badge'; speed.id = 'speedBadge'; speed.textContent = 'CRUISE'; wrap.appendChild(speed);
+
+    const result = document.querySelector('.result');
+    if (result) {
+      const extra = document.createElement('div'); extra.className = 'result-extra'; extra.innerHTML = '<div><small>MAX COMBO</small><strong id="endCombo">x1</strong></div><div><small>HITS</small><strong id="endHits">0</strong></div><div><small>MODE</small><strong id="endMode">RANKED</strong></div>'; result.insertAdjacentElement('afterend', extra);
+      const best = document.createElement('div'); best.id = 'newBestBadge'; best.className = 'new-best'; best.textContent = '🏆 NEW PERSONAL BEST'; extra.insertAdjacentElement('afterend', best);
+    }
+
+    const leaderCard = $('leaderboard') && $('leaderboard').closest('.card');
+    if (leaderCard && !leaderCard.querySelector('.leader-tabs-premium')) {
+      const tabs = document.createElement('div'); tabs.className = 'leader-tabs-premium'; tabs.innerHTML = '<button data-premium-scope="today">TODAY</button><button data-premium-scope="all" class="active">ALL TIME</button>';
+      leaderCard.insertBefore(tabs, $('leaderboard'));
+      tabs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => loadLeaderboard(b.dataset.premiumScope)));
+    }
+
+    [['mScore','2500'],['mCoins','18'],['mSurvive','60s']].forEach(([id]) => {
+      const text = $(id)?.querySelector('div'); if (text && !text.querySelector('.live-progress')) { const p = document.createElement('span'); p.className = 'live-progress'; text.appendChild(p); }
+    });
+  }
+
+  function showCallout(text, toneClass = 'gold') {
+    const el = $('premiumCallout'); if (!el) return;
+    el.className = `premium-callout ${toneClass}`; el.textContent = text;
+    void el.offsetWidth; el.classList.add('show');
+  }
+  function pulseHud(id) { const el = $(id)?.closest('.hud-chip'); if (!el) return; el.classList.add('juice'); setTimeout(() => el.classList.remove('juice'), 190); }
+  function chord(notes, dur = .08, vol = .028) { notes.forEach((n, i) => setTimeout(() => tone(n, dur, vol), i * 42)); }
+  function vibrate(pattern) { try { navigator.vibrate?.(pattern); } catch (_) {} }
 
   async function api(body, timeout = 16000) {
     const ctrl = new AbortController();
@@ -106,9 +171,7 @@
     } catch (e) {
       console.error(e);
       status(e && e.message ? e.message : 'Could not start Ranked run.', true);
-    } finally {
-      $('startBtn').disabled = false;
-    }
+    } finally { $('startBtn').disabled = false; }
   }
 
   function setMode(next) {
@@ -126,38 +189,59 @@
 
   function begin(seed) {
     gameRand = mulberry32(seed >>> 0);
-    hold = false; replayRaw = [];
+    hold = false; replayRaw = []; trail = []; floatText = []; sparkles = [];
+    lastComboShown = 1; lastCoinHud = 0; lastLifeHud = 3; runWasBest = false;
     const best = state.best;
     state = freshState(); state.best = best; state.running = true;
     player = freshPlayer(); gates = []; pickups = []; particles = []; bgClouds = [];
-    for (let i = 0; i < 9; i++) bgClouds.push({ x: vrand(0, W), y: vrand(30, 360), s: vrand(.5, 1.35), v: vrand(10, 28) });
+    for (let i = 0; i < 12; i++) bgClouds.push({ x: vrand(-100, W), y: vrand(35, 385), s: vrand(.35, 1.5), v: vrand(7, 26), layer: i % 3 });
+    for (let i = 0; i < 34; i++) sparkles.push({ x: vrand(0, W), y: vrand(20, 420), r: vrand(.7, 2.1), a: vrand(.15, .6), p: vrand(0, Math.PI * 2) });
     $('startOverlay').hidden = true; $('gameOver').hidden = true; $('verified').classList.remove('show'); $('verified').classList.remove('bad');
-    last = performance.now(); acc = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); tone(420, .06, .05);
+    $('newBestBadge')?.classList.remove('show');
+    last = performance.now(); acc = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); chord([420, 560, 700], .07, .024); showCallout(mode === 'ranked' ? 'RANKED RUN' : 'PRACTICE', 'lime');
   }
 
   function spawnGate() {
     const gapH = clamp(225 - state.t / 2500, 155, 225), gapY = rand(95, H - 95 - gapH), w = 82;
-    gates.push({ x: W + 40, w, gapY, gapH, hit: false });
+    gates.push({ x: W + 40, w, gapY, gapH, hit: false, nearChecked: false });
     const coinY = gapY + gapH * (.27 + gameRand() * .46);
-    pickups.push({ type: 'coin', x: W + 40 + w / 2, y: coinY, r: 15, taken: false });
+    pickups.push({ type: 'coin', x: W + 40 + w / 2, y: coinY, r: 15, taken: false, pulse: vrand(0, Math.PI * 2) });
     state.gateNo++;
-    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false });
+    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });
   }
   function hitGate(g) { const px = player.x + 20, py = player.y + 18, pw = player.w - 35, ph = player.h - 32; return px < g.x + g.w && px + pw > g.x && (py < g.gapY || py + ph > g.gapY + g.gapH); }
   function damage(g) {
     if (player.inv > 0 || g.hit) return true;
     g.hit = true;
-    if (state.shield) { state.shield = 0; burst(player.x + 45, player.y + 70, skins[selectedSkin].aura, 14); tone(640, .08, .05); return true; }
-    state.lives--; state.hits++; player.inv = 1.15; player.vy = -180; state.combo = 1; state.comboTimer = 0; state.shake = 10; state.flash = .22;
-    burst(player.x + 45, player.y + 70, '#ff7a66', 18); tone(150, .12, .07);
+    if (state.shield) {
+      state.shield = 0; burst(player.x + 45, player.y + 70, skins[selectedSkin].aura, 24); chord([680, 840], .07, .03); showCallout('SHIELD SAVED!', 'cyan'); pulseHud('life'); vibrate(18); return true;
+    }
+    state.lives--; state.hits++; player.inv = 1.15; player.vy = -180; state.combo = 1; state.comboTimer = 0; state.shake = 11; state.flash = .22;
+    burst(player.x + 45, player.y + 70, '#ff7a66', 26); chord([180, 135], .1, .05); showCallout(state.lives ? 'OUCH!' : 'CLOUD DOWN!', 'coral'); pulseHud('life'); vibrate([28, 30, 28]);
     return state.lives > 0;
   }
   function collect(p) {
     if (p.taken) return; p.taken = true;
-    if (p.type === 'coin') { state.coins++; state.combo = state.comboTimer > 0 ? Math.min(5, state.combo + 1) : 1; state.maxCombo = Math.max(state.maxCombo, state.combo); state.comboTimer = 2.4; burst(p.x, p.y, '#ffd25a', 10); tone(880, .04, .035); }
-    else { state.shield = 1; burst(p.x, p.y, '#8de9ff', 16); tone(520, .1, .05); }
+    if (p.type === 'coin') {
+      state.coins++; state.combo = state.comboTimer > 0 ? Math.min(5, state.combo + 1) : 1; state.maxCombo = Math.max(state.maxCombo, state.combo); state.comboTimer = 2.4;
+      burst(p.x, p.y, '#ffd25a', 15); floatText.push({ x: p.x, y: p.y - 8, text: '+1', color: '#fff0a0', life: .62, vy: -38 });
+      tone(820 + state.combo * 70, .045, .035); pulseHud('coins');
+      if (state.combo >= 3 && state.combo > lastComboShown) { showCallout(state.combo === 5 ? 'MAX COMBO x5!' : `COMBO x${state.combo}`, state.combo === 5 ? 'lime' : 'gold'); chord([760, 920, 1080].slice(0, state.combo - 1), .045, .022); lastComboShown = state.combo; }
+    } else {
+      state.shield = 1; burst(p.x, p.y, '#8de9ff', 24); floatText.push({ x: p.x, y: p.y - 8, text: 'SHIELD', color: '#c9f7ff', life: .8, vy: -30 }); chord([520, 690, 920], .07, .026); showCallout('SHIELD UP!', 'cyan'); pulseHud('life');
+    }
   }
-  function burst(x, y, color, n) { for (let i = 0; i < n; i++) particles.push({ x, y, vx: vrand(-120, 120), vy: vrand(-120, 120), life: vrand(.35, .75), color, size: vrand(2, 6) }); }
+  function burst(x, y, color, n) { for (let i = 0; i < n; i++) particles.push({ x, y, vx: vrand(-145, 145), vy: vrand(-145, 115), life: vrand(.35, .8), color, size: vrand(2, 6), spin: vrand(-5, 5) }); }
+
+  function maybeNearMiss(g) {
+    if (g.nearChecked || g.hit || g.x + g.w >= player.x + 6) return;
+    g.nearChecked = true;
+    const py = player.y + 18, ph = player.h - 32;
+    const topMargin = py - g.gapY;
+    const bottomMargin = (g.gapY + g.gapH) - (py + ph);
+    const tight = Math.min(topMargin, bottomMargin);
+    if (tight >= 0 && tight < 22) { showCallout('NEAR MISS!', 'gold'); floatText.push({ x: player.x + 70, y: player.y + 32, text: 'NICE!', color: '#fff0a0', life: .8, vy: -32 }); tone(1020, .06, .025); }
+  }
 
   function stepGame() {
     state.t += DTMS;
@@ -170,16 +254,20 @@
     if (player.y < 8) { player.y = 8; player.vy = 50; }
     if (player.y + player.h > H - 10) { player.y = H - player.h - 10; player.vy = -130; if (player.inv <= 0 && !damage({ hit: false })) ended = true; }
     if (player.inv > 0) player.inv -= DT;
-    if (state.comboTimer > 0) { state.comboTimer -= DT; if (state.comboTimer <= 0) state.combo = 1; }
-    if (!ended) for (const g of gates) { g.x -= state.speed * DT; if (hitGate(g) && !damage(g)) { ended = true; break; } }
+    if (state.comboTimer > 0) { state.comboTimer -= DT; if (state.comboTimer <= 0) { state.combo = 1; lastComboShown = 1; } }
+    if (!ended) for (const g of gates) { g.x -= state.speed * DT; if (hitGate(g) && !damage(g)) { ended = true; break; } maybeNearMiss(g); }
     if (!ended) {
       gates = gates.filter(g => g.x > -120);
       for (const p of pickups) { p.x -= state.speed * DT; if (!p.taken) { const dx = player.x + 48 - p.x, dy = player.y + 76 - p.y; if (dx * dx + dy * dy < (p.r + 27) * (p.r + 27)) collect(p); } }
       pickups = pickups.filter(p => p.x > -70 && !p.taken);
     }
-    for (const c of bgClouds) { c.x -= c.v * DT; if (c.x < -120) { c.x = W + vrand(20, 160); c.y = vrand(25, 360); } }
+    for (const c of bgClouds) { c.x -= c.v * DT * (1 + c.layer * .35); if (c.x < -160) { c.x = W + vrand(30, 190); c.y = vrand(25, 390); } }
     for (const p of particles) { p.x += p.vx * DT; p.y += p.vy * DT; p.vy += 150 * DT; p.life -= DT; }
     particles = particles.filter(p => p.life > 0);
+    for (const f of floatText) { f.y += f.vy * DT; f.life -= DT; }
+    floatText = floatText.filter(f => f.life > 0);
+    trail.push({ x: player.x + 28, y: player.y + player.h * .72, life: .48, s: vrand(5, 10) });
+    if (trail.length > 38) trail.shift(); for (const t of trail) { t.x -= state.speed * DT * .16; t.life -= DT; } trail = trail.filter(t => t.life > 0);
     state.shake = Math.max(0, state.shake - 35 * DT); state.flash = Math.max(0, state.flash - DT); state.step++; state.score = scoreFormula(); syncHud();
     if (ended) finishRun(false);
   }
@@ -196,8 +284,10 @@
   async function finishRun(cleared) {
     if (!state.running) return;
     state.running = false; hold = false; cancelAnimationFrame(raf); state.score = scoreFormula();
-    if (state.score > state.best) { state.best = state.score; localStorage.setItem('totzCloudDashV4Best', String(state.best)); $('best').textContent = state.best.toLocaleString(); }
+    runWasBest = state.score > state.best;
+    if (runWasBest) { state.best = state.score; localStorage.setItem('totzCloudDashV4Best', String(state.best)); $('best').textContent = state.best.toLocaleString(); $('newBestBadge')?.classList.add('show'); chord([660, 880, 1100, 1320], .08, .026); }
     $('endScore').textContent = state.score.toLocaleString(); $('endCoins').textContent = state.coins; $('endTime').textContent = `${Math.floor(state.t / 1000)}s`; $('endFarm').textContent = mode === 'ranked' ? 'VERIFYING…' : '—';
+    if ($('endCombo')) $('endCombo').textContent = `x${state.maxCombo}`; if ($('endHits')) $('endHits').textContent = state.hits; if ($('endMode')) $('endMode').textContent = mode.toUpperCase();
     $('gameOver').hidden = false;
     if (mode !== 'ranked' || !session || !finishToken || !wallet) { $('verified').textContent = 'Practice run. No leaderboard or farming.'; $('verified').classList.add('show'); return; }
     try {
@@ -205,30 +295,71 @@
       const d = await api({ action: 'finish_ranked', wallet, sessionId: session.id, finishToken, steps: state.step, inputs, clientScore: state.score, clientCoins: state.coins, clientHits: state.hits, clientMaxCombo: state.maxCombo, skin: selectedSkin }, 22000);
       const r = d.serverResult || {};
       $('endScore').textContent = Number(r.score || 0).toLocaleString(); $('endCoins').textContent = Number(r.coins || 0); $('endTime').textContent = `${Math.floor(Number(r.survivalMs || 0) / 1000)}s`; $('endFarm').textContent = `+${Number(d.farmAwarded || 0).toFixed(2)} TEST`;
-      $('verified').innerHTML = `✓ FULL REPLAY VERIFIED · ${esc(d.physicsVersion)} · ${inputs.length} inputs · ${esc(String(d.replayHash || '').slice(0, 18))}…`;
-      $('verified').classList.add('show'); profile = d.profile || profile; renderProfile(); renderSkins(); loadLeaderboard();
+      if ($('endCombo')) $('endCombo').textContent = `x${Number(r.maxCombo || state.maxCombo)}`; if ($('endHits')) $('endHits').textContent = Number(r.hits || 0);
+      $('verified').innerHTML = `✓ FULL REPLAY VERIFIED · ${esc(d.physicsVersion)} · ${inputs.length} inputs · ${esc(String(d.replayHash || '').slice(0, 18))}…<br>+${Number(d.xpAwarded || 0)} XP${d.newMissions ? ` · ${d.newMissions} mission${d.newMissions > 1 ? 's' : ''} completed` : ''}`;
+      $('verified').classList.add('show'); profile = d.profile || profile; renderProfile(); renderSkins(); loadLeaderboard(leaderScope); showCallout('VERIFIED ✓', 'lime');
     } catch (e) {
       console.error(e); $('endFarm').textContent = 'REJECTED'; $('verified').textContent = `Replay rejected: ${e.message || e}`; $('verified').classList.add('show', 'bad');
     } finally { session = null; finishToken = null; }
   }
 
-  function syncHud() { $('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield ? '🛡️' : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`; }
+  function syncHud() {
+    $('score').textContent = state.score.toLocaleString(); $('coins').textContent = state.coins; $('combo').textContent = `x${state.combo}`; $('life').textContent = '❤️'.repeat(state.lives) + (state.shield ? '🛡️' : ''); $('time').textContent = `${Math.floor(state.t / 1000)}s`;
+    if (state.coins !== lastCoinHud) { pulseHud('coins'); lastCoinHud = state.coins; }
+    if (state.lives !== lastLifeHud) { pulseHud('life'); lastLifeHud = state.lives; }
+    const comboChip = $('combo')?.closest('.hud-chip'); comboChip?.classList.toggle('combo-hot', state.combo >= 4);
+    const fill = $('runProgressFill'); if (fill) fill.style.width = `${Math.min(100, state.t / MAXRUN * 100)}%`;
+    const badge = $('speedBadge'); if (badge) badge.textContent = state.speed > 350 ? '🔥 HYPER' : state.speed > 300 ? '⚡ FAST' : state.speed > 260 ? '💨 FLOW' : '☁️ CRUISE';
+    const ms = $('mScore')?.querySelector('.live-progress'); if (ms) ms.textContent = `${Math.min(2500, state.score).toLocaleString()} / 2,500`;
+    const mc = $('mCoins')?.querySelector('.live-progress'); if (mc) mc.textContent = `${Math.min(18, state.coins)} / 18`;
+    const mt = $('mSurvive')?.querySelector('.live-progress'); if (mt) mt.textContent = `${Math.min(60, Math.floor(state.t / 1000))} / 60s`;
+  }
 
   function drawCloud(x, y, s, a = .7) { ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 35 * s, 0, Math.PI * 2); ctx.arc(x + 35 * s, y - 10 * s, 45 * s, 0, Math.PI * 2); ctx.arc(x + 78 * s, y, 34 * s, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-  function drawBg() { const grad = ctx.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, '#91d8e8'); grad.addColorStop(.62, '#d8f2f5'); grad.addColorStop(1, '#fff1cf'); ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H); for (const c of bgClouds) drawCloud(c.x, c.y, c.s, .45); }
-  function drawGate(g) { ctx.save(); ctx.fillStyle = '#4b526f'; ctx.fillRect(g.x, 0, g.w, g.gapY - 8); ctx.fillRect(g.x, g.gapY + g.gapH + 8, g.w, H); ctx.fillStyle = '#68718e'; for (let y = 18; y < g.gapY - 18; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } for (let y = g.gapY + g.gapH + 25; y < H; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
-  function drawPickup(p) { ctx.save(); ctx.translate(p.x, p.y); if (p.type === 'coin') { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#a56d10'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); } else { ctx.fillStyle = '#bff3ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); } ctx.restore(); }
-  function drawPlayer() { const s = skins[selectedSkin] || skins.royal; ctx.save(); ctx.translate(player.x + player.w / 2, player.y + player.h / 2); ctx.rotate(player.rot); ctx.globalAlpha = player.inv > 0 && Math.floor(player.inv * 12) % 2 ? .45 : 1; ctx.shadowColor = s.aura; ctx.shadowBlur = state.shield ? 34 : 20; if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); } ctx.shadowBlur = 0; if (state.shield) { ctx.strokeStyle = '#8de9ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 64, 0, Math.PI * 2); ctx.stroke(); } ctx.restore(); }
-  function draw() { ctx.save(); if (state.shake) ctx.translate(vrand(-state.shake, state.shake), vrand(-state.shake, state.shake)); drawBg(); for (const g of gates) drawGate(g); for (const p of pickups) drawPickup(p); drawPlayer(); for (const p of particles) { ctx.globalAlpha = clamp(p.life / .6, 0, 1); ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); } ctx.globalAlpha = 1; if (state.flash) { ctx.fillStyle = `rgba(255,110,90,${state.flash})`; ctx.fillRect(0, 0, W, H); } ctx.restore(); }
+  function drawBg() {
+    const phase = Math.min(1, state.t / 150000), dusk = Math.max(0, (state.t - 65000) / 85000);
+    const top = mixColor('#86d9ee', '#7767b7', dusk * .9), mid = mixColor('#d7f4f6', '#e5a6bb', dusk * .65), bottom = mixColor('#fff0c7', '#ffcb91', phase * .65);
+    const grad = ctx.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, top); grad.addColorStop(.62, mid); grad.addColorStop(1, bottom); ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+    const sunX = 760 - phase * 80, sunY = 100 + phase * 42; const rg = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 95); rg.addColorStop(0, `rgba(255,244,184,${.55 - dusk * .15})`); rg.addColorStop(1, 'rgba(255,244,184,0)'); ctx.fillStyle = rg; ctx.fillRect(sunX - 100, sunY - 100, 200, 200);
+    for (const s of sparkles) { const tw = .35 + Math.sin(state.t / 550 + s.p) * .25; ctx.globalAlpha = clamp(s.a * tw + dusk * .15, .05, .75); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    for (const c of bgClouds.filter(c => c.layer === 0)) drawCloud(c.x, c.y, c.s * .72, .18);
+    for (const c of bgClouds.filter(c => c.layer === 1)) drawCloud(c.x, c.y, c.s, .33);
+    for (const c of bgClouds.filter(c => c.layer === 2)) drawCloud(c.x, c.y, c.s * 1.15, .5);
+    if (state.speed > 300) { ctx.strokeStyle = `rgba(255,255,255,${Math.min(.16, (state.speed - 300) / 500)})`; ctx.lineWidth = 2; for (let i = 0; i < 12; i++) { const y = (i * 47 + state.t / 5) % H; const x = (i * 91 + state.t / 3) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 55, y + 3); ctx.stroke(); } }
+  }
+  function drawGate(g) {
+    ctx.save(); const edge = ctx.createLinearGradient(g.x, 0, g.x + g.w, 0); edge.addColorStop(0, '#32384f'); edge.addColorStop(.48, '#6d7797'); edge.addColorStop(1, '#3d445f'); ctx.fillStyle = edge;
+    ctx.shadowColor = 'rgba(35,39,58,.22)'; ctx.shadowBlur = 12; ctx.fillRect(g.x, 0, g.w, g.gapY - 8); ctx.fillRect(g.x, g.gapY + g.gapH + 8, g.w, H); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(g.x + 8, 0, 5, Math.max(0, g.gapY - 8)); ctx.fillRect(g.x + 8, g.gapY + g.gapH + 8, 5, H);
+    ctx.fillStyle = '#7e89a9'; for (let y = 18; y < g.gapY - 18; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } for (let y = g.gapY + g.gapH + 25; y < H; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+  }
+  function drawPickup(p) {
+    ctx.save(); ctx.translate(p.x, p.y); const pulse = 1 + Math.sin(state.t / 150 + p.pulse) * .08; ctx.scale(pulse, pulse);
+    if (p.type === 'coin') { ctx.shadowColor = '#ffd25a'; ctx.shadowBlur = 24; ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff2ad'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#5d4214'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1); }
+    else { ctx.shadowColor = '#8de9ff'; ctx.shadowBlur = 28; ctx.fillStyle = '#c9f7ff'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#4c9fb4'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#36768b'; ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 0, 1); }
+    ctx.restore();
+  }
+  function drawTrail() { const s = skins[selectedSkin] || skins.royal; for (const t of trail) { ctx.globalAlpha = clamp(t.life / .48, 0, 1) * .42; ctx.fillStyle = s.trail; ctx.beginPath(); ctx.arc(t.x, t.y, t.s * (t.life / .48), 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
+  function drawPlayer() {
+    const s = skins[selectedSkin] || skins.royal, wobble = Math.sin(state.t / 145) * .025, squash = clamp(Math.abs(player.vy) / 900, 0, .045), bob = Math.sin(state.t / 210) * 2.5;
+    ctx.save(); ctx.translate(player.x + player.w / 2, player.y + player.h / 2 + bob); ctx.rotate(player.rot + wobble); ctx.scale(1 + squash, 1 - squash * .55); ctx.globalAlpha = player.inv > 0 && Math.floor(player.inv * 12) % 2 ? .45 : 1;
+    ctx.shadowColor = s.aura; ctx.shadowBlur = state.shield ? 42 : 24; if (babyImg && babyImg.complete && babyImg.naturalWidth) ctx.drawImage(babyImg, -player.w / 2, -player.h / 2, player.w, player.h); else { ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowBlur = 0; if (state.shield) { const rr = 65 + Math.sin(state.t / 90) * 4; ctx.strokeStyle = `rgba(141,233,255,${.65 + Math.sin(state.t / 110) * .2})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-12, -10, rr - 8, Math.PI * 1.05, Math.PI * 1.52); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawFloatText() { ctx.save(); ctx.textAlign = 'center'; ctx.font = '900 17px Nunito,system-ui'; for (const f of floatText) { ctx.globalAlpha = clamp(f.life / .8, 0, 1); ctx.fillStyle = f.color; ctx.shadowColor = 'rgba(43,33,64,.35)'; ctx.shadowBlur = 8; ctx.fillText(f.text, f.x, f.y); } ctx.restore(); }
+  function draw() {
+    ctx.save(); if (state.shake) ctx.translate(vrand(-state.shake, state.shake), vrand(-state.shake, state.shake)); drawBg(); drawTrail(); for (const g of gates) drawGate(g); for (const p of pickups) drawPickup(p); drawPlayer();
+    for (const p of particles) { ctx.globalAlpha = clamp(p.life / .7, 0, 1); ctx.fillStyle = p.color; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.spin * p.life); ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size); ctx.restore(); } ctx.globalAlpha = 1; drawFloatText();
+    if (state.flash) { ctx.fillStyle = `rgba(255,110,90,${state.flash})`; ctx.fillRect(0, 0, W, H); } ctx.restore();
+  }
   function loop(now) { if (!state.running) return; const frame = Math.min(.1, (now - last) / 1000 || DT); last = now; acc += frame; while (acc >= DT && state.running) { stepGame(); acc -= DT; } draw(); if (state.running) raf = requestAnimationFrame(loop); }
 
-  function press(v) { if (v === hold) return; hold = v; if (state.running && mode === 'ranked') replayRaw.push([state.step, v ? 1 : 0]); if (v && state.running) tone(300, .025, .015); }
-  function tone(freq, dur = .05, vol = .04) { if (!soundOn) return; try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = freq; g.gain.value = vol; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + dur); o.stop(audioCtx.currentTime + dur); } catch (_) {} }
+  function press(v) { if (v === hold) return; hold = v; if (state.running && mode === 'ranked') replayRaw.push([state.step, v ? 1 : 0]); if (v && state.running) { tone(300, .025, .015); burst(player.x + 22, player.y + player.h * .73, skins[selectedSkin].trail, 3); } }
+  function tone(freq, dur = .05, vol = .04) { if (!soundOn) return; try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = freq; o.type = freq > 800 ? 'triangle' : 'sine'; g.gain.value = vol; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + dur); o.stop(audioCtx.currentTime + dur); } catch (_) {} }
 
-  async function loadProfile() {
-    if (!wallet) return;
-    const d = await api({ action: 'profile', wallet }); profile = d.profile; $('nameInput').value = profile.displayName || 'TOTZ Player'; renderProfile(); renderSkins();
-  }
+  async function loadProfile() { if (!wallet) return; const d = await api({ action: 'profile', wallet }); profile = d.profile; $('nameInput').value = profile.displayName || 'TOTZ Player'; renderProfile(); renderSkins(); }
   function renderProfile() {
     const d = profile && profile.daily ? profile.daily : {};
     $('farmEarned').textContent = Number(d.farmEarned || 0).toFixed(2).replace(/\.00$/, ''); $('farmBar').style.width = `${Math.min(100, Number(d.farmEarned || 0) / 5 * 100)}%`; $('xp').textContent = `${Number(profile && profile.xp || 0)} XP`;
@@ -236,31 +367,31 @@
   }
   function renderSkins() {
     const xp = Number(profile && profile.xp || 0); const root = $('skinGrid'); root.innerHTML = '';
-    Object.entries(skins).forEach(([id, s]) => { const unlocked = xp >= s.need; const b = document.createElement('button'); b.className = `skin ${id === selectedSkin ? 'active' : ''} ${unlocked ? '' : 'locked'}`; b.innerHTML = `<i style="background:${s.aura}"></i><strong>${s.name}</strong><span>${unlocked ? 'UNLOCKED' : s.need + ' XP'}</span>`; b.onclick = () => { selectedSkin = id; renderSkins(); status(unlocked ? `${s.name} equipped.` : `${s.name} selected for Practice. Ranked will use an unlocked skin.`); }; root.appendChild(b); });
+    Object.entries(skins).forEach(([id, s]) => { const unlocked = xp >= s.need; const b = document.createElement('button'); b.className = `skin ${id === selectedSkin ? 'active' : ''} ${unlocked ? '' : 'locked'}`; b.style.color = s.aura; b.innerHTML = `<i style="background:${s.aura}"></i><strong>${s.name}</strong><span>${unlocked ? 'UNLOCKED' : s.need + ' XP'}</span>`; b.onclick = () => { selectedSkin = id; renderSkins(); status(unlocked ? `${s.name} equipped.` : `${s.name} selected for Practice. Ranked will use an unlocked skin.`); showCallout(`${s.name.toUpperCase()} CLOUD`, unlocked ? 'lime' : 'gold'); }; root.appendChild(b); });
   }
-  async function loadLeaderboard() {
-    try { const d = await api({ action: 'leaderboard', scope: 'all' }); const rows = d.leaderboard || []; $('leaderboard').innerHTML = rows.length ? rows.map(r => `<div class="leader-row"><b>#${r.rank}</b><span>${esc(r.display_name || short(r.wallet))}</span><strong>${Number(r.score || 0).toLocaleString()}</strong></div>`).join('') : '<div class="empty">No replay-verified runs yet.</div>'; } catch (_) { $('leaderboard').innerHTML = '<div class="empty">Leaderboard unavailable.</div>'; }
+  async function loadLeaderboard(scope = 'all') {
+    leaderScope = scope; document.querySelectorAll('[data-premium-scope]').forEach(b => b.classList.toggle('active', b.dataset.premiumScope === scope));
+    try { const d = await api({ action: 'leaderboard', scope }); const rows = d.leaderboard || []; $('leaderboard').innerHTML = rows.length ? rows.map(r => `<div class="leader-row ${wallet && String(r.wallet).toLowerCase() === wallet ? 'me' : ''}"><b>#${r.rank}</b><span>${esc(r.display_name || short(r.wallet))}</span><strong>${Number(r.score || 0).toLocaleString()}</strong></div>`).join('') : '<div class="empty">No replay-verified runs yet.</div>'; } catch (_) { $('leaderboard').innerHTML = '<div class="empty">Leaderboard unavailable.</div>'; }
   }
-  async function loadBaby() {
-    try { const html = await fetch('/cloud-dash.html', { cache: 'force-cache' }).then(r => r.text()); const m = html.match(/const BABY_SRC='([^']+)'/); babyImg = new Image(); babyImg.src = m && m[1] ? m[1] : '/assets/totz-king.jpg'; } catch (_) { babyImg = new Image(); babyImg.src = '/assets/totz-king.jpg'; }
-  }
+  async function loadBaby() { try { const html = await fetch('/cloud-dash.html', { cache: 'force-cache' }).then(r => r.text()); const m = html.match(/const BABY_SRC='([^']+)'/); babyImg = new Image(); babyImg.src = m && m[1] ? m[1] : '/assets/totz-king.jpg'; } catch (_) { babyImg = new Image(); babyImg.src = '/assets/totz-king.jpg'; } }
 
   function boot() {
+    injectPremiumUI();
     $('best').textContent = state.best.toLocaleString();
     $('connectBtn').addEventListener('click', () => connectWallet().catch(e => status(e.message || String(e), true)));
     $('startBtn').addEventListener('click', startRun);
-    $('restartBtn').addEventListener('click', () => { $('gameOver').hidden = true; $('startOverlay').hidden = false; status(mode === 'ranked' ? 'Ready for another Ranked run.' : 'Ready for Practice.'); });
+    $('restartBtn').addEventListener('click', () => { $('gameOver').hidden = true; $('startOverlay').hidden = false; $('newBestBadge')?.classList.remove('show'); status(mode === 'ranked' ? 'Ready for another Ranked run.' : 'Ready for Practice.'); });
     $('rankedMode').addEventListener('click', () => setMode('ranked'));
     $('practiceMode').addEventListener('click', () => setMode('practice'));
-    $('soundBtn').addEventListener('click', () => { soundOn = !soundOn; $('soundBtn').textContent = soundOn ? '🔊 SOUND ON' : '🔇 SOUND OFF'; });
+    $('soundBtn').addEventListener('click', () => { soundOn = !soundOn; $('soundBtn').textContent = soundOn ? '🔊 SOUND ON' : '🔇 SOUND OFF'; if (soundOn) chord([520, 690], .05, .02); });
     canvas.addEventListener('pointerdown', e => { e.preventDefault(); press(true); });
     window.addEventListener('pointerup', () => press(false));
     window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); press(true); } });
     window.addEventListener('keyup', e => { if (e.code === 'Space') press(false); });
-    if (window.ethereum && window.ethereum.on) window.ethereum.on('accountsChanged', a => { wallet = a && a[0] ? a[0].toLowerCase() : null; $('walletChip').textContent = short(wallet); if (wallet) loadProfile().catch(() => {}); });
-    loadBaby(); renderProfile(); renderSkins(); loadLeaderboard(); setMode('ranked');
-    bgClouds = [{ x: 80, y: 120, s: 1, v: 10 }, { x: 500, y: 230, s: .8, v: 10 }]; drawBg(); drawPlayer();
-    status('V4 loaded. Ranked button is active.');
+    if (window.ethereum && window.ethereum.on) window.ethereum.on('accountsChanged', a => { wallet = a && a[0] ? a[0].toLowerCase() : null; $('walletChip').textContent = short(wallet); if (wallet) loadProfile().catch(() => {}); loadLeaderboard(leaderScope); });
+    loadBaby(); renderProfile(); renderSkins(); loadLeaderboard('all'); setMode('ranked');
+    bgClouds = [{ x: 80, y: 120, s: 1, v: 10, layer: 0 }, { x: 500, y: 230, s: .8, v: 10, layer: 1 }]; drawBg(); drawPlayer();
+    status('Premium build loaded. Ranked button is active.');
   }
 
   window.addEventListener('error', (e) => status(`Game error: ${e.message}`, true));
