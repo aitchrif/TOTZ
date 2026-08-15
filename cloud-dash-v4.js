@@ -8,6 +8,8 @@
   const W = 960, H = 540, FPS = 60, DT = 1 / FPS, DTMS = 1000 / FPS, MAXRUN = 180000;
   // SHIELD + RESCUE HEART BALANCE
   const SHIELD_SECONDS = 8;
+  // RARER SHIELD SPAWNS
+  const SHIELD_MIN_TIME = 12000, SHIELD_COOLDOWN = 15000, SHIELD_GATE_MOD = 8, SHIELD_CHANCE = .70;
   const HEART_MIN_TIME = 25000, HEART_COOLDOWN = 35000, HEART_MAX_SPAWNS = 2, HEART_CHANCE = .22;
 
   const skins = {
@@ -87,7 +89,7 @@
   }
 
   function freshState() {
-    return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };
+    return { running: false, step: 0, t: 0, coins: 0, lives: 3, shield: 0, heartsSpawned: 0, heartsCollected: 0, lastHeartSpawn: -999999, lastShieldSpawn: -999999, combo: 1, maxCombo: 1, comboTimer: 0, hits: 0, score: 0, speed: 225, spawn: .55, gateNo: 0, shake: 0, flash: 0, best: Number(localStorage.getItem('totzCloudDashV4Best') || 0) };
   }
   function freshPlayer() { return { x: 165, y: 190, w: 86, h: 155, vy: 0, inv: 0, rot: 0 }; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -266,7 +268,11 @@
     const coinY = gapY + gapH * (.27 + gameRand() * .46);
     pickups.push({ type: 'coin', x: W + 40 + w / 2, y: coinY, r: 15, taken: false, pulse: vrand(0, Math.PI * 2) });
     state.gateNo++;
-    if (state.gateNo % 6 === 0) pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });
+    const shieldEligible = state.shield <= 0 && state.t >= SHIELD_MIN_TIME && state.t - state.lastShieldSpawn >= SHIELD_COOLDOWN && state.gateNo % SHIELD_GATE_MOD === 0;
+    if (shieldEligible && gameRand() < SHIELD_CHANCE) {
+      pickups.push({ type: 'shield', x: W + 40 + w / 2 + 45, y: gapY + gapH / 2, r: 17, taken: false, pulse: vrand(0, Math.PI * 2) });
+      state.lastShieldSpawn = state.t;
+    }
     const heartEligible = state.lives === 1 && state.t >= HEART_MIN_TIME && state.heartsSpawned < HEART_MAX_SPAWNS && state.t - state.lastHeartSpawn >= HEART_COOLDOWN && state.gateNo % 4 === 0;
     if (heartEligible && gameRand() < HEART_CHANCE) {
       const heartY = gapY + gapH * (.35 + gameRand() * .30);
