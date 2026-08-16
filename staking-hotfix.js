@@ -32,7 +32,6 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
         const firstNewCard = cards[cardsBefore];
         if (!firstNewCard) return;
 
-        // Put the first newly-added NFT at the top of the viewport, not the bulk controls.
         const top = firstNewCard.getBoundingClientRect().top + window.scrollY - 14;
         window.scrollTo({ top, behavior: 'smooth' });
       });
@@ -42,9 +41,10 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   }
 };
 
-// Rewards Hub integration: staking rewards are a persistent wallet balance.
+// Rewards Hub integration: no polling. Refresh only on real user/page events.
 (() => {
-  const REWARDS_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-rewards';
+  const USAGE_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-wallet-usage';
+  let usageLoading = false;
 
   const nav = document.querySelector('.nav-actions');
   if (nav && !nav.querySelector('[data-rewards-link]')) {
@@ -57,23 +57,46 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   }
 
   const pointsEl = document.getElementById('pointsStat');
-  const pointsLabel = pointsEl?.parentElement?.querySelector('small');
+  const pointsCard = pointsEl?.closest('.stat');
+  const pointsLabel = pointsCard?.querySelector('small');
   if (pointsLabel) pointsLabel.textContent = '$TOTZ Balance';
 
+  let lockedNote = document.getElementById('stakingDiscordLockedNote');
+  if (!lockedNote && pointsCard) {
+    lockedNote = document.createElement('span');
+    lockedNote.id = 'stakingDiscordLockedNote';
+    lockedNote.style.display = 'block';
+    lockedNote.style.marginTop = '2px';
+    lockedNote.style.fontSize = '.72rem';
+    lockedNote.style.fontWeight = '800';
+    lockedNote.style.color = 'var(--soft, #5B5270)';
+    pointsCard.appendChild(lockedNote);
+  }
+
+  function activeWallet() {
+    const address = window.ethereum?.selectedAddress || (typeof wallet === 'string' ? wallet : '');
+    return /^0x[0-9a-fA-F]{40}$/.test(address || '') ? address.toLowerCase() : null;
+  }
+
   async function syncSpendablePoints() {
-    const address = window.ethereum?.selectedAddress;
-    if (!address || !pointsEl) return;
+    const address = activeWallet();
+    if (!address || !pointsEl || usageLoading) return;
+    usageLoading = true;
     try {
-      const res = await fetch(REWARDS_API, {
+      const res = await fetch(USAGE_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'summary', wallet: address.toLowerCase() }),
+        body: JSON.stringify({ wallet: address }),
         cache: 'no-store'
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || data.error) return;
-      pointsEl.textContent = Number(data.points?.available || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
-    } catch (_) {}
+      pointsEl.textContent = Number(data.available || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
+      if (lockedNote) lockedNote.textContent = `Discord locked: ${Number(data.locked || 0).toLocaleString(undefined, { maximumFractionDigits: 3 })} $TOTZ`;
+    } catch (_) {
+    } finally {
+      usageLoading = false;
+    }
   }
 
   const originalLoadPortfolio = loadPortfolio;
@@ -83,9 +106,13 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
     return result;
   };
 
-  setInterval(() => {
+  window.addEventListener('focus', () => {
     if (document.visibilityState === 'visible') syncSpendablePoints();
-  }, 15000);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncSpendablePoints();
+  });
+  window.ethereum?.on?.('accountsChanged', () => setTimeout(syncSpendablePoints, 100));
 })();
 
 (() => {
@@ -117,13 +144,5 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   const script = document.createElement('script');
   script.src = 'staking-selection.js';
   script.dataset.stakingSelection = '1';
-  document.head.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-discord-balance-hotfix]')) return;
-  const script = document.createElement('script');
-  script.src = 'discord-balance-hotfix.js';
-  script.dataset.discordBalanceHotfix = '1';
   document.head.appendChild(script);
 })();
