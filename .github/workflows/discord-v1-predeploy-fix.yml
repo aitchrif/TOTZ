@@ -1,0 +1,95 @@
+name: Discord V1 Predeploy Safety Patch
+
+on:
+  push:
+    branches: [discord-bot-v1]
+    paths:
+      - '.github/workflows/discord-v1-predeploy-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: discord-bot-v1
+          fetch-depth: 0
+
+      - name: Patch Discord V1 balance and private channel enforcement
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('supabase/functions/totz-discord/index.ts')
+          s = p.read_text()
+
+          old = '''async function activeLink(discordUserId: string) {'''
+          insert = '''async function fetchRewardsSummary(wallet: string) {
+            const endpoint = env("SUPABASE_URL") + "/functions/v1/totz-rewards";
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ action: "summary", wallet }),
+              signal: AbortSignal.timeout(12_000),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.error) throw new Error("Rewards balance unavailable");
+            return data;
+          }
+
+          async function activeLink(discordUserId: string) {'''
+          assert old in s, 'activeLink anchor missing'
+          s = s.replace(old, insert, 1)
+
+          old = '''  if (payload.type !== 2 || payload.data?.name !== "totz") {
+            return interactionReply("Unsupported command.");
+          }
+
+          const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");'''
+          new = '''  if (payload.type !== 2 || payload.data?.name !== "totz") {
+            return interactionReply("Unsupported command.");
+          }
+
+          if (
+            String(payload.guild_id || "") !== env("DISCORD_GUILD_ID") ||
+            String(payload.channel_id || "") !== env("DISCORD_TEST_CHANNEL_ID")
+          ) {
+            return interactionReply("This private test command is only available in the TOTZ test channel.");
+          }
+
+          const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");'''
+          assert old in s, 'interaction scope anchor missing'
+          s = s.replace(old, new, 1)
+
+          old = '''    const portfolio = await fetchPortfolio(link.wallet);
+            const available = Number(portfolio.totalPoints || 0);'''
+          new = '''    const [portfolio, rewards] = await Promise.all([
+              fetchPortfolio(link.wallet),
+              fetchRewardsSummary(link.wallet),
+            ]);
+            const available = Number(rewards?.points?.available || 0);'''
+          assert old in s, 'portfolio balance anchor missing'
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Validate patch
+        run: |
+          grep -q 'DISCORD_TEST_CHANNEL_ID' supabase/functions/totz-discord/index.ts
+          grep -q 'points?.available' supabase/functions/totz-discord/index.ts
+          git diff --check
+
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/functions/totz-discord/index.ts
+          git commit -m "Harden Discord V1 balance and test channel scope"
+          git push origin HEAD:discord-bot-v1
