@@ -1,0 +1,4 @@
+project_id = "yymwpnztjlyfxongwmsw"
+
+[functions.totz-discord]
+verify_jwt = false
