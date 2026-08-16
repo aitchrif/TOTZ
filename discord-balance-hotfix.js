@@ -1,7 +1,10 @@
 (() => {
   const USAGE_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-wallet-usage';
+  const REFRESH_COOLDOWN_MS = 60_000;
   let lastUsage = null;
   let loading = false;
+  let lastFetchAt = 0;
+  let lastWallet = null;
 
   function activeWallet() {
     const selected = window.ethereum?.selectedAddress;
@@ -18,10 +21,20 @@
     if (el && el.textContent !== value) el.textContent = value;
   }
 
-  async function fetchUsage() {
+  async function fetchUsage(force = false) {
     const currentWallet = activeWallet();
-    if (!currentWallet || loading) return lastUsage;
+    if (!currentWallet) return lastUsage;
+    if (currentWallet !== lastWallet) {
+      lastWallet = currentWallet;
+      lastUsage = null;
+      lastFetchAt = 0;
+      force = true;
+    }
+    if (loading) return lastUsage;
+    if (!force && lastUsage && Date.now() - lastFetchAt < REFRESH_COOLDOWN_MS) return lastUsage;
+
     loading = true;
+    lastFetchAt = Date.now();
     try {
       const res = await fetch(USAGE_API, {
         method: 'POST',
@@ -106,8 +119,8 @@
     updateStakingPage(u);
   }
 
-  async function refresh() {
-    applyUsage(await fetchUsage());
+  async function refresh(force = false) {
+    applyUsage(await fetchUsage(force));
   }
 
   const observer = new MutationObserver(() => {
@@ -115,14 +128,11 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
 
-  window.addEventListener('focus', refresh);
+  window.addEventListener('focus', () => refresh(false));
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') refresh();
+    if (document.visibilityState === 'visible') refresh(false);
   });
-  window.ethereum?.on?.('accountsChanged', () => {
-    lastUsage = null;
-    setTimeout(refresh, 100);
-  });
+  window.ethereum?.on?.('accountsChanged', () => setTimeout(() => refresh(true), 100));
 
-  setTimeout(refresh, 400);
+  setTimeout(() => refresh(true), 400);
 })();
