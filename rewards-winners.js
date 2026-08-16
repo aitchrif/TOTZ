@@ -97,6 +97,6 @@ async function loadWinners() {
   `;
   document.head.appendChild(style);
   installWinnerSection();
+  // Free mode: one request when the Rewards page opens. No background polling.
   loadWinners();
-  setInterval(() => { if (document.visibilityState === 'visible') loadWinners(); }, 30000);
 })();
