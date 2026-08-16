@@ -13,7 +13,6 @@ appendTokens = function(tokens) {
 showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   if (pageLoading) return;
 
-  // DOM position is the reliable anchor. Array indexes can change when an indexer page arrives.
   const cardsBefore = grid.querySelectorAll('.nft').length;
 
   try {
@@ -31,7 +30,6 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
         const cards = grid.querySelectorAll('.nft');
         const firstNewCard = cards[cardsBefore];
         if (!firstNewCard) return;
-
         const top = firstNewCard.getBoundingClientRect().top + window.scrollY - 14;
         window.scrollTo({ top, behavior: 'smooth' });
       });
@@ -134,7 +132,7 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
 (() => {
   if (document.querySelector('script[data-staking-economy]')) return;
   const script = document.createElement('script');
-  script.src = 'staking-economy.js';
+  script.src = 'staking-economy-free.js';
   script.dataset.stakingEconomy = '1';
   document.head.appendChild(script);
 })();
