@@ -1,0 +1,23 @@
+name: Discord V1 Register Guild Commands Once
+
+on:
+  push:
+    branches: [discord-bot-v1]
+    paths:
+      - '.github/workflows/discord-v1-register-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Register guild-only TOTZ commands
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl --fail-with-body --silent --show-error \
+            'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord-register-once?k=eJd6YQH_OES7bmMGMuDDy1JsEyyxCl1S')
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q '"ok":true'
+          echo "$RESPONSE" | grep -q '"totz"'
