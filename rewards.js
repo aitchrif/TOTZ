@@ -268,7 +268,3 @@ if (window.ethereum) {
   });
   connectWallet(true);
 }
-
-setInterval(() => {
-  if (wallet && !busy && document.visibilityState === 'visible') loadRewards();
-}, 60000);
