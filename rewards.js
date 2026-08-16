@@ -5,6 +5,8 @@ const CONTRACT = '0x107c4e7cf931b18e022d40184d03d00b4ec99d5a';
 
 let wallet = null;
 let rewardsState = null;
+let rewardsLoad = null;
+let rewardsLoadedAt = 0;
 let busy = false;
 
 const $ = (id) => document.getElementById(id);
@@ -94,7 +96,7 @@ async function connectWallet(silent = false) {
     $('connectTitle').textContent = 'Wallet connected';
     $('connectSub').innerHTML = `Spend the PTS earned by <span class="wallet-chip">${shortWallet(wallet)}</span>.`;
     $('dashboard').hidden = false;
-    await loadRewards();
+    await loadRewards(false);
   } catch (error) {
     showStatus(error.message || 'Could not connect wallet.', 'error');
   } finally {
@@ -102,21 +104,35 @@ async function connectWallet(silent = false) {
   }
 }
 
-async function loadRewards() {
+async function loadRewards(force = false) {
   if (!wallet) return;
-  try {
-    const data = await api({ action: 'summary', wallet });
-    rewardsState = data;
-    $('availableStat').textContent = formatPts(data.points?.available);
-    $('earnedStat').textContent = formatPts(data.points?.earned);
-    $('spentStat').textContent = formatPts(data.points?.spent);
-    $('entriesStat').textContent = Number(data.totalEntries || 0).toLocaleString();
-    renderRaffles(data.raffles || []);
-    showStatus(`You have ${formatPts(data.points?.available)} PTS available to spend.`, 'ok');
-  } catch (error) {
-    showStatus(error.message || 'Could not load rewards.', 'error');
-    raffleGrid.innerHTML = '<div class="empty">Could not load raffles. Try again in a moment.</div>';
-  }
+  const walletAtStart = wallet;
+  if (rewardsLoad) return rewardsLoad;
+  if (!force && rewardsState?.wallet === walletAtStart && Date.now() - rewardsLoadedAt < 1500) return rewardsState;
+
+  rewardsLoad = (async () => {
+    try {
+      const data = await api({ action: 'summary', wallet: walletAtStart });
+      if (wallet !== walletAtStart) return rewardsState;
+      rewardsState = data;
+      rewardsLoadedAt = Date.now();
+      $('availableStat').textContent = formatPts(data.points?.available);
+      $('earnedStat').textContent = formatPts(data.points?.earned);
+      $('spentStat').textContent = formatPts(data.points?.spent);
+      $('entriesStat').textContent = Number(data.totalEntries || 0).toLocaleString();
+      renderRaffles(data.raffles || []);
+      showStatus(`You have ${formatPts(data.points?.available)} PTS available to spend.`, 'ok');
+      return data;
+    } catch (error) {
+      showStatus(error.message || 'Could not load rewards.', 'error');
+      raffleGrid.innerHTML = '<div class="empty">Could not load raffles. Try again in a moment.</div>';
+      return null;
+    } finally {
+      rewardsLoad = null;
+    }
+  })();
+
+  return rewardsLoad;
 }
 
 function raffleEndsLabel(value) {
@@ -245,7 +261,7 @@ async function enterRaffle(raffle, entries) {
       timestamp,
       signature
     }, 15000);
-    await loadRewards();
+    await loadRewards(true);
     showStatus(`Entry confirmed: +${result.entriesAdded} entr${result.entriesAdded === 1 ? 'y' : 'ies'} · ${formatPts(result.pointsSpent)} PTS spent.`, 'ok');
   } catch (error) {
     showStatus(error.message || 'Could not enter raffle.', 'error');
@@ -260,11 +276,13 @@ if (window.ethereum) {
   window.ethereum.on?.('accountsChanged', (accounts) => {
     if (!accounts?.length) return location.reload();
     wallet = accounts[0].toLowerCase();
+    rewardsState = null;
+    rewardsLoadedAt = 0;
     connectBtn.textContent = shortWallet(wallet);
-    loadRewards();
+    loadRewards(true);
   });
   window.ethereum.on?.('chainChanged', () => {
-    if (wallet) loadRewards();
+    if (wallet) loadRewards(false);
   });
   connectWallet(true);
 }
