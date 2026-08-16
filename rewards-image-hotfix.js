@@ -78,12 +78,7 @@
     script.dataset.totzUiBrand = '1';
     document.head.appendChild(script);
   }
-  if (!document.querySelector('script[data-totz-winners]')) {
-    const script = document.createElement('script');
-    script.src = 'rewards-winners.js';
-    script.dataset.totzWinners = '1';
-    document.head.appendChild(script);
-  }
+  // Free mode: no automatic Recent Winners request.
   if (!document.querySelector('script[data-discord-balance-hotfix]')) {
     const script = document.createElement('script');
     script.src = 'discord-balance-hotfix.js';
