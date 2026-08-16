@@ -84,4 +84,10 @@
     script.dataset.totzWinners = '1';
     document.head.appendChild(script);
   }
+  if (!document.querySelector('script[data-discord-balance-hotfix]')) {
+    const script = document.createElement('script');
+    script.src = 'discord-balance-hotfix.js';
+    script.dataset.discordBalanceHotfix = '1';
+    document.head.appendChild(script);
+  }
 })();
