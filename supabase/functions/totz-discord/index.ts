@@ -98,6 +98,19 @@ async function fetchPortfolio(wallet: string) {
   return data;
 }
 
+async function fetchRewardsSummary(wallet: string) {
+  const endpoint = env("SUPABASE_URL") + "/functions/v1/totz-rewards";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "summary", wallet }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error) throw new Error("Rewards balance unavailable");
+  return data;
+}
+
 async function activeLink(discordUserId: string) {
   const { data, error } = await client()
     .from("totz_discord_links")
@@ -127,7 +140,14 @@ async function handleInteraction(req: Request) {
     return interactionReply("Unsupported command.");
   }
 
-  const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");
+  if (
+  String(payload.guild_id || "") !== env("DISCORD_GUILD_ID") ||
+  String(payload.channel_id || "") !== env("DISCORD_TEST_CHANNEL_ID")
+) {
+  return interactionReply("This private test command is only available in the TOTZ test channel.");
+}
+
+const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");
   const subcommand = payload.data?.options?.[0]?.name;
 
   if (subcommand === "link") {
@@ -155,8 +175,11 @@ async function handleInteraction(req: Request) {
   if (!link) return interactionReply("No wallet is linked. Run **/totz link** first.");
 
   try {
-    const portfolio = await fetchPortfolio(link.wallet);
-    const available = Number(portfolio.totalPoints || 0);
+    const [portfolio, rewards] = await Promise.all([
+    fetchPortfolio(link.wallet),
+    fetchRewardsSummary(link.wallet),
+  ]);
+  const available = Number(rewards?.points?.available || 0);
     if (subcommand === "balance") {
       return interactionReply(
         `☁️ **TOTZ BALANCE**\n\n${available.toLocaleString(undefined, { maximumFractionDigits: 3 })} $TOTZ\n\nWallet: ${shortWallet(link.wallet)}`,
