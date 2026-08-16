@@ -64,6 +64,15 @@ async function readBody(req: Request): Promise<Uint8Array> {
   return body;
 }
 
+async function readJson(req: Request): Promise<Record<string, unknown>> {
+  const body = await readBody(req);
+  try {
+    return JSON.parse(new TextDecoder().decode(body));
+  } catch {
+    throw new Response("Invalid JSON", { status: 400 });
+  }
+}
+
 function interactionReply(content: string, components?: unknown[]) {
   return json({
     type: 4,
@@ -251,7 +260,7 @@ async function oauthCallback(url: URL) {
 }
 
 async function linkChallenge(req: Request) {
-  const { session, wallet } = await req.json();
+  const { session, wallet } = await readJson(req);
   const normalized = normalizeWallet(String(wallet || ""));
   const tokenHash = await sha256Hex(String(session || ""));
   const db = client();
@@ -276,7 +285,7 @@ async function linkChallenge(req: Request) {
 }
 
 async function linkComplete(req: Request) {
-  const { session, wallet, signature } = await req.json();
+  const { session, wallet, signature } = await readJson(req);
   const normalized = normalizeWallet(String(wallet || ""));
   const db = client();
   const { data: row } = await db.from("totz_discord_link_nonces")
