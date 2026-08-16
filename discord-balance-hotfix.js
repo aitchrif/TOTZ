@@ -126,6 +126,6 @@
 
   setInterval(() => {
     if (document.visibilityState === 'visible') refresh();
-  }, 5000);
+  }, 60000);
   setTimeout(refresh, 400);
 })();
