@@ -39,10 +39,13 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   }
 };
 
-// Rewards Hub integration: no polling. Refresh only on real user/page events.
+// Rewards Hub integration: no polling. Refresh only on useful events, throttled for Free mode.
 (() => {
   const USAGE_API = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-wallet-usage';
+  const REFRESH_COOLDOWN_MS = 60_000;
   let usageLoading = false;
+  let lastUsageAt = 0;
+  let lastUsageWallet = null;
 
   const nav = document.querySelector('.nav-actions');
   if (nav && !nav.querySelector('[data-rewards-link]')) {
@@ -76,10 +79,19 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
     return /^0x[0-9a-fA-F]{40}$/.test(address || '') ? address.toLowerCase() : null;
   }
 
-  async function syncSpendablePoints() {
+  async function syncSpendablePoints(force = false) {
     const address = activeWallet();
-    if (!address || !pointsEl || usageLoading) return;
+    if (!address || !pointsEl) return;
+    if (address !== lastUsageWallet) {
+      lastUsageWallet = address;
+      lastUsageAt = 0;
+      force = true;
+    }
+    if (usageLoading) return;
+    if (!force && Date.now() - lastUsageAt < REFRESH_COOLDOWN_MS) return;
+
     usageLoading = true;
+    lastUsageAt = Date.now();
     try {
       const res = await fetch(USAGE_API, {
         method: 'POST',
@@ -100,17 +112,17 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   const originalLoadPortfolio = loadPortfolio;
   loadPortfolio = async function(...args) {
     const result = await originalLoadPortfolio(...args);
-    await syncSpendablePoints();
+    await syncSpendablePoints(true);
     return result;
   };
 
   window.addEventListener('focus', () => {
-    if (document.visibilityState === 'visible') syncSpendablePoints();
+    if (document.visibilityState === 'visible') syncSpendablePoints(false);
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') syncSpendablePoints();
+    if (document.visibilityState === 'visible') syncSpendablePoints(false);
   });
-  window.ethereum?.on?.('accountsChanged', () => setTimeout(syncSpendablePoints, 100));
+  window.ethereum?.on?.('accountsChanged', () => setTimeout(() => syncSpendablePoints(true), 100));
 })();
 
 (() => {
