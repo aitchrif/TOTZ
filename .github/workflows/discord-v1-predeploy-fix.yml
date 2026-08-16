@@ -22,11 +22,14 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('supabase/functions/totz-discord/index.ts')
           s = p.read_text()
 
-          old = '''async function activeLink(discordUserId: string) {'''
-          insert = '''async function fetchRewardsSummary(wallet: string) {
+          if 'async function fetchRewardsSummary(wallet: string)' not in s:
+              anchor = 'async function activeLink(discordUserId: string) {'
+              insert = '''async function fetchRewardsSummary(wallet: string) {
             const endpoint = env("SUPABASE_URL") + "/functions/v1/totz-rewards";
             const response = await fetch(endpoint, {
               method: "POST",
@@ -40,19 +43,12 @@ jobs:
           }
 
           async function activeLink(discordUserId: string) {'''
-          assert old in s, 'activeLink anchor missing'
-          s = s.replace(old, insert, 1)
+              assert anchor in s, 'activeLink anchor missing'
+              s = s.replace(anchor, insert, 1)
 
-          old = '''  if (payload.type !== 2 || payload.data?.name !== "totz") {
-            return interactionReply("Unsupported command.");
-          }
-
-          const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");'''
-          new = '''  if (payload.type !== 2 || payload.data?.name !== "totz") {
-            return interactionReply("Unsupported command.");
-          }
-
-          if (
+          if 'This private test command is only available in the TOTZ test channel.' not in s:
+              anchor = '  const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");'
+              guard = '''  if (
             String(payload.guild_id || "") !== env("DISCORD_GUILD_ID") ||
             String(payload.channel_id || "") !== env("DISCORD_TEST_CHANNEL_ID")
           ) {
@@ -60,18 +56,18 @@ jobs:
           }
 
           const discordUserId = String(payload.member?.user?.id || payload.user?.id || "");'''
-          assert old in s, 'interaction scope anchor missing'
-          s = s.replace(old, new, 1)
+              assert anchor in s, 'discord user anchor missing'
+              s = s.replace(anchor, guard, 1)
 
-          old = '''    const portfolio = await fetchPortfolio(link.wallet);
-            const available = Number(portfolio.totalPoints || 0);'''
-          new = '''    const [portfolio, rewards] = await Promise.all([
+          if 'rewards?.points?.available' not in s:
+              pattern = re.compile(r'    const portfolio = await fetchPortfolio\(link\.wallet\);\n    const available = Number\(portfolio\.totalPoints \|\| 0\);')
+              replacement = '''    const [portfolio, rewards] = await Promise.all([
               fetchPortfolio(link.wallet),
               fetchRewardsSummary(link.wallet),
             ]);
             const available = Number(rewards?.points?.available || 0);'''
-          assert old in s, 'portfolio balance anchor missing'
-          s = s.replace(old, new, 1)
+              s, count = pattern.subn(replacement, s, count=1)
+              assert count == 1, 'portfolio balance anchor missing'
 
           p.write_text(s)
           PY
@@ -79,7 +75,8 @@ jobs:
       - name: Validate patch
         run: |
           grep -q 'DISCORD_TEST_CHANNEL_ID' supabase/functions/totz-discord/index.ts
-          grep -q 'points?.available' supabase/functions/totz-discord/index.ts
+          grep -q 'rewards?.points?.available' supabase/functions/totz-discord/index.ts
+          grep -q 'fetchRewardsSummary' supabase/functions/totz-discord/index.ts
           git diff --check
 
       - name: Commit patch
