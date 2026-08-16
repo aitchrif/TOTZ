@@ -5,22 +5,28 @@
 
   function activeWallet() {
     const selected = window.ethereum?.selectedAddress;
-    return selected && /^0x[0-9a-fA-F]{40}$/.test(selected) ? selected.toLowerCase() : null;
+    const pageWallet = typeof wallet !== 'undefined' ? wallet : null;
+    const value = selected || pageWallet;
+    return value && /^0x[0-9a-fA-F]{40}$/.test(value) ? value.toLowerCase() : null;
   }
 
   function fmt(value) {
     return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
   }
 
+  function setText(el, value) {
+    if (el && el.textContent !== value) el.textContent = value;
+  }
+
   async function fetchUsage() {
-    const wallet = activeWallet();
-    if (!wallet || loading) return lastUsage;
+    const currentWallet = activeWallet();
+    if (!currentWallet || loading) return lastUsage;
     loading = true;
     try {
       const res = await fetch(USAGE_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet }),
+        body: JSON.stringify({ wallet: currentWallet }),
         cache: 'no-store'
       });
       const data = await res.json().catch(() => ({}));
@@ -55,20 +61,20 @@
     const oldEntries = document.getElementById('entriesStat');
     if (!available || !oldEntries) return;
 
-    available.textContent = fmt(u.available);
-    if (earned) earned.textContent = fmt(u.earned);
-    if (spent) spent.textContent = fmt(u.spent);
+    setText(available, fmt(u.available));
+    setText(earned, fmt(u.earned));
+    setText(spent, fmt(u.spent));
 
     const lockedCard = oldEntries.closest('.stat');
     const lockedLabel = lockedCard?.querySelector('small');
-    if (lockedLabel) lockedLabel.textContent = 'Discord Locked';
-    oldEntries.textContent = fmt(u.locked);
+    setText(lockedLabel, 'Discord Locked');
+    setText(oldEntries, fmt(u.locked));
 
     if (lockedCard) {
       const note = ensureSmallNote(lockedCard, 'discordLockedNote');
-      note.textContent = u.activeRaffles > 0
+      setText(note, u.activeRaffles > 0
         ? `${u.activeRaffles} active raffle${u.activeRaffles === 1 ? '' : 's'}`
-        : 'No active Discord use';
+        : 'No active Discord use');
 
       const availableCard = available.closest('.stat');
       if (availableCard && lockedCard.previousElementSibling !== availableCard) {
@@ -78,20 +84,20 @@
 
     const status = document.getElementById('status');
     if (status?.classList.contains('ok')) {
-      status.textContent = u.locked > 0
+      setText(status, u.locked > 0
         ? `You have ${fmt(u.available)} $TOTZ available · ${fmt(u.locked)} $TOTZ locked in Discord.`
-        : `You have ${fmt(u.available)} $TOTZ available to spend.`;
+        : `You have ${fmt(u.available)} $TOTZ available to spend.`);
     }
   }
 
   function updateStakingPage(u) {
     const balance = document.getElementById('pointsStat');
     if (!balance) return;
-    balance.textContent = fmt(u.available);
+    setText(balance, fmt(u.available));
     const card = balance.closest('.stat');
     if (!card) return;
     const note = ensureSmallNote(card, 'stakingDiscordLockedNote');
-    note.textContent = `Discord locked: ${fmt(u.locked)} $TOTZ`;
+    setText(note, `Discord locked: ${fmt(u.locked)} $TOTZ`);
   }
 
   function applyUsage(u) {
