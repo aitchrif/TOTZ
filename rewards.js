@@ -271,4 +271,4 @@ if (window.ethereum) {
 
 setInterval(() => {
   if (wallet && !busy && document.visibilityState === 'visible') loadRewards();
-}, 15000);
+}, 60000);
