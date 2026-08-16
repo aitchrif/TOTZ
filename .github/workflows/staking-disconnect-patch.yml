@@ -1,0 +1,64 @@
+name: Staking Disconnect Integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/staking-disconnect-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Integrate staking disconnect safely
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          hotfix = Path('staking-hotfix.js')
+          s = hotfix.read_text()
+          marker = "data-staking-disconnect"
+          if marker not in s:
+              anchor = """(() => {\n  if (document.querySelector('script[data-totz-ui-brand]')) return;\n"""
+              loader = """(() => {\n  if (document.querySelector('script[data-staking-disconnect]')) return;\n  const script = document.createElement('script');\n  script.src = 'staking-disconnect.js';\n  script.dataset.stakingDisconnect = '1';\n  document.head.appendChild(script);\n})();\n\n"""
+              assert anchor in s, 'staking-hotfix brand loader anchor missing'
+              s = s.replace(anchor, loader + anchor, 1)
+              hotfix.write_text(s)
+
+          brand = Path('totz-ui-brand.js')
+          s = brand.read_text()
+          guard = "localStorage.getItem('totz_staking_disconnect') === '1'"
+          if guard not in s:
+              old = """  async function silentStakingConnect() {\n    if (!isStaking || !window.ethereum) return;\n    try {\n"""
+              new = """  async function silentStakingConnect() {\n    if (!isStaking || !window.ethereum) return;\n    if (localStorage.getItem('totz_staking_disconnect') === '1') return;\n    try {\n"""
+              assert old in s, 'totz-ui-brand silent connect anchor missing'
+              s = s.replace(old, new, 1)
+              brand.write_text(s)
+          PY
+
+      - name: Validate JavaScript
+        run: |
+          node --check staking-disconnect.js
+          node --check staking-hotfix.js
+          node --check totz-ui-brand.js
+          git diff --check
+
+      - name: Commit integration
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add staking-hotfix.js totz-ui-brand.js
+          git commit -m "Integrate safe staking wallet disconnect"
+          git push origin HEAD:main
