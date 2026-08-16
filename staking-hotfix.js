@@ -89,6 +89,14 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
 })();
 
 (() => {
+  if (document.querySelector('script[data-staking-disconnect]')) return;
+  const script = document.createElement('script');
+  script.src = 'staking-disconnect.js';
+  script.dataset.stakingDisconnect = '1';
+  document.head.appendChild(script);
+})();
+
+(() => {
   if (document.querySelector('script[data-totz-ui-brand]')) return;
   const script = document.createElement('script');
   script.src = 'totz-ui-brand.js';

@@ -87,6 +87,7 @@
 
   async function silentStakingConnect() {
     if (!isStaking || !window.ethereum) return;
+    if (localStorage.getItem('totz_staking_disconnect') === '1') return;
     try {
       if (typeof wallet !== 'undefined' && wallet) return;
       if (typeof loadPortfolio !== 'function') return;
