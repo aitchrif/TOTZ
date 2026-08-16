@@ -119,3 +119,11 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   script.dataset.stakingSelection = '1';
   document.head.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-discord-balance-hotfix]')) return;
+  const script = document.createElement('script');
+  script.src = 'discord-balance-hotfix.js';
+  script.dataset.discordBalanceHotfix = '1';
+  document.head.appendChild(script);
+})();
