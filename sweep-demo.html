@@ -5,56 +5,73 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>TOTZ Sweep Leaderboard</title>
 <style>
-:root{--bg:#0b1422;--panel:#101d31;--line:#23405f;--text:#f5f7fb;--muted:#7488a3;--blue:#52a7ff;--lime:#cddb2a;--gold:#ffd83d}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}.wrap{width:min(820px,92vw);margin:30px auto}.card{border:1px solid var(--line);border-radius:28px;overflow:hidden;background:var(--panel)}header{padding:38px 42px 30px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--blue);font-size:.8rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}h1{font-size:2rem;margin:8px 0 5px}.sub{color:var(--muted);font-weight:700;font-size:.85rem}.stats{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}.stat{padding:18px 24px;border-right:1px solid var(--line)}.stat:last-child{border-right:0}.stat small{display:block;color:var(--muted);text-transform:uppercase;font-size:.66rem;letter-spacing:.1em;font-weight:800}.stat strong{display:block;margin-top:5px;font-size:1.55rem}.leader{padding:20px 42px;background:#0d192a;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:15px;align-items:center}.leader small{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:800}.leader b{color:var(--gold);font-size:1.05rem}.winner{margin:20px 42px 0;padding:15px 18px;border:1px solid rgba(205,219,42,.35);background:rgba(205,219,42,.08);border-radius:15px;display:flex;align-items:center;justify-content:space-between;gap:12px}.winner span{color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.winner strong{color:var(--lime)}table{width:100%;border-collapse:collapse}th,td{padding:20px 42px;border-bottom:1px solid rgba(35,64,95,.38);text-align:left}th{color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem}td:first-child{width:70px;color:var(--muted);font-weight:800}td:last-child{text-align:right;color:var(--blue);font-size:1.12rem;font-weight:900}tr.top td:first-child{color:var(--gold)}footer{padding:22px 42px;text-align:center;color:#4d6380;font-size:.72rem}.actions{padding:0 42px 22px;display:flex;gap:10px}.btn{border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer}.draw{background:var(--lime);color:#17200a}.reset{background:#1c2d45;color:#dce8f6}.note{padding:0 42px 18px;color:var(--muted);font-size:.75rem;line-height:1.45} @media(max-width:600px){header,th,td,.leader,footer{padding-left:20px;padding-right:20px}.winner,.actions,.note{margin-left:20px;margin-right:20px;padding-left:0;padding-right:0}.winner{padding:13px}.stats{grid-template-columns:1fr}.stat{border-right:0;border-bottom:1px solid var(--line)}.stat:last-child{border-bottom:0}th,td{padding-top:16px;padding-bottom:16px}h1{font-size:1.55rem}}
+:root{
+  --cream:#FFF3DC;
+  --cream2:#FFEAC2;
+  --white:#FFFFFF;
+  --sky:#BFE6EE;
+  --sky2:#8ED2E2;
+  --lime:#CBDB2A;
+  --ink:#2B2140;
+  --muted:#6D647C;
+  --coral:#FF7A66;
+  --coral2:#F0533D;
+  --line:rgba(43,33,64,.12);
+  --shadow:0 18px 42px rgba(43,33,64,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--cream),var(--cream2));color:var(--ink);font-family:'Nunito',Arial,sans-serif}
+.wrap{width:min(820px,92vw);margin:42px auto 70px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:1000;font-size:1.25rem;margin:0 0 18px}.dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}
+.card{overflow:hidden;background:rgba(255,255,255,.96);border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}
+header{padding:34px 38px 30px;background:linear-gradient(135deg,#fff,var(--sky));border-bottom:1px solid var(--line)}
+.eyebrow{display:inline-flex;padding:7px 12px;border-radius:999px;background:var(--lime);font-weight:1000;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}
+h1{margin:12px 0 7px;font-size:clamp(1.8rem,4vw,2.65rem);line-height:1;font-weight:1000}.sub{color:var(--muted);font-size:.9rem;font-weight:800}
+.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 38px;background:#fff;border-bottom:1px solid var(--line);font-weight:900}.summary small{color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-size:.68rem}.summary strong{font-size:1.15rem}.summary .top{color:var(--coral2)}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:19px 38px;border-bottom:1px solid var(--line);text-align:left}th{background:#fffaf2;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:1000}td{font-size:.95rem;font-weight:850}td:first-child{width:70px;color:#8a8199}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900}.swept{text-align:right;font-size:1.15rem;font-weight:1000;color:var(--coral2)}th:last-child{text-align:right}tr:first-child td{background:rgba(203,219,42,.12)}tr:first-child td:first-child{color:#8a8c00}tr:first-child .wallet:after{content:'  👑';font-family:Arial,sans-serif}tr:last-child td{border-bottom:0}
+footer{padding:18px 30px;text-align:center;color:var(--muted);font-size:.72rem;font-weight:850;background:#fffaf2;border-top:1px solid var(--line)}
+@media(max-width:600px){.wrap{width:min(94vw,820px);margin-top:24px}header,.summary,th,td{padding-left:20px;padding-right:20px}.summary{align-items:flex-start;flex-direction:column;gap:8px}th,td{padding-top:15px;padding-bottom:15px}.wallet{font-size:.8rem}.swept{font-size:1rem}}
 </style>
 </head>
 <body>
 <div class="wrap">
- <div class="card">
-  <header>
-   <div class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</div>
-   <h1>Sweep Leaderboard</h1>
-   <div class="sub">Simple view: who bought, how many they swept, and who is #1.</div>
-  </header>
-  <div class="stats">
-   <div class="stat"><small>Total Swept</small><strong id="total">0</strong></div>
-   <div class="stat"><small>Buyers</small><strong id="buyers">0</strong></div>
-   <div class="stat"><small>Current #1</small><strong id="topCount">0</strong></div>
-  </div>
-  <div class="leader"><div><small>Top Sweeper</small><br><b id="topWallet">—</b></div><div>👑</div></div>
-  <div class="winner"><span>Giveaway Winner</span><strong id="winner">Not drawn yet</strong></div>
-  <div class="actions"><button class="btn draw" onclick="drawWinner()">🎟️ Draw Winner</button><button class="btn reset" onclick="resetWinner()">Reset</button></div>
-  <div class="note">Demo only. The final version can use one manual “Refresh Sales” action so it does not keep making background requests.</div>
-  <table>
-   <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
-   <tbody id="rows"></tbody>
-  </table>
-  <footer>TEST DATA • NO API CALLS • NO DATABASE</footer>
- </div>
+  <div class="brand"><span class="dot"></span>TOTZ</div>
+  <section class="card">
+    <header>
+      <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
+      <h1>Sweep Leaderboard</h1>
+      <div class="sub">See exactly which wallet swept and how many TOTZ it bought.</div>
+    </header>
+
+    <div class="summary">
+      <div><small>Total Swept</small><br><strong id="total">0 TOTZ</strong></div>
+      <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
+    </div>
+
+    <table>
+      <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+
+    <footer>DEMO DATA • SIMPLE LEADERBOARD • NO WINNER DRAW</footer>
+  </section>
 </div>
 <script>
 const buyers=[
- {wallet:'0x91a4...7B2C',swept:10},
- {wallet:'0xF20d...11A8',swept:6},
- {wallet:'0x3c77...9E01',swept:5},
- {wallet:'0xB8e1...A442',swept:3},
- {wallet:'0x77a9...10EF',swept:2},
- {wallet:'0x2e5b...B001',swept:1}
+  {wallet:'0x91a4f7c2...7B2C',swept:10},
+  {wallet:'0xF20d99a1...11A8',swept:6},
+  {wallet:'0x3c77e510...9E01',swept:5},
+  {wallet:'0xB8e1d122...A442',swept:3},
+  {wallet:'0x77a91ad8...10EF',swept:2},
+  {wallet:'0x2e5b002f...B001',swept:1}
 ].sort((a,b)=>b.swept-a.swept);
-function entries(n){if(n>=10)return 25;if(n>=5)return 10;if(n>=3)return 5;return 1}
+
 function render(){
- document.getElementById('total').textContent=buyers.reduce((s,x)=>s+x.swept,0);
- document.getElementById('buyers').textContent=buyers.length;
- document.getElementById('topCount').textContent=buyers[0]?.swept||0;
- document.getElementById('topWallet').textContent=buyers[0]?.wallet||'—';
- document.getElementById('rows').innerHTML=buyers.map((x,i)=>`<tr class="${i===0?'top':''}"><td>${i+1}</td><td>${x.wallet}</td><td>${x.swept}</td></tr>`).join('');
+  const total=buyers.reduce((sum,x)=>sum+x.swept,0);
+  document.getElementById('total').textContent=total+' TOTZ';
+  document.getElementById('topWallet').textContent=(buyers[0]?.wallet||'—')+' · '+(buyers[0]?.swept||0);
+  document.getElementById('rows').innerHTML=buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet">${x.wallet}</td><td class="swept">${x.swept}</td></tr>`).join('');
 }
-function drawWinner(){
- const pool=[];buyers.forEach(x=>{for(let i=0;i<entries(x.swept);i++)pool.push(x.wallet)});
- document.getElementById('winner').textContent=pool[Math.floor(Math.random()*pool.length)]||'—';
-}
-function resetWinner(){document.getElementById('winner').textContent='Not drawn yet'}
 render();
 </script>
 </body>
