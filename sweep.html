@@ -54,7 +54,7 @@ async function discoverStart(){
   if(!nft?.token?.address_hash)throw new Error('TOTZ contract not found in start transaction');
   const marketplace=h(tx.to);
   if(!marketplace)throw new Error('Marketplace contract not found in start transaction');
-  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash,marketplace,marketplaceName:tx.to?.name||tx.to?.metadata?.name||'marketplace'};
+  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash,marketplace};
 }
 
 async function collectionTransfers(contract,startBlock){
@@ -70,33 +70,45 @@ async function collectionTransfers(contract,startBlock){
 
 async function verifiedBuy(txh,totzTransfers,start){
   const tx=await getJSON('/transactions/'+txh);
-  if(String(tx.status||'').toLowerCase()!=='ok')return null;
+  const status=String(tx.status||'').toLowerCase();
+  if(status && status!=='ok' && status!=='success')return null;
   if(!atOrAfter(tx,start))return null;
 
-  // Fixed-price native ETH fingerprint:
-  // 1) transaction sends native ETH
-  // 2) transaction hits the same marketplace contract as the known-valid start buy
-  // 3) TOTZ is delivered to the transaction sender (buyer)
-  // 4) WETH payment from buyer is absent
+  // Known fixed-price ETH fingerprint:
+  // native ETH was sent to the same marketplace contract as the valid start buy.
+  // We count the actual TOTZ recipient as the buyer, because marketplace/account-abstraction
+  // transactions can have tx.from different from the NFT recipient.
   if(!gt0(tx.value))return null;
   if(h(tx.to)!==start.marketplace)return null;
   if(simpleTransferMethod(tx.method))return null;
 
-  const buyer=h(tx.from);if(!buyer)return null;
-  const toBuyer=totzTransfers.filter(t=>h(t.to)===buyer);
-  if(!toBuyer.length)return null;
-
   const allTf=await getJSON('/transactions/'+txh+'/token-transfers');
   const tokenItems=allTf?.items||[];
-  if(tokenItems.some(t=>isWETH(t)&&h(t.from)===buyer&&gt0(t?.total?.value)))return null;
 
-  return {wallet:tx.from?.hash||tx.from,swept:toBuyer.reduce((s,t)=>s+qty(t),0),first:tx.timestamp};
+  // WETH offers normally have no native ETH value, and this extra guard rejects a WETH payment
+  // initiated by the transaction sender if present.
+  const payer=h(tx.from);
+  if(tokenItems.some(t=>isWETH(t)&&payer&&h(t.from)===payer&&gt0(t?.total?.value)))return null;
+
+  const delivered=totzTransfers.filter(t=>h(t.from)!==ZERO&&h(t.to));
+  if(!delivered.length)return null;
+
+  const perRecipient=new Map();
+  for(const t of delivered){
+    const key=h(t.to);if(!key)continue;
+    const p=perRecipient.get(key)||{wallet:t.to?.hash||t.to,swept:0,first:tx.timestamp};
+    p.swept+=qty(t);perRecipient.set(key,p);
+  }
+  return [...perRecipient.values()];
 }
 
 async function buildLeaderboard(transfers,start){
   const byTx=new Map();for(const t of transfers){if(!t.transaction_hash)continue;if(!byTx.has(t.transaction_hash))byTx.set(t.transaction_hash,[]);byTx.get(t.transaction_hash).push(t)}
   const arr=[...byTx.entries()],results=[];const chunk=6;
-  for(let i=0;i<arr.length;i+=chunk){const part=await Promise.all(arr.slice(i,i+chunk).map(async([txh,items])=>{try{return await verifiedBuy(txh,items,start)}catch(e){console.warn(txh,e);return null}}));results.push(...part.filter(Boolean))}
+  for(let i=0;i<arr.length;i+=chunk){
+    const part=await Promise.all(arr.slice(i,i+chunk).map(async([txh,items])=>{try{return await verifiedBuy(txh,items,start)}catch(e){console.warn(txh,e);return null}}));
+    for(const r of part){if(Array.isArray(r))results.push(...r)}
+  }
   const buyers=new Map();for(const r of results){const k=h(r.wallet),p=buyers.get(k)||{wallet:r.wallet,swept:0,first:r.first};p.swept+=r.swept;if(String(r.first)<String(p.first))p.first=r.first;buyers.set(k,p)}
   return [...buyers.values()].sort((a,b)=>b.swept-a.swept||String(a.first).localeCompare(String(b.first)));
 }
