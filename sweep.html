@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TOTZ Sweep Leaderboard</title>
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--white:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--muted:#6D647C;--coral:#FF7A66;--coral2:#F0533D;--line:rgba(43,33,64,.12);--shadow:0 18px 42px rgba(43,33,64,.12)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--cream),var(--cream2));color:var(--ink);font-family:'Nunito',Arial,sans-serif}.wrap{width:min(900px,94vw);margin:36px auto 64px}.brand{display:flex;align-items:center;gap:9px;font-weight:1000;font-size:1.25rem;margin:0 0 18px}.dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}.card{overflow:hidden;background:rgba(255,255,255,.97);border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}header{padding:32px 36px 28px;background:linear-gradient(135deg,#fff,var(--sky));border-bottom:1px solid var(--line)}.eyebrow{display:inline-flex;padding:7px 12px;border-radius:999px;background:var(--lime);font-weight:1000;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}h1{margin:12px 0 7px;font-size:clamp(1.8rem,4vw,2.65rem);line-height:1;font-weight:1000}.sub{color:var(--muted);font-size:.9rem;font-weight:800;line-height:1.5}.meta{margin-top:12px;color:var(--muted);font-size:.76rem;font-weight:800}.live{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:#3d7125}.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#62a83f;box-shadow:0 0 0 4px rgba(98,168,63,.12)}.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 36px;background:#fff;border-bottom:1px solid var(--line);font-weight:900}.summary small{color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-size:.68rem}.summary strong{font-size:1.15rem}.summary .top{color:var(--coral2)}.status{padding:12px 36px;background:#fffaf2;border-bottom:1px solid var(--line);font-size:.78rem;font-weight:850;color:var(--muted)}.status.error{color:#9c3b32;background:#fff0ed}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:18px 30px;border-bottom:1px solid var(--line);text-align:left}th{background:#fffaf2;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:1000}td{font-size:.94rem;font-weight:850}td:first-child{width:62px;color:#8a8199}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;white-space:nowrap}.wallet a{text-decoration:none;color:var(--ink)}.wallet a:hover{text-decoration:underline}.swept{text-align:right;font-size:1.13rem;font-weight:1000;color:var(--coral2)}th:last-child{text-align:right}tr:first-child td{background:rgba(203,219,42,.12)}tr:first-child td:first-child{color:#8a8c00}tr:first-child .wallet:after{content:'  👑';font-family:Arial,sans-serif}tr:last-child td{border-bottom:0}.empty{text-align:center!important;color:var(--muted)!important;padding:42px!important;font-weight:850!important}footer{padding:18px 30px;text-align:center;color:var(--muted);font-size:.72rem;font-weight:850;background:#fffaf2;border-top:1px solid var(--line)}@media(max-width:640px){.wrap{margin-top:22px}header,.summary,.status{padding-left:20px;padding-right:20px}.summary{align-items:flex-start;flex-direction:column;gap:8px}th,td{padding:15px 18px}.wallet{font-size:.74rem;max-width:245px;overflow:auto}.swept{font-size:1rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="dot"></span>TOTZ</div>
+  <section class="card">
+    <header>
+      <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
+      <h1>Sweep Leaderboard</h1>
+      <div class="sub">Wallets ranked by the number of TOTZ bought with native ETH since the challenge started.</div>
+      <div class="meta" id="startMeta">Starting point: loading… <span class="live">LIVE</span></div>
+    </header>
+    <div class="summary">
+      <div><small>Total Swept</small><br><strong id="total">—</strong></div>
+      <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
+    </div>
+    <div class="status" id="status">Reading Robinhood Chain…</div>
+    <table>
+      <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="3" class="empty">Loading live sales…</td></tr></tbody>
+    </table>
+    <footer>ETH PURCHASES ONLY • WETH / ZERO-VALUE TRANSFERS EXCLUDED • AUTO REFRESH</footer>
+  </section>
+</div>
+<script>
+const API='https://robinhoodchain.blockscout.com/api/v2';
+const EXPLORER='https://robinhoodchain.blockscout.com';
+const START_TX='0x2a9fe852ef3ca0428072aa13a0eb0ddc48ab0fc4ad5c5234db849c4f2d78b787';
+const ZERO='0x0000000000000000000000000000000000000000';
+const REFRESH_MS=90000;
+const MAX_PAGES=20;
+let busy=false;
+
+async function getJSON(path){
+  const r=await fetch(API+path,{cache:'no-store'});
+  if(!r.ok) throw new Error('Blockscout '+r.status);
+  return r.json();
+}
+function hashOf(x){return (x?.hash||x||'').toLowerCase()}
+function fmtTime(ts){try{return new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return ts||'—'}}
+function positiveNativeValue(tx){
+  try{return BigInt(String(tx?.value||'0'))>0n}catch{return Number(tx?.value||0)>0}
+}
+function qtyOf(t){
+  if(Array.isArray(t?.token_ids) && t.token_ids.length) return t.token_ids.length;
+  if(String(t?.token?.type||'').toUpperCase()==='ERC-1155'){
+    const v=Number(t?.total?.value||1), d=Number(t?.total?.decimals||0); return Math.max(1,Math.round(v/Math.pow(10,d)));
+  }
+  return 1;
+}
+async function discoverStart(){
+  const [tx,transfers]=await Promise.all([
+    getJSON('/transactions/'+START_TX),
+    getJSON('/transactions/'+START_TX+'/token-transfers?type=ERC-721,ERC-1155')
+  ]);
+  const items=transfers?.items||[];
+  const nft=items.find(x=>/totz/i.test((x?.token?.name||'')+' '+(x?.token?.symbol||''))) || items.find(x=>/ERC-721|ERC-1155/i.test(x?.token?.type||''));
+  if(!nft?.token?.address_hash) throw new Error('Could not detect TOTZ contract from start transaction');
+  return {block:Number(tx.block_number||0),timestamp:tx.timestamp,contract:nft.token.address_hash};
+}
+async function collectionTransfers(contract,startBlock){
+  let path='/tokens/'+contract+'/transfers';
+  const out=[];
+  for(let page=0;page<MAX_PAGES;page++){
+    const data=await getJSON(path);
+    const items=data?.items||[];
+    if(!items.length) break;
+    let older=false;
+    for(const t of items){
+      const b=Number(t.block_number||0);
+      if(b<startBlock){older=true;continue}
+      if(hashOf(t.from)===ZERO || !hashOf(t.to)) continue;
+      out.push(t);
+    }
+    if(older || !data.next_page_params) break;
+    const q=new URLSearchParams(); Object.entries(data.next_page_params).forEach(([k,v])=>{if(v!==null&&v!==undefined)q.set(k,v)});
+    path='/tokens/'+contract+'/transfers?'+q.toString();
+  }
+  return out;
+}
+async function mapSales(transfers,startBlock){
+  const byTx=new Map();
+  for(const t of transfers){
+    const txh=t.transaction_hash; if(!txh) continue;
+    if(!byTx.has(txh)) byTx.set(txh,[]); byTx.get(txh).push(t);
+  }
+  const entries=[...byTx.entries()];
+  const details=new Map();
+  const chunk=8;
+  for(let i=0;i<entries.length;i+=chunk){
+    await Promise.all(entries.slice(i,i+chunk).map(async ([h])=>{
+      try{details.set(h,await getJSON('/transactions/'+h))}catch{details.set(h,null)}
+    }));
+  }
+  const buyers=new Map();
+  for(const [txh,items] of entries){
+    const tx=details.get(txh);
+    if(!tx || Number(tx.block_number||0)<startBlock || !positiveNativeValue(tx)) continue;
+    for(const t of items){
+      const buyer=hashOf(t.to); if(!buyer) continue;
+      const q=qtyOf(t); const prev=buyers.get(buyer)||{wallet:t.to.hash||buyer,swept:0,first:t.timestamp||tx.timestamp};
+      prev.swept+=q;
+      if((t.timestamp||tx.timestamp||'') < (prev.first||'z')) prev.first=t.timestamp||tx.timestamp;
+      buyers.set(buyer,prev);
+    }
+  }
+  return [...buyers.values()].sort((a,b)=>b.swept-a.swept || String(a.first).localeCompare(String(b.first)));
+}
+function render(buyers,start){
+  const total=buyers.reduce((s,x)=>s+x.swept,0);
+  document.getElementById('total').textContent=total+' TOTZ';
+  document.getElementById('topWallet').textContent=buyers[0]?(buyers[0].wallet+' · '+buyers[0].swept):'—';
+  document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' <span class="live">LIVE</span>';
+  const rows=document.getElementById('rows');
+  if(!buyers.length){rows.innerHTML='<tr><td colspan="3" class="empty">No qualifying ETH sweeps yet.</td></tr>';return}
+  rows.innerHTML=buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${x.wallet}</a></td><td class="swept">${x.swept}</td></tr>`).join('');
+}
+async function refresh(){
+  if(busy)return; busy=true;
+  const status=document.getElementById('status'); status.className='status'; status.textContent='Refreshing live sales…';
+  try{
+    const start=await discoverStart();
+    const transfers=await collectionTransfers(start.contract,start.block);
+    const buyers=await mapSales(transfers,start.block);
+    render(buyers,start);
+    status.textContent='Last updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+' · '+buyers.length+' qualifying wallet'+(buyers.length===1?'':'s');
+  }catch(e){
+    console.error(e); status.className='status error'; status.textContent='Could not refresh Blockscout right now. Retrying automatically…';
+  }finally{busy=false}
+}
+refresh(); setInterval(refresh,REFRESH_MS);
+</script>
+</body>
+</html>
