@@ -16,19 +16,19 @@
     <header>
       <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
       <h1>Sweep Leaderboard</h1>
-      <div class="sub">Wallets ranked by the number of TOTZ bought with native ETH since the challenge started.</div>
+      <div class="sub">Only verified fixed-price native ETH buys count. WETH, transfers and gifts are excluded.</div>
       <div class="meta" id="startMeta">Starting point: loading… <span class="live">LIVE</span></div>
     </header>
     <div class="summary">
       <div><small>Total Swept</small><br><strong id="total">—</strong></div>
       <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
     </div>
-    <div class="status" id="status">Reading Robinhood Chain once…</div>
+    <div class="status" id="status">Verifying fixed-price ETH buys…</div>
     <table>
       <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="3" class="empty">Loading live sales…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="3" class="empty">Loading verified buys…</td></tr></tbody>
     </table>
-    <footer>ETH PURCHASES ONLY • WETH / ZERO-VALUE TRANSFERS EXCLUDED • REFRESH PAGE FOR LATEST RESULTS</footer>
+    <footer>FIXED-PRICE NATIVE ETH BUYS ONLY • WETH / OFFERS / TRANSFERS EXCLUDED • REFRESH PAGE TO UPDATE</footer>
   </section>
 </div>
 <script>
@@ -39,51 +39,75 @@ const ZERO='0x0000000000000000000000000000000000000000';
 const MAX_PAGES=20;
 
 async function getJSON(path){const r=await fetch(API+path,{cache:'no-store'});if(!r.ok)throw new Error('Blockscout '+r.status);return r.json()}
-function hashOf(x){return (x?.hash||x||'').toLowerCase()}
-function fmtTime(ts){try{return new Date(ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return ts||'—'}}
-function positiveNativeValue(tx){try{return BigInt(String(tx?.value||'0'))>0n}catch{return Number(tx?.value||0)>0}}
-function qtyOf(t){if(Array.isArray(t?.token_ids)&&t.token_ids.length)return t.token_ids.length;if(String(t?.token?.type||'').toUpperCase()==='ERC-1155'){const v=Number(t?.total?.value||1),d=Number(t?.total?.decimals||0);return Math.max(1,Math.round(v/Math.pow(10,d)))}return 1}
+function h(x){return String(x?.hash||x||'').toLowerCase()}
+function gt0(v){try{return BigInt(String(v||'0'))>0n}catch{return Number(v||0)>0}}
+function fmtTime(ts){try{return new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return ts||'—'}}
+function qty(t){if(Array.isArray(t?.token_ids)&&t.token_ids.length)return t.token_ids.length;if(String(t?.token?.type||'').toUpperCase()==='ERC-1155'){const v=Number(t?.total?.value||1),d=Number(t?.total?.decimals||0);return Math.max(1,Math.round(v/Math.pow(10,d)))}return 1}
+function isWETH(t){const s=((t?.token?.symbol||'')+' '+(t?.token?.name||'')).toUpperCase();return /(^|\s)WETH($|\s)|WRAPPED ETHER/.test(s)}
+function simpleTransferMethod(m){return /^(transfer|transferfrom|safetransferfrom)$/i.test(String(m||'').replace(/\(.*/,''))}
+function atOrAfter(tx,start){const b=Number(tx?.block_number||0);if(b>start.block)return true;if(b<start.block)return false;return Number(tx?.position||0)>=start.position}
 
 async function discoverStart(){
-  const [tx,transfers]=await Promise.all([getJSON('/transactions/'+START_TX),getJSON('/transactions/'+START_TX+'/token-transfers?type=ERC-721,ERC-1155')]);
-  const items=transfers?.items||[];
+  const [tx,tf]=await Promise.all([getJSON('/transactions/'+START_TX),getJSON('/transactions/'+START_TX+'/token-transfers')]);
+  const items=tf?.items||[];
   const nft=items.find(x=>/totz/i.test((x?.token?.name||'')+' '+(x?.token?.symbol||'')))||items.find(x=>/ERC-721|ERC-1155/i.test(x?.token?.type||''));
-  if(!nft?.token?.address_hash)throw new Error('Could not detect TOTZ contract');
-  return {block:Number(tx.block_number||0),timestamp:tx.timestamp,contract:nft.token.address_hash};
+  if(!nft?.token?.address_hash)throw new Error('TOTZ contract not found in start transaction');
+  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash};
 }
 
 async function collectionTransfers(contract,startBlock){
-  let path='/tokens/'+contract+'/transfers',out=[];
-  for(let page=0;page<MAX_PAGES;page++){
-    const data=await getJSON(path),items=data?.items||[];if(!items.length)break;let older=false;
-    for(const t of items){const b=Number(t.block_number||0);if(b<startBlock){older=true;continue}if(hashOf(t.from)===ZERO||!hashOf(t.to))continue;out.push(t)}
-    if(older||!data.next_page_params)break;
-    const q=new URLSearchParams();Object.entries(data.next_page_params).forEach(([k,v])=>{if(v!==null&&v!==undefined)q.set(k,v)});path='/tokens/'+contract+'/transfers?'+q.toString();
+  let path='/tokens/'+contract+'/transfers';const out=[];
+  for(let p=0;p<MAX_PAGES;p++){
+    const d=await getJSON(path),items=d?.items||[];if(!items.length)break;let older=false;
+    for(const t of items){const b=Number(t.block_number||0);if(b<startBlock){older=true;continue}if(h(t.from)===ZERO||!h(t.to))continue;out.push(t)}
+    if(older||!d.next_page_params)break;
+    const q=new URLSearchParams();Object.entries(d.next_page_params).forEach(([k,v])=>{if(v!=null)q.set(k,v)});path='/tokens/'+contract+'/transfers?'+q.toString();
   }
   return out;
 }
 
-async function mapSales(transfers,startBlock){
-  const byTx=new Map();for(const t of transfers){const h=t.transaction_hash;if(!h)continue;if(!byTx.has(h))byTx.set(h,[]);byTx.get(h).push(t)}
-  const entries=[...byTx.entries()],details=new Map();
-  for(let i=0;i<entries.length;i+=8){await Promise.all(entries.slice(i,i+8).map(async([h])=>{try{details.set(h,await getJSON('/transactions/'+h))}catch{details.set(h,null)}}))}
-  const buyers=new Map();
-  for(const [h,items] of entries){const tx=details.get(h);if(!tx||Number(tx.block_number||0)<startBlock||!positiveNativeValue(tx))continue;for(const t of items){const buyer=hashOf(t.to);if(!buyer)continue;const q=qtyOf(t),prev=buyers.get(buyer)||{wallet:t.to.hash||buyer,swept:0,first:t.timestamp||tx.timestamp};prev.swept+=q;if((t.timestamp||tx.timestamp||'')<(prev.first||'z'))prev.first=t.timestamp||tx.timestamp;buyers.set(buyer,prev)}}
+async function verifiedBuy(txh,totzTransfers,start){
+  const tx=await getJSON('/transactions/'+txh);
+  if(String(tx.status||'').toLowerCase()!=='ok')return null;
+  if(!atOrAfter(tx,start))return null;
+  if(!gt0(tx.value))return null;
+  if(simpleTransferMethod(tx.method))return null;
+  const buyer=h(tx.from);if(!buyer)return null;
+  const toBuyer=totzTransfers.filter(t=>h(t.to)===buyer);if(!toBuyer.length)return null;
+
+  const [allTf,internal]=await Promise.all([
+    getJSON('/transactions/'+txh+'/token-transfers'),
+    getJSON('/transactions/'+txh+'/internal-transactions')
+  ]);
+
+  const tokenItems=allTf?.items||[];
+  if(tokenItems.some(t=>isWETH(t)&&h(t.from)===buyer&&gt0(t?.total?.value)))return null;
+
+  const internals=internal?.items||[];
+  const sellerPaid=seller=>internals.some(i=>i?.success!==false&&!i?.error&&h(i.to)===seller&&gt0(i.value));
+  const verified=toBuyer.filter(t=>sellerPaid(h(t.from)));
+  if(!verified.length)return null;
+
+  return {wallet:tx.from.hash||tx.from,swept:verified.reduce((s,t)=>s+qty(t),0),first:tx.timestamp};
+}
+
+async function buildLeaderboard(transfers,start){
+  const byTx=new Map();for(const t of transfers){if(!t.transaction_hash)continue;if(!byTx.has(t.transaction_hash))byTx.set(t.transaction_hash,[]);byTx.get(t.transaction_hash).push(t)}
+  const arr=[...byTx.entries()],results=[];const chunk=6;
+  for(let i=0;i<arr.length;i+=chunk){const part=await Promise.all(arr.slice(i,i+chunk).map(async([txh,items])=>{try{return await verifiedBuy(txh,items,start)}catch(e){console.warn(txh,e);return null}}));results.push(...part.filter(Boolean))}
+  const buyers=new Map();for(const r of results){const k=h(r.wallet),p=buyers.get(k)||{wallet:r.wallet,swept:0,first:r.first};p.swept+=r.swept;if(String(r.first)<String(p.first))p.first=r.first;buyers.set(k,p)}
   return [...buyers.values()].sort((a,b)=>b.swept-a.swept||String(a.first).localeCompare(String(b.first)));
 }
 
 function render(buyers,start){
   document.getElementById('total').textContent=buyers.reduce((s,x)=>s+x.swept,0)+' TOTZ';
   document.getElementById('topWallet').textContent=buyers[0]?(buyers[0].wallet+' · '+buyers[0].swept):'—';
-  document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' <span class="live">LIVE</span>';
-  document.getElementById('rows').innerHTML=buyers.length?buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${x.wallet}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No qualifying ETH sweeps yet.</td></tr>';
+  document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' · Tx position '+start.position+' <span class="live">LIVE</span>';
+  const rows=document.getElementById('rows');
+  rows.innerHTML=buyers.length?buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${x.wallet}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No verified fixed-price ETH buys yet.</td></tr>';
 }
 
-(async()=>{
-  const status=document.getElementById('status');
-  try{const start=await discoverStart();const transfers=await collectionTransfers(start.contract,start.block);const buyers=await mapSales(transfers,start.block);render(buyers,start);status.textContent='Loaded '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' · Refresh the page whenever you want the latest result.'}
-  catch(e){console.error(e);status.className='status error';status.textContent='Could not load Blockscout right now. Refresh the page to try again.'}
-})();
+(async()=>{const st=document.getElementById('status');try{const start=await discoverStart();const transfers=await collectionTransfers(start.contract,start.block);const buyers=await buildLeaderboard(transfers,start);render(buyers,start);st.textContent='Verified '+buyers.length+' buyer wallet'+(buyers.length===1?'':'s')+' · Updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){console.error(e);st.className='status error';st.textContent='Could not verify Blockscout data right now. Refresh the page and try again.'}})();
 </script>
 </body>
 </html>
