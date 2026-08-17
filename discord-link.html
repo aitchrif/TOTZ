@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Link Wallet · TOTZ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#2b2140;--soft:#6c627e;--cream:#fff3dc;--sky:#c8f0f4;--sky2:#8ed2e2;--lime:#d9fa73}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(160deg,#effcff,#fff3dc);font-family:Nunito,sans-serif;color:var(--ink)}
+    .card{width:min(620px,100%);background:#fff;border:3px solid var(--sky2);border-radius:30px;padding:30px;box-shadow:0 18px 50px #2b214022}
+    .brand{font:800 1rem "Baloo 2";letter-spacing:.15em}.pill{display:inline-block;background:var(--lime);border-radius:999px;padding:6px 11px;font-size:.75rem;font-weight:900}
+    h1{font:800 clamp(2rem,7vw,3.4rem) "Baloo 2";line-height:1;margin:18px 0 8px}p{color:var(--soft);font-weight:700;line-height:1.55}
+    .state{display:grid;gap:10px;margin:22px 0}.row{display:flex;justify-content:space-between;gap:12px;padding:13px 15px;border-radius:16px;background:var(--cream);font-weight:800}.row span:last-child{text-align:right;overflow-wrap:anywhere}
+    button{width:100%;border:0;border-radius:16px;padding:15px 18px;background:var(--ink);color:#fff;font:900 1rem Nunito;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}
+    #status{min-height:24px;margin-top:14px;font-weight:800}.ok{color:#287346}.error{color:#b63838}.note{font-size:.78rem}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">☁️ TOTZ</div>
+    <p class="pill">OFFICIAL HOLDER LINK</p>
+    <h1>Link your wallet.</h1>
+    <p>Discord identity is verified with OAuth. Wallet control is verified by a one-time signature — no transaction, gas, approval, or NFT transfer.</p>
+    <div class="state">
+      <div class="row"><span>Discord</span><span id="discordState">Checking…</span></div>
+      <div class="row"><span>Wallet</span><span id="walletState">Not connected</span></div>
+      <div class="row"><span>Verification</span><span id="verifyState">Pending</span></div>
+    </div>
+    <button id="linkBtn" type="button">CONNECT WALLET & LINK</button>
+    <div id="status" role="status" aria-live="polite"></div>
+    <p class="note">Never sign a message that does not begin with “TOTZ Discord Link”.</p>
+  </main>
+  <script src="discord-link.js"></script>
+</body>
+</html>
