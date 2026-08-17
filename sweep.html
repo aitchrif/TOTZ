@@ -16,17 +16,17 @@
     <header>
       <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
       <h1>Sweep Leaderboard</h1>
-      <div class="sub">Only verified fixed-price native ETH buys count. WETH, transfers and gifts are excluded.</div>
+      <div class="sub">Only fixed-price native ETH buys count. WETH offers, transfers and gifts are excluded.</div>
       <div class="meta" id="startMeta">Starting point: loading… <span class="live">LIVE</span></div>
     </header>
     <div class="summary">
       <div><small>Total Swept</small><br><strong id="total">—</strong></div>
       <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
     </div>
-    <div class="status" id="status">Verifying fixed-price ETH buys…</div>
+    <div class="status" id="status">Checking fixed-price ETH buys…</div>
     <table>
       <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="3" class="empty">Loading verified buys…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="3" class="empty">Loading qualifying buys…</td></tr></tbody>
     </table>
     <footer>FIXED-PRICE NATIVE ETH BUYS ONLY • WETH / OFFERS / TRANSFERS EXCLUDED • REFRESH PAGE TO UPDATE</footer>
   </section>
@@ -52,7 +52,9 @@ async function discoverStart(){
   const items=tf?.items||[];
   const nft=items.find(x=>/totz/i.test((x?.token?.name||'')+' '+(x?.token?.symbol||'')))||items.find(x=>/ERC-721|ERC-1155/i.test(x?.token?.type||''));
   if(!nft?.token?.address_hash)throw new Error('TOTZ contract not found in start transaction');
-  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash};
+  const marketplace=h(tx.to);
+  if(!marketplace)throw new Error('Marketplace contract not found in start transaction');
+  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash,marketplace,marketplaceName:tx.to?.name||tx.to?.metadata?.name||'marketplace'};
 }
 
 async function collectionTransfers(contract,startBlock){
@@ -70,25 +72,25 @@ async function verifiedBuy(txh,totzTransfers,start){
   const tx=await getJSON('/transactions/'+txh);
   if(String(tx.status||'').toLowerCase()!=='ok')return null;
   if(!atOrAfter(tx,start))return null;
+
+  // Fixed-price native ETH fingerprint:
+  // 1) transaction sends native ETH
+  // 2) transaction hits the same marketplace contract as the known-valid start buy
+  // 3) TOTZ is delivered to the transaction sender (buyer)
+  // 4) WETH payment from buyer is absent
   if(!gt0(tx.value))return null;
+  if(h(tx.to)!==start.marketplace)return null;
   if(simpleTransferMethod(tx.method))return null;
+
   const buyer=h(tx.from);if(!buyer)return null;
-  const toBuyer=totzTransfers.filter(t=>h(t.to)===buyer);if(!toBuyer.length)return null;
+  const toBuyer=totzTransfers.filter(t=>h(t.to)===buyer);
+  if(!toBuyer.length)return null;
 
-  const [allTf,internal]=await Promise.all([
-    getJSON('/transactions/'+txh+'/token-transfers'),
-    getJSON('/transactions/'+txh+'/internal-transactions')
-  ]);
-
+  const allTf=await getJSON('/transactions/'+txh+'/token-transfers');
   const tokenItems=allTf?.items||[];
   if(tokenItems.some(t=>isWETH(t)&&h(t.from)===buyer&&gt0(t?.total?.value)))return null;
 
-  const internals=internal?.items||[];
-  const sellerPaid=seller=>internals.some(i=>i?.success!==false&&!i?.error&&h(i.to)===seller&&gt0(i.value));
-  const verified=toBuyer.filter(t=>sellerPaid(h(t.from)));
-  if(!verified.length)return null;
-
-  return {wallet:tx.from.hash||tx.from,swept:verified.reduce((s,t)=>s+qty(t),0),first:tx.timestamp};
+  return {wallet:tx.from?.hash||tx.from,swept:toBuyer.reduce((s,t)=>s+qty(t),0),first:tx.timestamp};
 }
 
 async function buildLeaderboard(transfers,start){
@@ -104,10 +106,10 @@ function render(buyers,start){
   document.getElementById('topWallet').textContent=buyers[0]?(buyers[0].wallet+' · '+buyers[0].swept):'—';
   document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' · Tx position '+start.position+' <span class="live">LIVE</span>';
   const rows=document.getElementById('rows');
-  rows.innerHTML=buyers.length?buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${x.wallet}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No verified fixed-price ETH buys yet.</td></tr>';
+  rows.innerHTML=buyers.length?buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${x.wallet}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No qualifying fixed-price ETH buys yet.</td></tr>';
 }
 
-(async()=>{const st=document.getElementById('status');try{const start=await discoverStart();const transfers=await collectionTransfers(start.contract,start.block);const buyers=await buildLeaderboard(transfers,start);render(buyers,start);st.textContent='Verified '+buyers.length+' buyer wallet'+(buyers.length===1?'':'s')+' · Updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){console.error(e);st.className='status error';st.textContent='Could not verify Blockscout data right now. Refresh the page and try again.'}})();
+(async()=>{const st=document.getElementById('status');try{const start=await discoverStart();const transfers=await collectionTransfers(start.contract,start.block);const buyers=await buildLeaderboard(transfers,start);render(buyers,start);st.textContent='Found '+buyers.length+' buyer wallet'+(buyers.length===1?'':'s')+' · Updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){console.error(e);st.className='status error';st.textContent='Could not verify Blockscout data right now. Refresh the page and try again.'}})();
 </script>
 </body>
 </html>
