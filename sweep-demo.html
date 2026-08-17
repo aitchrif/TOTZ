@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ Sweep Tracker — Demo</title>
+<style>
+:root{--cream:#fff3dc;--panel:#fffaf0;--ink:#2b2140;--muted:#706780;--lime:#cddb2a;--coral:#ff7a66;--sky:#bfe6ee;--gold:#ffc84a;--line:rgba(43,33,64,.12);--shadow:0 16px 40px rgba(43,33,64,.12)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0%,#fff 0,transparent 28%),linear-gradient(180deg,var(--cream),#ffe8bd);color:var(--ink);font-family:ui-rounded,"Arial Rounded MT Bold",Nunito,Arial,sans-serif;min-height:100vh}
+a{color:inherit}.wrap{width:min(1120px,92vw);margin:auto;padding:28px 0 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.brand{font-weight:1000;font-size:1.3rem;letter-spacing:.02em}.back{padding:10px 14px;border:2px solid var(--ink);border-radius:999px;text-decoration:none;font-weight:900;background:#fff}.hero{margin:28px 0 18px;background:var(--ink);color:#fff;border-radius:30px;padding:30px;position:relative;overflow:hidden;box-shadow:var(--shadow)}.hero:after{content:"☁️";position:absolute;right:22px;top:2px;font-size:8rem;opacity:.08;transform:rotate(-8deg)}.eyebrow{display:inline-flex;padding:7px 11px;border-radius:999px;background:var(--lime);color:var(--ink);font-weight:1000;font-size:.76rem}.hero h1{margin:14px 0 6px;font-size:clamp(2rem,5vw,4rem);line-height:.95}.hero p{margin:0;color:#ded9e8;font-weight:700;max-width:760px;line-height:1.5}.mode{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}.pill{padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:999px;font-size:.75rem;font-weight:900;background:rgba(255,255,255,.08)}.pill.good{background:var(--lime);color:var(--ink);border:0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 8px 22px rgba(43,33,64,.06)}.stat small{display:block;color:var(--muted);font-weight:900;text-transform:uppercase;font-size:.68rem;letter-spacing:.08em}.stat strong{display:block;font-size:2rem;margin-top:4px}.layout{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.card{background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:var(--shadow)}h2{font-size:1.25rem;margin:0 0 4px}.sub{margin:0 0 16px;color:var(--muted);font-weight:700;font-size:.9rem;line-height:1.45}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px}table{width:100%;border-collapse:collapse;min-width:640px;background:#fff}th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);font-size:.86rem}th{font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:#fff9ed}tr:last-child td{border-bottom:0}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:800}.badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:.7rem;font-weight:1000;background:#eef6cd}.badge.free{background:#ffe1ec;color:#9b2051}.controls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.controls button,.reset{border:0;border-radius:14px;padding:12px 8px;font-weight:1000;cursor:pointer;background:var(--ink);color:#fff;box-shadow:0 5px 0 #140e21}.controls button:hover,.reset:hover{transform:translateY(-1px)}.controls button:nth-child(4){background:var(--coral);box-shadow:0 5px 0 #c95442}.controls button:nth-child(5){background:var(--gold);color:var(--ink);box-shadow:0 5px 0 #dba21e}.demo-wallet{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:14px;background:#fff8e8;border:1px solid var(--line);font-weight:900}.demo-wallet code{font-size:.78rem}.rule-list{display:grid;gap:9px}.rule{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff8e8;border:1px solid var(--line);border-radius:14px;padding:12px}.rule b{font-size:.9rem}.rule span{font-weight:1000}.bonus{margin-top:14px;padding:15px;border-radius:16px;background:#ffe8f0;border:2px dashed #f19ab9}.bonus b{display:block;color:#a52755;margin-bottom:3px}.note{margin-top:16px;padding:14px;border-radius:16px;background:#eaf8fa;border:1px solid #c6e8ee;color:#3f5860;font-size:.82rem;line-height:1.5;font-weight:750}.reset{width:100%;margin-top:12px;background:#fff;color:var(--ink);border:2px solid var(--ink);box-shadow:none}.footer{margin-top:18px;text-align:center;color:var(--muted);font-size:.78rem;font-weight:800}.tiny{font-size:.7rem;color:var(--muted);font-weight:800;margin-top:8px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}.controls{grid-template-columns:repeat(5,minmax(54px,1fr))}}@media(max-width:520px){.hero{padding:22px}.grid{grid-template-columns:1fr 1fr}.stat strong{font-size:1.55rem}.controls{grid-template-columns:repeat(2,1fr)}.controls button:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand">☁️ TOTZ HOLDER HUB</div><a class="back" href="index.html">← Home</a></div>
+
+  <section class="hero">
+    <span class="eyebrow">SWEEP TRACKER — TEST PAGE</span>
+    <h1>TOTZ Sweep Challenge</h1>
+    <p>This is a safe demo with fake wallets. It makes zero OpenSea API calls, zero Supabase reads/writes and has no background polling.</p>
+    <div class="mode"><span class="pill good">✓ ZERO API POLLING</span><span class="pill">NO DATABASE</span><span class="pill">DEMO DATA ONLY</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="stat"><small>Total Swept</small><strong id="totalSwept">0</strong></div>
+    <div class="stat"><small>Participants</small><strong id="participants">0</strong></div>
+    <div class="stat"><small>Total Entries</small><strong id="totalEntries">0</strong></div>
+    <div class="stat"><small>Free TOTZ</small><strong id="freeTotz">0</strong></div>
+  </section>
+
+  <div class="layout">
+    <section class="card">
+      <h2>Live-style participant board</h2>
+      <p class="sub">Fake transactions for testing the experience before connecting any marketplace data.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Wallet</th><th>Swept</th><th>Entries</th><th>Free TOTZ</th><th>Status</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </section>
+
+    <aside class="card">
+      <h2>Try the mechanics</h2>
+      <p class="sub">Add sweeps to the demo wallet and watch the tracker calculate the reward tier.</p>
+      <div class="demo-wallet"><span>Test Wallet</span><code>0xTOTZ...DEMO</code></div>
+      <div class="controls">
+        <button onclick="addSweeps(1)">+1</button>
+        <button onclick="addSweeps(3)">+3</button>
+        <button onclick="addSweeps(5)">+5</button>
+        <button onclick="addSweeps(6)">+6</button>
+        <button onclick="addSweeps(10)">+10</button>
+      </div>
+      <div class="tiny">Buttons simulate purchases only; nothing is sent anywhere.</div>
+
+      <h2 style="margin-top:22px">Entry tiers</h2>
+      <div class="rule-list">
+        <div class="rule"><b>Sweep 1</b><span>1 Entry</span></div>
+        <div class="rule"><b>Sweep 3</b><span>5 Entries</span></div>
+        <div class="rule"><b>Sweep 5</b><span>10 Entries</span></div>
+        <div class="rule"><b>Sweep 10</b><span>25 Entries</span></div>
+      </div>
+      <div class="bonus"><b>🎁 BONUS</b>Sweep 6 TOTZ → Get 1 TOTZ FREE</div>
+      <div class="note"><strong>Free-mode design:</strong> the production version can refresh sales only when an admin presses a button, then cache the result. No 24/7 polling, no realtime listener and no repeated page-load sync.</div>
+      <button class="reset" onclick="resetDemo()">Reset demo</button>
+    </aside>
+  </div>
+  <div class="footer">TOTZ Sweep Tracker • prototype only • fake wallets • no marketplace calls</div>
+</div>
+<script>
+const seed=[
+  {wallet:'0x91a4...7B2C',swept:10},
+  {wallet:'0xF20d...11A8',swept:6},
+  {wallet:'0x3c77...9E01',swept:5},
+  {wallet:'0xB8e1...A442',swept:3}
+];
+let data=[];
+function entriesFor(n){if(n>=10)return 25;if(n>=5)return 10;if(n>=3)return 5;return n;}
+function freeFor(n){return Math.floor(n/6);}
+function statusFor(n){if(n>=10)return '25-entry tier';if(n>=6)return 'Free TOTZ unlocked';if(n>=5)return '10-entry tier';if(n>=3)return '5-entry tier';return 'Entered';}
+function render(){
+  const tbody=document.getElementById('rows');tbody.innerHTML='';
+  [...data].sort((a,b)=>b.swept-a.swept).forEach(x=>{
+    const tr=document.createElement('tr');
+    const f=freeFor(x.swept);
+    tr.innerHTML=`<td class="wallet">${x.wallet}</td><td><b>${x.swept}</b></td><td><b>${entriesFor(x.swept)}</b></td><td>${f?`<span class="badge free">${f} FREE</span>`:'—'}</td><td><span class="badge">${statusFor(x.swept)}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('totalSwept').textContent=data.reduce((s,x)=>s+x.swept,0);
+  document.getElementById('participants').textContent=data.length;
+  document.getElementById('totalEntries').textContent=data.reduce((s,x)=>s+entriesFor(x.swept),0);
+  document.getElementById('freeTotz').textContent=data.reduce((s,x)=>s+freeFor(x.swept),0);
+}
+function addSweeps(n){let x=data.find(v=>v.wallet==='0xTOTZ...DEMO');if(!x){x={wallet:'0xTOTZ...DEMO',swept:0};data.push(x)}x.swept+=n;render();}
+function resetDemo(){data=seed.map(x=>({...x}));render();}
+resetDemo();
+</script>
+</body>
+</html>
