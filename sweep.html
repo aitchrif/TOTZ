@@ -52,7 +52,7 @@ function qty(t){if(Array.isArray(t?.token_ids)&&t.token_ids.length)return t.toke
 function isWETH(t){const s=((t?.token?.symbol||'')+' '+(t?.token?.name||'')).toUpperCase();return /(^|\s)WETH($|\s)|WRAPPED ETHER/.test(s)}
 function simpleTransferMethod(m){return /^(transfer|transferfrom|safetransferfrom)$/i.test(String(m||'').replace(/\(.*/,''))}
 function atOrAfter(tx,start){const b=Number(tx?.block_number||0);if(b>start.block)return true;if(b<start.block)return false;return Number(tx?.position||0)>=start.position}
-function maskedWallet(w){const s=String(w||'');if(!privacyMode||s.length<12)return s;return s.slice(0,6)+'••••••••'+s.slice(-5)}
+function maskedWallet(w){const s=String(w||'');if(!privacyMode||s.length<12)return s;const keepStart=6,keepEnd=5,hidden=Math.max(0,s.length-keepStart-keepEnd);return s.slice(0,keepStart)+'•'.repeat(hidden)+s.slice(-keepEnd)}
 function togglePrivacy(){privacyMode=!privacyMode;const b=document.getElementById('privacyBtn');b.classList.toggle('on',privacyMode);b.textContent=privacyMode?'🔒 Wallet privacy ON':'👁 Hide wallets';if(lastStart)render(lastBuyers,lastStart)}
 
 async function discoverStart(){
