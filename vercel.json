@@ -5,6 +5,14 @@
     {
       "source": "/discord-link/start",
       "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=oauth-start"
+    },
+    {
+      "source": "/api/discord-link/challenge",
+      "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=challenge"
+    },
+    {
+      "source": "/api/discord-link/complete",
+      "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=complete"
     }
   ],
   "redirects": [
@@ -26,6 +34,13 @@
     },
     {
       "source": "/admin",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/discord-link",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
         { "key": "Cache-Control", "value": "no-store" }
