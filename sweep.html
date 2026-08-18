@@ -40,6 +40,9 @@ const EXPLORER='https://robinhoodchain.blockscout.com';
 const START_TX='0x2a9fe852ef3ca0428072aa13a0eb0ddc48ab0fc4ad5c5234db849c4f2d78b787';
 const ZERO='0x0000000000000000000000000000000000000000';
 const MAX_PAGES=20;
+const MANUAL_BONUSES={
+  '0x63beb3aa0c22ffe84ecbe8c039ce916d35cde602':8
+};
 let privacyMode=false;
 let lastBuyers=[];
 let lastStart=null;
@@ -114,6 +117,10 @@ async function buildLeaderboard(transfers,start){
     for(const r of part){if(Array.isArray(r))results.push(...r)}
   }
   const buyers=new Map();for(const r of results){const k=h(r.wallet),p=buyers.get(k)||{wallet:r.wallet,swept:0,first:r.first};p.swept+=r.swept;if(String(r.first)<String(p.first))p.first=r.first;buyers.set(k,p)}
+  for(const [wallet,bonus] of Object.entries(MANUAL_BONUSES)){
+    const k=h(wallet),p=buyers.get(k)||{wallet,swept:0,first:start.timestamp};
+    p.swept+=Number(bonus||0);buyers.set(k,p);
+  }
   return [...buyers.values()].sort((a,b)=>b.swept-a.swept||String(a.first).localeCompare(String(b.first)));
 }
 
