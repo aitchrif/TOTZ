@@ -6,7 +6,7 @@
 <title>TOTZ Sweep Leaderboard</title>
 <style>
 :root{--cream:#FFF3DC;--cream2:#FFEAC2;--white:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--muted:#6D647C;--coral:#FF7A66;--coral2:#F0533D;--line:rgba(43,33,64,.12);--shadow:0 18px 42px rgba(43,33,64,.12)}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--cream),var(--cream2));color:var(--ink);font-family:'Nunito',Arial,sans-serif}.wrap{width:min(900px,94vw);margin:36px auto 64px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}.brand{display:flex;align-items:center;gap:9px;font-weight:1000;font-size:1.25rem}.dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}.privacy{border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:999px;padding:9px 14px;font:inherit;font-size:.76rem;font-weight:1000;cursor:pointer;box-shadow:0 4px 0 rgba(43,33,64,.12)}.privacy:hover{transform:translateY(-1px)}.privacy.on{background:var(--ink);color:#fff;box-shadow:none}.card{overflow:hidden;background:rgba(255,255,255,.97);border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}header{padding:32px 36px 28px;background:linear-gradient(135deg,#fff,var(--sky));border-bottom:1px solid var(--line)}.eyebrow{display:inline-flex;padding:7px 12px;border-radius:999px;background:var(--lime);font-weight:1000;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}h1{margin:12px 0 7px;font-size:clamp(1.8rem,4vw,2.65rem);line-height:1;font-weight:1000}.sub{color:var(--muted);font-size:.9rem;font-weight:800;line-height:1.5}.meta{margin-top:12px;color:var(--muted);font-size:.76rem;font-weight:800}.live{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:#3d7125}.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#62a83f;box-shadow:0 0 0 4px rgba(98,168,63,.12)}.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 36px;background:#fff;border-bottom:1px solid var(--line);font-weight:900}.summary small{color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-size:.68rem}.summary strong{font-size:1.15rem}.summary .top{color:var(--coral2)}.status{padding:12px 36px;background:#fffaf2;border-bottom:1px solid var(--line);font-size:.78rem;font-weight:850;color:var(--muted)}.status.error{color:#9c3b32;background:#fff0ed}.status.ok{color:#3d7125;background:#f6fbe8}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:18px 30px;border-bottom:1px solid var(--line);text-align:left}th{background:#fffaf2;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:1000}td{font-size:.94rem;font-weight:850}td:first-child{width:62px;color:#8a8199}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;white-space:nowrap}.wallet a{text-decoration:none;color:var(--ink)}.wallet a:hover{text-decoration:underline}.swept{text-align:right;font-size:1.13rem;font-weight:1000;color:var(--coral2)}th:last-child{text-align:right}tr:first-child td{background:rgba(203,219,42,.12)}tr:first-child td:first-child{color:#8a8c00}tr:first-child .wallet:after{content:'  👑';font-family:Arial,sans-serif}tr:last-child td{border-bottom:0}.empty{text-align:center!important;color:var(--muted)!important;padding:42px!important;font-weight:850!important}footer{padding:18px 30px;text-align:center;color:var(--muted);font-size:.72rem;font-weight:850;background:#fffaf2;border-top:1px solid var(--line)}@media(max-width:640px){.wrap{margin-top:22px}.topbar{align-items:center}.privacy{padding:8px 11px;font-size:.68rem}header,.summary,.status{padding-left:20px;padding-right:20px}.summary{align-items:flex-start;flex-direction:column;gap:8px}th,td{padding:15px 18px}.wallet{font-size:.74rem;max-width:245px;overflow:auto}.swept{font-size:1rem}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--cream),var(--cream2));color:var(--ink);font-family:'Nunito',Arial,sans-serif}.wrap{width:min(900px,94vw);margin:36px auto 64px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}.brand{display:flex;align-items:center;gap:9px;font-weight:1000;font-size:1.25rem}.dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}.privacy{border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:999px;padding:9px 14px;font:inherit;font-size:.76rem;font-weight:1000;cursor:pointer;box-shadow:0 4px 0 rgba(43,33,64,.12)}.privacy:hover{transform:translateY(-1px)}.privacy.on{background:var(--ink);color:#fff;box-shadow:none}.card{overflow:hidden;background:rgba(255,255,255,.97);border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}header{padding:32px 36px 28px;background:linear-gradient(135deg,#fff,var(--sky));border-bottom:1px solid var(--line)}.eyebrow{display:inline-flex;padding:7px 12px;border-radius:999px;background:var(--lime);font-weight:1000;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}h1{margin:12px 0 7px;font-size:clamp(1.8rem,4vw,2.65rem);line-height:1;font-weight:1000}.sub{color:var(--muted);font-size:.9rem;font-weight:800;line-height:1.5}.meta{margin-top:12px;color:var(--muted);font-size:.76rem;font-weight:800}.live{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:#3d7125}.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#62a83f;box-shadow:0 0 0 4px rgba(98,168,63,.12)}.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 36px;background:#fff;border-bottom:1px solid var(--line);font-weight:900}.summary small{color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-size:.68rem}.summary strong{font-size:1.15rem}.summary .top{color:var(--coral2)}.status{padding:12px 36px;background:#fffaf2;border-bottom:1px solid var(--line);font-size:.78rem;font-weight:850;color:var(--muted)}.status.error{color:#9c3b32;background:#fff0ed}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:18px 30px;border-bottom:1px solid var(--line);text-align:left}th{background:#fffaf2;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:1000}td{font-size:.94rem;font-weight:850}td:first-child{width:62px;color:#8a8199}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;white-space:nowrap}.wallet a{text-decoration:none;color:var(--ink)}.wallet a:hover{text-decoration:underline}.swept{text-align:right;font-size:1.13rem;font-weight:1000;color:var(--coral2)}th:last-child{text-align:right}tr:first-child td{background:rgba(203,219,42,.12)}tr:first-child td:first-child{color:#8a8c00}tr:first-child .wallet:after{content:'  👑';font-family:Arial,sans-serif}tr:last-child td{border-bottom:0}.empty{text-align:center!important;color:var(--muted)!important;padding:42px!important;font-weight:850!important}footer{padding:18px 30px;text-align:center;color:var(--muted);font-size:.72rem;font-weight:850;background:#fffaf2;border-top:1px solid var(--line)}@media(max-width:640px){.wrap{margin-top:22px}.topbar{align-items:center}.privacy{padding:8px 11px;font-size:.68rem}header,.summary,.status{padding-left:20px;padding-right:20px}.summary{align-items:flex-start;flex-direction:column;gap:8px}th,td{padding:15px 18px}.wallet{font-size:.74rem;max-width:245px;overflow:auto}.swept{font-size:1rem}}
 </style>
 </head>
 <body>
@@ -20,87 +20,113 @@
       <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
       <h1>Sweep Leaderboard</h1>
       <div class="sub">Only fixed-price native ETH buys count. WETH offers, transfers and gifts are excluded.</div>
-      <div class="meta" id="startMeta">Loading verified snapshot… <span class="live">LIVE</span></div>
+      <div class="meta" id="startMeta">Starting point: loading… <span class="live">LIVE</span></div>
     </header>
     <div class="summary">
       <div><small>Total Swept</small><br><strong id="total">—</strong></div>
       <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
     </div>
-    <div class="status" id="status">Loading verified sweep data…</div>
+    <div class="status" id="status">Checking fixed-price ETH buys…</div>
     <table>
       <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="3" class="empty">Loading leaderboard…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="3" class="empty">Loading qualifying buys…</td></tr></tbody>
     </table>
-    <footer>FIXED-PRICE NATIVE ETH BUYS ONLY • WETH / OFFERS / TRANSFERS EXCLUDED • VERIFIED SNAPSHOT AUTO-UPDATES</footer>
+    <footer>FIXED-PRICE NATIVE ETH BUYS ONLY • WETH / OFFERS / TRANSFERS EXCLUDED • REFRESH PAGE TO UPDATE</footer>
   </section>
 </div>
 <script>
-const SWEEP_API='https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-sweep';
+const API='https://robinhoodchain.blockscout.com/api/v2';
 const EXPLORER='https://robinhoodchain.blockscout.com';
-const SNAPSHOT_KEY='totz:sweep:verified:v2';
+const START_TX='0x2a9fe852ef3ca0428072aa13a0eb0ddc48ab0fc4ad5c5234db849c4f2d78b787';
+const ZERO='0x0000000000000000000000000000000000000000';
+const MAX_PAGES=20;
 let privacyMode=false;
 let lastBuyers=[];
 let lastStart=null;
 
+async function getJSON(path){const r=await fetch(API+path,{cache:'no-store'});if(!r.ok)throw new Error('Blockscout '+r.status);return r.json()}
+function h(x){return String(x?.hash||x||'').toLowerCase()}
+function gt0(v){try{return BigInt(String(v||'0'))>0n}catch{return Number(v||0)>0}}
 function fmtTime(ts){try{return new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return ts||'—'}}
+function qty(t){if(Array.isArray(t?.token_ids)&&t.token_ids.length)return t.token_ids.length;if(String(t?.token?.type||'').toUpperCase()==='ERC-1155'){const v=Number(t?.total?.value||1),d=Number(t?.total?.decimals||0);return Math.max(1,Math.round(v/Math.pow(10,d)))}return 1}
+function isWETH(t){const s=((t?.token?.symbol||'')+' '+(t?.token?.name||'')).toUpperCase();return /(^|\s)WETH($|\s)|WRAPPED ETHER/.test(s)}
+function simpleTransferMethod(m){return /^(transfer|transferfrom|safetransferfrom)$/i.test(String(m||'').replace(/\(.*/,''))}
+function atOrAfter(tx,start){const b=Number(tx?.block_number||0);if(b>start.block)return true;if(b<start.block)return false;return Number(tx?.position||0)>=start.position}
 function maskedWallet(w){const s=String(w||'');if(!privacyMode||s.length<12)return s;const keepStart=6,keepEnd=5,hidden=Math.max(0,s.length-keepStart-keepEnd);return s.slice(0,keepStart)+'•'.repeat(hidden)+s.slice(-keepEnd)}
 function togglePrivacy(){privacyMode=!privacyMode;const b=document.getElementById('privacyBtn');b.classList.toggle('on',privacyMode);b.textContent=privacyMode?'🔒 Wallet privacy ON':'👁 Hide wallets';if(lastStart)render(lastBuyers,lastStart)}
-function saveSnapshot(d){try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(d))}catch{}}
-function loadSnapshot(){try{const d=JSON.parse(localStorage.getItem(SNAPSHOT_KEY)||'null');return d?.ok&&Array.isArray(d?.buyers)&&d?.start?d:null}catch{return null}}
-function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+async function discoverStart(){
+  const [tx,tf]=await Promise.all([getJSON('/transactions/'+START_TX),getJSON('/transactions/'+START_TX+'/token-transfers')]);
+  const items=tf?.items||[];
+  const nft=items.find(x=>/totz/i.test((x?.token?.name||'')+' '+(x?.token?.symbol||'')))||items.find(x=>/ERC-721|ERC-1155/i.test(x?.token?.type||''));
+  if(!nft?.token?.address_hash)throw new Error('TOTZ contract not found in start transaction');
+  return {block:Number(tx.block_number||0),position:Number(tx.position||0),timestamp:tx.timestamp,contract:nft.token.address_hash};
+}
+
+async function collectionTransfers(contract,startBlock){
+  let path='/tokens/'+contract+'/transfers';const out=[];
+  for(let p=0;p<MAX_PAGES;p++){
+    const d=await getJSON(path),items=d?.items||[];if(!items.length)break;let older=false;
+    for(const t of items){const b=Number(t.block_number||0);if(b<startBlock){older=true;continue}if(h(t.from)===ZERO||!h(t.to))continue;out.push(t)}
+    if(older||!d.next_page_params)break;
+    const q=new URLSearchParams();Object.entries(d.next_page_params).forEach(([k,v])=>{if(v!=null)q.set(k,v)});path='/tokens/'+contract+'/transfers?'+q.toString();
+  }
+  return out;
+}
+
+function hasNativeInternalPayment(items){return (items||[]).some(i=>i?.success!==false&&!i?.error&&gt0(i?.value))}
+
+async function verifiedBuy(txh,totzTransfers,start){
+  const tx=await getJSON('/transactions/'+txh);
+  const status=String(tx.status||'').toLowerCase();
+  if(status&&status!=='ok'&&status!=='success')return null;
+  if(!atOrAfter(tx,start))return null;
+  if(simpleTransferMethod(tx.method))return null;
+
+  const [allTf,internal]=await Promise.all([
+    getJSON('/transactions/'+txh+'/token-transfers'),
+    getJSON('/transactions/'+txh+'/internal-transactions').catch(()=>({items:[]}))
+  ]);
+  const tokenItems=allTf?.items||[];
+  const internalItems=internal?.items||[];
+  if(tokenItems.some(t=>isWETH(t)&&gt0(t?.total?.value)))return null;
+
+  const nativePaid=gt0(tx.value)||hasNativeInternalPayment(internalItems);
+  if(!nativePaid)return null;
+
+  const delivered=totzTransfers.filter(t=>h(t.from)!==ZERO&&h(t.to));
+  if(!delivered.length)return null;
+
+  const perRecipient=new Map();
+  for(const t of delivered){
+    const key=h(t.to);if(!key)continue;
+    const p=perRecipient.get(key)||{wallet:t.to?.hash||t.to,swept:0,first:tx.timestamp};
+    p.swept+=qty(t);perRecipient.set(key,p);
+  }
+  return [...perRecipient.values()];
+}
+
+async function buildLeaderboard(transfers,start){
+  const byTx=new Map();for(const t of transfers){if(!t.transaction_hash)continue;if(!byTx.has(t.transaction_hash))byTx.set(t.transaction_hash,[]);byTx.get(t.transaction_hash).push(t)}
+  const arr=[...byTx.entries()],results=[];const chunk=6;
+  for(let i=0;i<arr.length;i+=chunk){
+    const part=await Promise.all(arr.slice(i,i+chunk).map(async([txh,items])=>{try{return await verifiedBuy(txh,items,start)}catch(e){console.warn(txh,e);return null}}));
+    for(const r of part){if(Array.isArray(r))results.push(...r)}
+  }
+  const buyers=new Map();for(const r of results){const k=h(r.wallet),p=buyers.get(k)||{wallet:r.wallet,swept:0,first:r.first};p.swept+=r.swept;if(String(r.first)<String(p.first))p.first=r.first;buyers.set(k,p)}
+  return [...buyers.values()].sort((a,b)=>b.swept-a.swept||String(a.first).localeCompare(String(b.first)));
+}
 
 function render(buyers,start){
   lastBuyers=buyers;lastStart=start;
-  document.getElementById('total').textContent=buyers.reduce((s,x)=>s+Number(x.swept||0),0)+' TOTZ';
+  document.getElementById('total').textContent=buyers.reduce((s,x)=>s+x.swept,0)+' TOTZ';
   document.getElementById('topWallet').textContent=buyers[0]?(maskedWallet(buyers[0].wallet)+' · '+buyers[0].swept):'—';
   document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' · Tx position '+start.position+' <span class="live">LIVE</span>';
   const rows=document.getElementById('rows');
   rows.innerHTML=buyers.length?buyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${maskedWallet(x.wallet)}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No qualifying fixed-price ETH buys yet.</td></tr>';
 }
 
-async function fetchSnapshot(){
-  for(let attempt=0;attempt<10;attempt++){
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),8000);
-    try{
-      const r=await fetch(SWEEP_API,{cache:'no-store',signal:controller.signal});
-      const d=await r.json().catch(()=>null);
-      if(r.ok&&d?.ok&&Array.isArray(d.buyers)&&d.start)return d;
-      if(r.status===202||d?.refreshing){
-        document.getElementById('status').textContent='Verifying new sweep activity… '+Math.min(95,(attempt+1)*10)+'%';
-        await delay(1800);
-        continue;
-      }
-      throw new Error(d?.error||('Sweep API '+r.status));
-    }finally{clearTimeout(timer)}
-  }
-  throw new Error('Verified snapshot is still refreshing');
-}
-
-(async()=>{
-  const st=document.getElementById('status');
-  const cached=loadSnapshot();
-  if(cached){
-    render(cached.buyers,cached.start);
-    st.textContent='Showing last verified snapshot while checking for updates…';
-  }
-  try{
-    const d=await fetchSnapshot();
-    render(d.buyers,d.start);
-    saveSnapshot(d);
-    st.className='status ok';
-    st.textContent=(d.stale?'Verified snapshot loaded · refresh running in background':'Verified · updated ')+fmtTime(d.updatedAt||new Date().toISOString());
-  }catch(e){
-    console.error(e);
-    if(cached){
-      st.className='status';
-      st.textContent='Blockscout is busy right now · showing the last verified leaderboard instead of a partial result.';
-    }else{
-      st.className='status error';
-      st.textContent='Could not load verified sweep data right now. Try again in a moment.';
-    }
-  }
-})();
+(async()=>{const st=document.getElementById('status');try{const start=await discoverStart();const transfers=await collectionTransfers(start.contract,start.block);const buyers=await buildLeaderboard(transfers,start);render(buyers,start);st.textContent='Found '+buyers.length+' buyer wallet'+(buyers.length===1?'':'s')+' · Updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){console.error(e);st.className='status error';st.textContent='Could not verify Blockscout data right now. Refresh the page and try again.'}})();
 </script>
 </body>
 </html>
