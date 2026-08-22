@@ -1,101 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TOTZ Sweep Leaderboard</title>
-<style>
-:root{--cream:#FFF3DC;--cream2:#FFEAC2;--white:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--muted:#6D647C;--coral:#FF7A66;--coral2:#F0533D;--line:rgba(43,33,64,.12);--shadow:0 18px 42px rgba(43,33,64,.12)}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--cream),var(--cream2));color:var(--ink);font-family:'Nunito',Arial,sans-serif}.wrap{width:min(900px,94vw);margin:36px auto 64px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}.brand{display:flex;align-items:center;gap:9px;font-weight:1000;font-size:1.25rem}.dot{width:13px;height:13px;border-radius:50%;background:var(--coral)}.actions{display:flex;gap:8px;align-items:center}.privacy,.refresh{border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:999px;padding:9px 14px;font:inherit;font-size:.76rem;font-weight:1000;cursor:pointer;box-shadow:0 4px 0 rgba(43,33,64,.12)}.privacy:hover,.refresh:hover{transform:translateY(-1px)}.privacy.on{background:var(--ink);color:#fff;box-shadow:none}.refresh:disabled{opacity:.5;cursor:wait;transform:none}.card{overflow:hidden;background:rgba(255,255,255,.97);border:2px solid var(--sky2);border-radius:28px;box-shadow:var(--shadow)}header{padding:32px 36px 28px;background:linear-gradient(135deg,#fff,var(--sky));border-bottom:1px solid var(--line)}.eyebrow{display:inline-flex;padding:7px 12px;border-radius:999px;background:var(--lime);font-weight:1000;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}h1{margin:12px 0 7px;font-size:clamp(1.8rem,4vw,2.65rem);line-height:1;font-weight:1000}.sub{color:var(--muted);font-size:.9rem;font-weight:800;line-height:1.5}.meta{margin-top:12px;color:var(--muted);font-size:.76rem;font-weight:800}.live{display:inline-flex;align-items:center;gap:6px;margin-left:6px;color:#3d7125}.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#62a83f;box-shadow:0 0 0 4px rgba(98,168,63,.12)}.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 36px;background:#fff;border-bottom:1px solid var(--line);font-weight:900}.summary small{color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-size:.68rem}.summary strong{font-size:1.15rem}.summary .top{color:var(--coral2)}.status{padding:12px 36px;background:#fffaf2;border-bottom:1px solid var(--line);font-size:.78rem;font-weight:850;color:var(--muted)}.status.error{color:#9c3b32;background:#fff0ed}.status.ok{color:#3d7125;background:#f6fbe8}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:18px 30px;border-bottom:1px solid var(--line);text-align:left}th{background:#fffaf2;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:1000}td{font-size:.94rem;font-weight:850}td:first-child{width:62px;color:#8a8199}.wallet{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;white-space:nowrap}.wallet a{text-decoration:none;color:var(--ink)}.wallet a:hover{text-decoration:underline}.swept{text-align:right;font-size:1.13rem;font-weight:1000;color:var(--coral2)}th:last-child{text-align:right}tr:first-child td{background:rgba(203,219,42,.12)}tr:first-child td:first-child{color:#8a8c00}tr:first-child .wallet:after{content:'  👑';font-family:Arial,sans-serif}tr:last-child td{border-bottom:0}.empty{text-align:center!important;color:var(--muted)!important;padding:42px!important;font-weight:850!important}footer{padding:18px 30px;text-align:center;color:var(--muted);font-size:.72rem;font-weight:850;background:#fffaf2;border-top:1px solid var(--line)}@media(max-width:640px){.wrap{margin-top:22px}.topbar{align-items:center}.actions{gap:6px}.privacy,.refresh{padding:8px 10px;font-size:.66rem}header,.summary,.status{padding-left:20px;padding-right:20px}.summary{align-items:flex-start;flex-direction:column;gap:8px}th,td{padding:15px 18px}.wallet{font-size:.74rem;max-width:245px;overflow:auto}.swept{font-size:1rem}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=/">
+  <title>TOTZ</title>
+  <script>window.location.replace('/');</script>
 </head>
-<body>
-<div class="wrap">
-  <div class="topbar">
-    <div class="brand"><span class="dot"></span>TOTZ</div>
-    <div class="actions">
-      <button id="refreshBtn" class="refresh" type="button" onclick="refreshNow()">↻ Update sales</button>
-      <button id="privacyBtn" class="privacy" type="button" onclick="togglePrivacy()">👁 Hide wallets</button>
-    </div>
-  </div>
-  <section class="card">
-    <header>
-      <span class="eyebrow">☁️ TOTZ SWEEP CHALLENGE</span>
-      <h1>Sweep Leaderboard</h1>
-      <div class="sub">Only fixed-price native ETH buys count. WETH offers, transfers and gifts are excluded.</div>
-      <div class="meta" id="startMeta">Loading saved leaderboard… <span class="live">LIVE</span></div>
-    </header>
-    <div class="summary">
-      <div><small>Total Swept</small><br><strong id="total">—</strong></div>
-      <div><small>Top Sweeper</small><br><strong class="top" id="topWallet">—</strong></div>
-    </div>
-    <div class="status" id="status">Loading saved leaderboard…</div>
-    <table>
-      <thead><tr><th>#</th><th>Wallet</th><th>NFTs Swept</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="3" class="empty">Loading leaderboard…</td></tr></tbody>
-    </table>
-    <footer>FIXED-PRICE NATIVE ETH BUYS ONLY • WETH / OFFERS / TRANSFERS EXCLUDED • PRESS UPDATE SALES WHEN YOU WANT FRESH RESULTS</footer>
-  </section>
-</div>
-<script>
-const SWEEP_API='https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-sweep';
-const EXPLORER='https://robinhoodchain.blockscout.com';
-let privacyMode=false;
-let lastBuyers=[];
-let lastStart=null;
-let updating=false;
-
-function fmtTime(ts){try{return new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return ts||'—'}}
-function maskedWallet(w){const s=String(w||'');if(!privacyMode||s.length<12)return s;const keepStart=6,keepEnd=5,hidden=Math.max(0,s.length-keepStart-keepEnd);return s.slice(0,keepStart)+'•'.repeat(hidden)+s.slice(-keepEnd)}
-function togglePrivacy(){privacyMode=!privacyMode;const b=document.getElementById('privacyBtn');b.classList.toggle('on',privacyMode);b.textContent=privacyMode?'🔒 Privacy ON':'👁 Hide wallets';if(lastStart)render(lastBuyers,lastStart)}
-
-function render(buyers,start){
-  lastBuyers=buyers||[];lastStart=start;
-  document.getElementById('total').textContent=lastBuyers.reduce((s,x)=>s+Number(x.swept||0),0)+' TOTZ';
-  document.getElementById('topWallet').textContent=lastBuyers[0]?(maskedWallet(lastBuyers[0].wallet)+' · '+lastBuyers[0].swept):'—';
-  document.getElementById('startMeta').innerHTML='Started '+fmtTime(start.timestamp)+' · Block '+start.block+' · Tx position '+start.position+' <span class="live">LIVE</span>';
-  const rows=document.getElementById('rows');
-  rows.innerHTML=lastBuyers.length?lastBuyers.map((x,i)=>`<tr><td>${i+1}</td><td class="wallet"><a href="${EXPLORER}/address/${x.wallet}" target="_blank" rel="noopener">${maskedWallet(x.wallet)}</a></td><td class="swept">${x.swept}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No qualifying fixed-price ETH buys yet.</td></tr>';
-}
-
-async function api(force=false){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(), force?30000:8000);
-  try{
-    const r=await fetch(SWEEP_API+(force?'?refresh=1':''),{cache:'no-store',signal:controller.signal});
-    const d=await r.json().catch(()=>null);
-    if(!r.ok||!d?.ok||!Array.isArray(d.buyers)||!d.start)throw new Error(d?.error||('Sweep API '+r.status));
-    return d;
-  }finally{clearTimeout(timer)}
-}
-
-async function loadSaved(){
-  const st=document.getElementById('status');
-  try{
-    const d=await api(false);
-    render(d.buyers,d.start);
-    st.className='status ok';
-    st.textContent='Loaded instantly from saved result · Last updated '+fmtTime(d.updatedAt||new Date().toISOString());
-  }catch(e){
-    console.error(e);st.className='status error';st.textContent='Could not load the saved leaderboard. Try again.';
-  }
-}
-
-async function refreshNow(){
-  if(updating)return;updating=true;
-  const btn=document.getElementById('refreshBtn'),st=document.getElementById('status');
-  btn.disabled=true;btn.textContent='Updating…';st.className='status';st.textContent='Checking new fixed-price ETH buys… this can take a few seconds.';
-  try{
-    const d=await api(true);
-    render(d.buyers,d.start);
-    st.className='status ok';
-    st.textContent=(d.warning?d.warning+' · ':'Updated successfully · ')+fmtTime(d.updatedAt||new Date().toISOString());
-  }catch(e){
-    console.error(e);st.className='status error';st.textContent='Update timed out. The saved leaderboard is still safe — try again in a moment.';
-  }finally{updating=false;btn.disabled=false;btn.textContent='↻ Update sales'}
-}
-
-loadSaved();
-</script>
-</body>
+<body></body>
 </html>
