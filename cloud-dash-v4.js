@@ -410,11 +410,10 @@
   function drawCloudWall(x, y, w, h, flip = false) {
     if (h <= 0) return;
     ctx.save();
-    ctx.globalAlpha = .78;
     const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-    grad.addColorStop(0, '#d5f1f4'); grad.addColorStop(.45, '#c8e9ef'); grad.addColorStop(1, '#b9dfe8');
+    grad.addColorStop(0, '#ffffff'); grad.addColorStop(.45, '#eefaff'); grad.addColorStop(1, '#d9f2ff');
     ctx.fillStyle = grad;
-    ctx.shadowColor = 'rgba(91,170,205,.08)'; ctx.shadowBlur = Math.round(9 * quality().shadow);
+    ctx.shadowColor = 'rgba(91,170,205,.14)'; ctx.shadowBlur = Math.round(9 * quality().shadow);
     ctx.fillRect(x + 7, y, Math.max(0, w - 14), h);
     ctx.shadowBlur = 0;
     const lipY = flip ? y : y + h;
@@ -423,9 +422,9 @@
     const radii = [14, 16, 14, 16, 14, 16];
     for (let i = 0; i < radii.length; i++) {
       const px = x + 4 + (w - 8) * (i / (radii.length - 1));
-      drawCloudPuff(px, lipY + lipDir * 2, radii[i], '#d7f1f4', '#bddfe7');
+      drawCloudPuff(px, lipY + lipDir * 2, radii[i], '#ffffff', '#e3f5fc');
     }
-    ctx.strokeStyle = 'rgba(94,174,204,.18)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(104,190,220,.30)'; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x + 8, y + 2); ctx.lineTo(x + 8, y + h - 2);
     ctx.moveTo(x + w - 8, y + 2); ctx.lineTo(x + w - 8, y + h - 2);
