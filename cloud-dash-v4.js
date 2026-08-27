@@ -401,6 +401,56 @@
   }
 
   function drawCloud(x, y, s, a = .7) { ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 35 * s, 0, Math.PI * 2); ctx.arc(x + 35 * s, y - 10 * s, 45 * s, 0, Math.PI * 2); ctx.arc(x + 78 * s, y, 34 * s, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  // CUTE CLOUD BARS V1 — visual only, gameplay hitboxes stay unchanged.
+  function drawCloudPuff(cx, cy, r, c1 = '#ffffff', c2 = '#dff6ff') {
+    const rg = ctx.createRadialGradient(cx - r * .28, cy - r * .34, Math.max(2, r * .16), cx, cy, r);
+    rg.addColorStop(0, c1); rg.addColorStop(1, c2);
+    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  }
+  function drawCloudWall(x, y, w, h, flip = false) {
+    if (h <= 0) return;
+    ctx.save();
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, '#ffffff'); grad.addColorStop(.45, '#eefaff'); grad.addColorStop(1, '#d9f2ff');
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(91,170,205,.22)'; ctx.shadowBlur = Math.round(18 * quality().shadow);
+    ctx.fillRect(x + 7, y, Math.max(0, w - 14), h);
+    ctx.shadowBlur = 0;
+    const lipY = flip ? y : y + h;
+    const lipDir = flip ? 1 : -1;
+    const lipR = Math.min(17, Math.max(12, w * .2));
+    for (let px = x + 3; px <= x + w - 3; px += 16) {
+      const wobble = Math.sin(px * .13) * 2;
+      drawCloudPuff(px, lipY + lipDir * 2 + wobble, lipR + ((Math.floor(px / 16) % 2) ? 2 : 0), '#ffffff', '#d9f2ff');
+    }
+    for (let py = y + 18; py < y + h - 15; py += 30) {
+      drawCloudPuff(x + 6, py, 10, '#ffffff', '#e7f8ff');
+      drawCloudPuff(x + w - 6, py + 8, 10, '#ffffff', '#e7f8ff');
+    }
+    ctx.globalAlpha = .9;
+    ctx.fillStyle = '#ffffff';
+    for (let py = y + 22; py < y + h - 18; py += 50) {
+      ctx.beginPath(); ctx.arc(x + w * .36, py, 3.2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (qualityLevel > 0 && h > 70) {
+      const dots = [
+        ['#ffdbe9', .28, .24], ['#fff0a8', .68, .4], ['#dcffd9', .42, .67], ['#dfe7ff', .62, .16]
+      ];
+      for (const [c, px, py] of dots) {
+        const yy = y + h * py;
+        if (yy > y + 15 && yy < y + h - 15) {
+          ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + w * px, yy, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.strokeStyle = 'rgba(104,190,220,.48)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 8, y + 2); ctx.lineTo(x + 8, y + h - 2);
+    ctx.moveTo(x + w - 8, y + 2); ctx.lineTo(x + w - 8, y + h - 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   function drawBg() {
     const phase = Math.min(1, state.t / 150000), dusk = Math.max(0, (state.t - 65000) / 85000);
     const top = mixColor('#86d9ee', '#7767b7', dusk * .9), mid = mixColor('#d7f4f6', '#e5a6bb', dusk * .65), bottom = mixColor('#fff0c7', '#ffcb91', phase * .65);
@@ -417,10 +467,19 @@
     if (state.speed > 300 && quality().speedLines) { ctx.strokeStyle = `rgba(255,255,255,${Math.min(.16, (state.speed - 300) / 500)})`; ctx.lineWidth = 2; const lineCount = qualityLevel === 2 ? 12 : 7; for (let i = 0; i < lineCount; i++) { const y = (i * 47 + state.t / 5) % H; const x = (i * 91 + state.t / 3) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 55, y + 3); ctx.stroke(); } }
   }
   function drawGate(g) {
-    ctx.save(); const edge = ctx.createLinearGradient(g.x, 0, g.x + g.w, 0); edge.addColorStop(0, '#32384f'); edge.addColorStop(.48, '#6d7797'); edge.addColorStop(1, '#3d445f'); ctx.fillStyle = edge;
-    ctx.shadowColor = 'rgba(35,39,58,.22)'; ctx.shadowBlur = Math.round(12 * quality().shadow); ctx.fillRect(g.x, 0, g.w, g.gapY - 8); ctx.fillRect(g.x, g.gapY + g.gapH + 8, g.w, H); ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(g.x + 8, 0, 5, Math.max(0, g.gapY - 8)); ctx.fillRect(g.x + 8, g.gapY + g.gapH + 8, 5, H);
-    ctx.fillStyle = '#7e89a9'; for (let y = 18; y < g.gapY - 18; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } for (let y = g.gapY + g.gapH + 25; y < H; y += 38) { ctx.beginPath(); ctx.arc(g.x + g.w / 2, y, 25, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+    ctx.save();
+    const topH = Math.max(0, g.gapY - 8);
+    const bottomY = g.gapY + g.gapH + 8;
+    const bottomH = Math.max(0, H - bottomY);
+    drawCloudWall(g.x, 0, g.w, topH, false);
+    drawCloudWall(g.x, bottomY, g.w, bottomH, true);
+    if (qualityLevel > 0) {
+      const centerY = g.gapY + g.gapH / 2;
+      const glow = ctx.createRadialGradient(g.x + g.w / 2, centerY, 4, g.x + g.w / 2, centerY, 72);
+      glow.addColorStop(0, 'rgba(255,255,255,.18)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow; ctx.fillRect(g.x - 35, g.gapY - 35, g.w + 70, g.gapH + 70);
+    }
+    ctx.restore();
   }
   function drawPickup(p) {
     ctx.save(); ctx.translate(p.x, p.y); const pulse = 1 + Math.sin(state.t / 150 + p.pulse) * .08; ctx.scale(pulse, pulse);
