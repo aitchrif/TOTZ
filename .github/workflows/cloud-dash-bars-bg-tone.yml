@@ -1,0 +1,42 @@
+name: Cloud Dash background-tone bars
+
+on:
+  push:
+    branches:
+      - cloud-dash-preview
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+      - name: Blend bars closer to game background
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('cloud-dash-v4.js')
+          s = p.read_text()
+          s = s.replace("    ctx.save();\n    const grad = ctx.createLinearGradient(x, y, x + w, y + h);\n    grad.addColorStop(0, '#ffffff'); grad.addColorStop(.45, '#eefaff'); grad.addColorStop(1, '#d9f2ff');",
+                        "    ctx.save();\n    ctx.globalAlpha = .78;\n    const grad = ctx.createLinearGradient(x, y, x + w, y + h);\n    grad.addColorStop(0, '#d5f1f4'); grad.addColorStop(.45, '#c8e9ef'); grad.addColorStop(1, '#b9dfe8');")
+          s = s.replace("ctx.shadowColor = 'rgba(91,170,205,.14)'", "ctx.shadowColor = 'rgba(91,170,205,.08)'")
+          s = s.replace("drawCloudPuff(px, lipY + lipDir * 2, radii[i], '#ffffff', '#e3f5fc');", "drawCloudPuff(px, lipY + lipDir * 2, radii[i], '#d7f1f4', '#bddfe7');")
+          s = s.replace("ctx.strokeStyle = 'rgba(104,190,220,.30)'", "ctx.strokeStyle = 'rgba(94,174,204,.18)'")
+          p.write_text(s)
+          PY
+      - name: Commit test-only bar palette
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Blend Cloud Dash bars closer to background"
+            git push origin cloud-dash-preview
+          fi
