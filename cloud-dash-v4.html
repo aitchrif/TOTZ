@@ -14,7 +14,7 @@
 <div class="wrap">
   <div class="top"><div class="brand">☁️ TOTZ</div><div class="pill">V4 CLEAN BUILD · TEST ONLY</div></div>
   <div class="hero"><h1>CLOUD <span>DASH</span></h1><p>Ranked runs · full replay verification · missions · limited farming · skins · leaderboard</p></div>
-  <div class="profile">
+  <div class="profile profilebar">
     <button class="btn" id="connectBtn">CONNECT WALLET</button>
     <input id="nameInput" maxlength="18" value="TOTZ Player" aria-label="Player name">
     <div class="mode"><button id="practiceMode">PRACTICE</button><button id="rankedMode" class="active">RANKED</button></div>
@@ -27,13 +27,13 @@
     </aside>
     <main>
       <section class="game-shell">
-        <div class="stage">
+        <div class="stage canvas-wrap">
           <canvas id="game" width="960" height="540"></canvas>
-          <div class="hud"><div><span class="chip">SCORE <b id="score">0</b></span><span class="chip">🪙 <b id="coins">0</b></span><span class="chip">COMBO <b id="combo">x1</b></span></div><div><span class="chip" id="life">❤️❤️❤️</span><span class="chip">TIME <b id="time">0s</b></span><span class="chip">BEST <b id="best">0</b></span></div></div>
-          <div class="overlay" id="startOverlay"><div class="modal"><b>🛡️ FULL REPLAY VALIDATION</b><h2>Ready to fly?</h2><p>Hold to rise, release to fall. Ranked uses one wallet signature and the server replays your exact inputs.</p><button class="start" id="startBtn">START RANKED RUN</button><div class="status" id="status">Loading V4…</div></div></div>
-          <div class="overlay" id="gameOver" hidden><div class="modal"><b>RUN COMPLETE</b><h2>Nice run!</h2><div class="result"><div><small>SCORE</small><strong id="endScore">0</strong></div><div><small>COINS</small><strong id="endCoins">0</strong></div><div><small>TIME</small><strong id="endTime">0s</strong></div><div><small>FARM</small><strong id="endFarm">—</strong></div></div><button class="start" id="restartBtn">RUN IT BACK</button><div class="verified" id="verified"></div></div></div>
+          <div class="hud"><div><span class="chip hud-chip">SCORE <b id="score">0</b></span><span class="chip hud-chip">🪙 <b id="coins">0</b></span><span class="chip hud-chip">COMBO <b id="combo">x1</b></span></div><div><span class="chip hud-chip" id="life">❤️❤️❤️</span><span class="chip hud-chip">TIME <b id="time">0s</b></span><span class="chip hud-chip">BEST <b id="best">0</b></span></div></div>
+          <div class="overlay" id="startOverlay"><div class="modal overlay-card"><b>🛡️ FULL REPLAY VALIDATION</b><h2>Ready to fly?</h2><p>Hold to rise, release to fall. Ranked uses one wallet signature and the server replays your exact inputs.</p><button class="start" id="startBtn">START RANKED RUN</button><div class="status" id="status">Loading V4…</div></div></div>
+          <div class="overlay" id="gameOver" hidden><div class="modal overlay-card"><b>RUN COMPLETE</b><h2>Nice run!</h2><div class="result"><div><small>SCORE</small><strong id="endScore">0</strong></div><div><small>COINS</small><strong id="endCoins">0</strong></div><div><small>TIME</small><strong id="endTime">0s</strong></div><div><small>FARM</small><strong id="endFarm">—</strong></div></div><button class="start" id="restartBtn">RUN IT BACK</button><div class="verified" id="verified"></div></div></div>
         </div>
-        <div class="foot"><span>Hold = climb · release = fall · 3 lives · shields · combo x5</span><button id="soundBtn">🔊 SOUND ON</button></div>
+        <div class="foot game-foot"><span>Hold = climb · release = fall · 3 lives · shields · combo x5</span><button id="soundBtn">🔊 SOUND ON</button></div>
       </section>
       <section class="card" style="margin-top:10px"><h3>Cloud Skins</h3><div class="meta">Unlock Ranked skins with Arcade XP. Locked skins still work in Practice.</div><div class="skin-grid" id="skinGrid"></div></section>
     </main>
