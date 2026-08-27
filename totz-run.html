@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>TOTZ RUN — 3D Game Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.166.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.166.1/examples/jsm/"}}</script>
+<style>
+:root{--cream:#FFF3DC;--ink:#2B2140;--ink2:#5B5270;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--coral:#FF7A66;--coral2:#F0533D;--white:#fff;--shadow:0 18px 50px rgba(43,33,64,.18)}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#9fdbe7;font-family:'Nunito',sans-serif;color:var(--ink);touch-action:none;user-select:none}.game{position:fixed;inset:0;background:linear-gradient(#bfe6ee,#eaf9fb 62%,#fff3dc 62%)}#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+.top{position:absolute;z-index:20;left:0;right:0;top:0;padding:18px 4vw;display:flex;justify-content:space-between;align-items:center;pointer-events:none}.brand{display:flex;align-items:center;gap:9px;font:800 1.45rem 'Baloo 2';pointer-events:auto}.brand i{width:13px;height:13px;border-radius:50%;background:var(--coral)}.home{pointer-events:auto;background:rgba(255,243,220,.9);border:2px solid rgba(43,33,64,.82);padding:9px 14px;border-radius:999px;font-weight:900;text-decoration:none;color:var(--ink);backdrop-filter:blur(8px)}
+.hud{position:absolute;z-index:18;left:50%;top:18px;transform:translateX(-50%);display:flex;gap:9px;pointer-events:none}.pill{min-width:105px;text-align:center;background:rgba(255,255,255,.8);border:2px solid rgba(43,33,64,.1);border-radius:17px;padding:7px 12px;backdrop-filter:blur(10px);box-shadow:0 10px 26px rgba(43,33,64,.08)}.pill span{display:block;font-size:.65rem;letter-spacing:.08em;font-weight:900;color:var(--ink2)}.pill b{font:800 1.2rem 'Baloo 2'}
+.overlay{position:absolute;z-index:30;inset:0;display:grid;place-items:center;background:linear-gradient(rgba(191,230,238,.42),rgba(255,243,220,.5));backdrop-filter:blur(3px);padding:20px}.card{width:min(560px,92vw);text-align:center;background:rgba(255,255,255,.92);border:3px solid rgba(43,33,64,.1);border-radius:30px;padding:28px 26px;box-shadow:var(--shadow)}.badge{display:inline-flex;background:var(--lime);padding:7px 13px;border-radius:999px;font-weight:900;font-size:.75rem;letter-spacing:.06em}.card h1{font:800 clamp(2.6rem,8vw,5rem)/.86 'Baloo 2';margin:14px 0 10px}.card h1 em{font-style:normal;color:var(--coral2)}.card p{margin:0 auto 18px;color:var(--ink2);font-weight:800;line-height:1.55;max-width:440px}.start{border:0;border-radius:999px;padding:15px 26px;background:var(--coral);color:#fff;font:800 1.05rem 'Baloo 2';box-shadow:0 8px 0 var(--coral2);cursor:pointer}.keys{margin-top:16px;font-size:.8rem;color:var(--ink2);font-weight:900}.source{margin-top:10px;font-size:.69rem;color:#786f87;font-weight:800;word-break:break-all}.source b{color:var(--ink)}
+.mobile{position:absolute;z-index:22;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px;pointer-events:none}.move{display:flex;gap:10px}.ctrl{pointer-events:auto;width:64px;height:64px;border:0;border-radius:20px;background:rgba(255,255,255,.82);border:2px solid rgba(43,33,64,.12);box-shadow:0 10px 25px rgba(43,33,64,.12);font:800 1.5rem 'Baloo 2';color:var(--ink);backdrop-filter:blur(8px)}.jump{width:92px;background:rgba(255,122,102,.9);color:white;border-color:rgba(240,83,61,.5);font-size:.92rem}.hint{position:absolute;z-index:18;left:50%;bottom:24px;transform:translateX(-50%);padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.62);font-size:.72rem;font-weight:900;color:var(--ink2);backdrop-filter:blur(8px);pointer-events:none}
+.flash{position:absolute;z-index:25;inset:0;background:rgba(255,122,102,.35);opacity:0;pointer-events:none}.toast{position:absolute;z-index:24;top:92px;left:50%;transform:translateX(-50%) translateY(-10px);background:var(--lime);padding:8px 14px;border-radius:999px;font-weight:900;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(min-width:850px){.mobile{display:none}}@media(max-width:849px){.hint{display:none}.hud{top:68px}.pill{min-width:82px;padding:6px 9px}.pill b{font-size:1rem}.top{padding:14px 16px}.brand{font-size:1.25rem}.home{font-size:.8rem}.card{padding:24px 18px}}
+</style>
+</head>
+<body>
+<div class="game">
+<canvas id="c"></canvas>
+<div class="top"><div class="brand"><i></i>TOTZ RUN</div><a class="home" href="index.html">← Back home</a></div>
+<div class="hud"><div class="pill"><span>SCORE</span><b id="score">0</b></div><div class="pill"><span>$TOTZ</span><b id="coins">0</b></div><div class="pill"><span>BEST</span><b id="best">0</b></div></div>
+<div class="toast" id="toast">+1 $TOTZ</div><div class="flash" id="flash"></div>
+<div class="overlay" id="overlay"><div class="card"><span class="badge">☁️ PLAYABLE 3D TEST</span><h1>TOTZ <em>RUN</em></h1><p>Run through the cloud lane with your real TOTZ avatar. Dodge storm blocks, switch lanes, jump obstacles and collect $TOTZ.</p><button class="start" id="startBtn">START RUN</button><div class="keys">A / D or ← / → to move • SPACE / ↑ to jump</div><div class="source"><b>Avatar source:</b> avatar.mml → TOTZ286.glb</div></div></div>
+<div class="mobile"><div class="move"><button class="ctrl" id="left">←</button><button class="ctrl" id="right">→</button></div><button class="ctrl jump" id="jump">JUMP</button></div>
+<div class="hint">← → switch lane • SPACE jump</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+const MML_URL='https://raw.githubusercontent.com/aitchrif/otherside-avatar/main/avatar.mml';
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xbfe6ee);scene.fog=new THREE.Fog(0xbfe6ee,26,92);
+const camera=new THREE.PerspectiveCamera(54,1,.1,160);camera.position.set(0,5.4,11.2);camera.lookAt(0,1.8,-8);
+const hemi=new THREE.HemisphereLight(0xffffff,0xffe7bd,2.4);scene.add(hemi);const sun=new THREE.DirectionalLight(0xffffff,2.3);sun.position.set(8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);const rim=new THREE.DirectionalLight(0x8ed2e2,1.6);rim.position.set(-8,4,-7);scene.add(rim);
+
+const world=new THREE.Group();scene.add(world);
+const lanes=[-2.5,0,2.5];
+const groundMat=new THREE.MeshStandardMaterial({color:0xfff3dc,roughness:.9});const edgeMat=new THREE.MeshStandardMaterial({color:0x2b2140,roughness:.75});
+const road=new THREE.Mesh(new THREE.BoxGeometry(9,.35,140),groundMat);road.position.set(0,-.18,-42);road.receiveShadow=true;world.add(road);
+for(const x of [-4.6,4.6]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.42,140),edgeMat);rail.position.set(x,.03,-42);world.add(rail)}
+for(const x of [-1.25,1.25]){for(let z=-105;z<18;z+=8){const dash=new THREE.Mesh(new THREE.BoxGeometry(.08,.025,3.1),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55}));dash.position.set(x,.02,z);world.add(dash);dash.userData.roadDash=true}}
+
+function cloud(x,y,z,s){const g=new THREE.Group();const m=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:.82});[[0,0,0,.75],[.75,.05,0,1],[-.7,.08,.05,.82],[.2,.45,.02,.7]].forEach(a=>{const q=new THREE.Mesh(new THREE.SphereGeometry(a[3]*s,18,14),m);q.position.set(a[0]*s,a[1]*s,a[2]);g.add(q)});g.position.set(x,y,z);scene.add(g);g.userData.cloud=true;return g}
+for(let i=0;i<20;i++)cloud((Math.random()-.5)*32,3+Math.random()*11,-10-Math.random()*110,.7+Math.random()*1.1);
+
+const player=new THREE.Group();player.position.set(0,0,3);scene.add(player);let avatar=null,mixer=null;let playerBaseY=0;
+const loader=new GLTFLoader();
+async function loadAvatar(){try{const mml=await fetch(MML_URL,{cache:'no-store'}).then(r=>r.text());const match=mml.match(/<m-character[^>]+src=[\"']([^\"']+)[\"']/i);if(!match)throw new Error('No GLB in MML');const gltf=await loader.loadAsync(match[1]);avatar=gltf.scene;avatar.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});const box=new THREE.Box3().setFromObject(avatar);const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());avatar.position.sub(center);const sc=2.7/(Math.max(size.x,size.y,size.z)||1);avatar.scale.setScalar(sc);const box2=new THREE.Box3().setFromObject(avatar);const s2=box2.getSize(new THREE.Vector3()),c2=box2.getCenter(new THREE.Vector3());avatar.position.sub(c2);avatar.position.y=s2.y/2;avatar.rotation.y=Math.PI;player.add(avatar);if(gltf.animations?.length){mixer=new THREE.AnimationMixer(avatar);mixer.clipAction(gltf.animations[0]).play()}}catch(e){console.error(e);const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,1.2,8,16),new THREE.MeshStandardMaterial({color:0xff7a66}));body.position.y=1.1;body.castShadow=true;player.add(body)}}
+loadAvatar();
+
+let obstacles=[],pickups=[],rings=[];const obsMat=new THREE.MeshStandardMaterial({color:0x2b2140,roughness:.7});const accentMat=new THREE.MeshStandardMaterial({color:0xff7a66,emissive:0x3f0800,emissiveIntensity:.35});const coinMat=new THREE.MeshStandardMaterial({color:0xcbdb2a,emissive:0x657000,emissiveIntensity:.5,metalness:.05,roughness:.45});
+function spawnObstacle(){const lane=Math.floor(Math.random()*3);const tall=Math.random()<.28;const h=tall?2.5:1.25;const mesh=new THREE.Mesh(new THREE.BoxGeometry(1.45,h,1.4),obsMat);mesh.position.set(lanes[lane],h/2,-72);mesh.castShadow=true;mesh.receiveShadow=true;world.add(mesh);const stripe=new THREE.Mesh(new THREE.BoxGeometry(1.52,.18,1.46),accentMat);stripe.position.y=h*.2;mesh.add(stripe);obstacles.push({mesh,lane,h,passed:false})}
+function spawnPickup(){const lane=Math.floor(Math.random()*3);const g=new THREE.Group();const tor=new THREE.Mesh(new THREE.TorusGeometry(.38,.13,12,28),coinMat);tor.rotation.x=Math.PI/2;g.add(tor);const dot=new THREE.Mesh(new THREE.SphereGeometry(.12,12,10),new THREE.MeshBasicMaterial({color:0x2b2140}));g.add(dot);g.position.set(lanes[lane],1.15+Math.random()*1.2,-70);world.add(g);pickups.push({mesh:g,lane})}
+function spawnPortal(){const ring=new THREE.Mesh(new THREE.TorusGeometry(4.4,.12,16,72),new THREE.MeshBasicMaterial({color:0x8ed2e2,transparent:true,opacity:.35}));ring.position.set(0,4,-78);world.add(ring);rings.push(ring)}
+for(let i=0;i<4;i++)spawnPortal();
+
+let state='menu',laneIndex=1,targetX=0,yVel=0,onGround=true,score=0,coins=0,speed=.34,obsTimer=0,pickTimer=0,last=performance.now(),best=Number(localStorage.getItem('totzRunBest')||0);document.getElementById('best').textContent=best;
+const scoreEl=document.getElementById('score'),coinsEl=document.getElementById('coins'),bestEl=document.getElementById('best'),overlay=document.getElementById('overlay');
+function resetGame(){obstacles.forEach(o=>world.remove(o.mesh));pickups.forEach(o=>world.remove(o.mesh));obstacles=[];pickups=[];laneIndex=1;targetX=0;player.position.x=0;player.position.y=0;yVel=0;onGround=true;score=0;coins=0;speed=.34;obsTimer=25;pickTimer=55;scoreEl.textContent='0';coinsEl.textContent='0'}
+function startGame(){resetGame();state='play';overlay.style.display='none';last=performance.now()}
+function moveLane(d){if(state!=='play')return;laneIndex=Math.max(0,Math.min(2,laneIndex+d));targetX=lanes[laneIndex]}
+function jump(){if(state!=='play'||!onGround)return;yVel=.23;onGround=false}
+function gameOver(){if(state!=='play')return;state='over';const s=Math.floor(score);if(s>best){best=s;localStorage.setItem('totzRunBest',best);bestEl.textContent=best}document.querySelector('.card h1').innerHTML='CLOUD <em>DOWN!</em>';document.querySelector('.card p').innerHTML=`Score <b>${s}</b> • Collected <b>${coins} $TOTZ</b><br>Run it again and beat your best.`;document.getElementById('startBtn').textContent='RUN AGAIN';overlay.style.display='grid';const fl=document.getElementById('flash');fl.style.transition='none';fl.style.opacity='1';requestAnimationFrame(()=>{fl.style.transition='.45s';fl.style.opacity='0'})}
+function collect(){coins++;coinsEl.textContent=coins;score+=90;const t=document.getElementById('toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),420)}
+
+addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','Space','KeyA','KeyD','KeyW'].includes(e.code))e.preventDefault();if(e.code==='ArrowLeft'||e.code==='KeyA')moveLane(-1);if(e.code==='ArrowRight'||e.code==='KeyD')moveLane(1);if(e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW')jump()});document.getElementById('left').onclick=()=>moveLane(-1);document.getElementById('right').onclick=()=>moveLane(1);document.getElementById('jump').onclick=jump;document.getElementById('startBtn').onclick=startGame;
+let touchStartX=null;canvas.addEventListener('pointerdown',e=>touchStartX=e.clientX);canvas.addEventListener('pointerup',e=>{if(touchStartX==null||state!=='play')return;const dx=e.clientX-touchStartX;if(Math.abs(dx)>45)moveLane(dx>0?1:-1);else jump();touchStartX=null});
+
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+const clock=new THREE.Clock();
+function animate(now){requestAnimationFrame(animate);const dt=Math.min(2,(now-last)/16.667);last=now;const sec=clock.getDelta();if(mixer)mixer.update(sec);player.position.x+=(targetX-player.position.x)*Math.min(1,.18*dt);if(state==='play'){score+=dt*.8;speed=Math.min(.72,.34+score/9000);yVel-=.013*dt;player.position.y+=yVel*dt;if(player.position.y<=0){player.position.y=0;yVel=0;onGround=true}obsTimer-=dt;pickTimer-=dt;if(obsTimer<=0){spawnObstacle();obsTimer=50+Math.random()*30}if(pickTimer<=0){spawnPickup();pickTimer=42+Math.random()*45}
+for(const o of obstacles){o.mesh.position.z+=speed*dt*6.1;if(Math.abs(o.mesh.position.z-player.position.z)<1.05&&Math.abs(o.mesh.position.x-player.position.x)<.88){const playerFoot=player.position.y;const clears=playerFoot>o.h*.62;if(!clears){gameOver();break}}}for(const p of pickups){p.mesh.position.z+=speed*dt*6.1;p.mesh.rotation.y+=.04*dt;p.mesh.rotation.z+=.025*dt;if(Math.abs(p.mesh.position.z-player.position.z)<1.05&&Math.abs(p.mesh.position.x-player.position.x)<.85&&Math.abs(p.mesh.position.y-(player.position.y+1.15))<1.25){p.collected=true;collect()}}obstacles=obstacles.filter(o=>{if(o.mesh.position.z>14){world.remove(o.mesh);return false}return true});pickups=pickups.filter(p=>{if(p.collected||p.mesh.position.z>14){world.remove(p.mesh);return false}return true});for(const child of world.children){if(child.userData.roadDash){child.position.z+=speed*dt*6.1;if(child.position.z>15)child.position.z-=120}}rings.forEach((r,i)=>{r.position.z+=speed*dt*3.8;r.rotation.z+=.002*(i+1)*dt;if(r.position.z>18)r.position.z=-82-i*23});scoreEl.textContent=Math.floor(score)}
+scene.children.forEach(o=>{if(o.userData.cloud){o.position.z+=.008*dt;if(o.position.z>18)o.position.z=-105}});camera.position.x+=(player.position.x*.16-camera.position.x)*.035*dt;camera.lookAt(player.position.x*.18,1.6,-8);renderer.render(scene,camera)}requestAnimationFrame(animate);
+</script>
+</body>
+</html>
