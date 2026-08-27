@@ -1,0 +1,71 @@
+name: Cloud Dash fully static bars
+
+on:
+  push:
+    branches:
+      - cloud-dash-preview
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+      - name: Make cloud bars visually static internally
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('cloud-dash-v4.js')
+          s = p.read_text()
+          pattern = r"  function drawCloudWall\(x, y, w, h, flip = false\) \{.*?\n  \}\n  function drawBg\(\) \{"
+          replacement = '''  function drawCloudWall(x, y, w, h, flip = false) {
+    if (h <= 0) return;
+    ctx.save();
+    // Calm obstacle: every detail is fixed to the bar itself.
+    // No sine wobble, pulsing dots, changing puff sizes or internal animation.
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(.55, '#f3fbff');
+    grad.addColorStop(1, '#e3f5fc');
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(91,170,205,.16)';
+    ctx.shadowBlur = Math.round(10 * quality().shadow);
+    ctx.fillRect(x + 8, y, Math.max(0, w - 16), h);
+    ctx.shadowBlur = 0;
+
+    const lipY = flip ? y : y + h;
+    const lipDir = flip ? 1 : -1;
+    const radii = [14, 16, 14, 16, 14, 16];
+    const count = radii.length;
+    for (let i = 0; i < count; i++) {
+      const px = x + 4 + (w - 8) * (i / (count - 1));
+      drawCloudPuff(px, lipY + lipDir * 2, radii[i], '#ffffff', '#e3f5fc');
+    }
+
+    ctx.strokeStyle = 'rgba(104,190,220,.34)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 8, y + 2); ctx.lineTo(x + 8, y + h - 2);
+    ctx.moveTo(x + w - 8, y + 2); ctx.lineTo(x + w - 8, y + h - 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawBg() {'''
+          out, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit(f'Could not patch drawCloudWall, matches={n}')
+          p.write_text(out)
+          PY
+      - name: Commit test-only static bars
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js
+          git commit -m "Make Cloud Dash bar internals fully static"
+          git push origin cloud-dash-preview
