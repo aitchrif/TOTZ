@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ — 3D MML Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--ink:#2B2140;--ink2:#5B5270;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--coral:#FF7A66;--coral2:#F0533D;--white:#fff;--shadow:0 24px 70px rgba(43,33,64,.18)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:'Nunito',sans-serif;background:#bfe6ee;color:var(--ink)}body{overflow-x:hidden}a{text-decoration:none;color:inherit}
+.scene{min-height:100vh;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 18%,#ecfbff 0,#bfe6ee 34%,#9bdbe8 65%,#86cedd 100%)}
+.scene:before{content:"";position:absolute;inset:auto -15vw -29vh;height:55vh;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#fff3dc,#ffeac2);box-shadow:0 -18px 80px rgba(255,243,220,.6)}
+.glow{position:absolute;width:46vw;height:46vw;min-width:420px;min-height:420px;border-radius:50%;left:50%;top:48%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,255,255,.15) 46%,transparent 70%);filter:blur(8px);pointer-events:none}
+.cloud{position:absolute;background:rgba(255,255,255,.78);filter:blur(.2px);border-radius:999px;opacity:.82;pointer-events:none}.cloud:before,.cloud:after{content:"";position:absolute;background:inherit;border-radius:50%}.cloud.c1{width:170px;height:50px;left:-40px;top:21%;animation:drift 26s linear infinite}.cloud.c1:before{width:80px;height:80px;left:34px;bottom:2px}.cloud.c1:after{width:62px;height:62px;right:28px;bottom:4px}.cloud.c2{width:220px;height:58px;right:-50px;top:31%;animation:drift2 34s linear infinite}.cloud.c2:before{width:92px;height:92px;left:42px;bottom:2px}.cloud.c2:after{width:72px;height:72px;right:34px;bottom:3px}.cloud.c3{width:130px;height:42px;left:8%;top:68%;opacity:.45;animation:float 7s ease-in-out infinite}.cloud.c3:before{width:64px;height:64px;left:25px;bottom:2px}.cloud.c3:after{width:48px;height:48px;right:20px;bottom:3px}@keyframes drift{from{transform:translateX(-20px)}to{transform:translateX(115vw)}}@keyframes drift2{from{transform:translateX(20px)}to{transform:translateX(-115vw)}}@keyframes float{50%{transform:translateY(-14px)}}
+.nav{position:absolute;z-index:10;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:20px 5vw}.logo{display:flex;align-items:center;gap:10px;font:800 1.65rem 'Baloo 2';letter-spacing:.02em}.logo i{width:14px;height:14px;border-radius:50%;background:var(--coral);display:inline-block}.back{background:rgba(255,243,220,.9);border:2px solid rgba(43,33,64,.9);padding:10px 16px;border-radius:999px;font-weight:900;backdrop-filter:blur(8px)}
+.copy{position:absolute;z-index:4;left:6vw;top:50%;transform:translateY(-48%);max-width:390px}.eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--lime);padding:8px 14px;border-radius:999px;font-size:.76rem;font-weight:900;letter-spacing:.07em}.copy h1{font:800 clamp(3rem,6vw,6.4rem)/.82 'Baloo 2';margin:18px 0 14px;letter-spacing:-.04em}.copy h1 span{display:block;color:var(--coral2)}.copy p{font-size:1.04rem;line-height:1.55;color:var(--ink2);font-weight:800;margin:0;max-width:360px}.meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}.chip{display:inline-flex;padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.68);border:1.5px solid rgba(43,33,64,.09);font-size:.76rem;font-weight:900;backdrop-filter:blur(10px)}
+.stage{position:absolute;z-index:3;left:42%;right:2.5vw;top:11vh;bottom:7vh;display:flex;align-items:center;justify-content:center}.ring{position:absolute;width:min(52vw,700px);height:min(52vw,700px);border-radius:50%;border:1px solid rgba(255,255,255,.65);box-shadow:0 0 0 24px rgba(255,255,255,.10),0 0 0 54px rgba(255,255,255,.07);pointer-events:none}.portal{position:absolute;width:min(42vw,560px);height:min(42vw,560px);border-radius:50%;background:conic-gradient(from 180deg,rgba(255,122,102,.0),rgba(255,122,102,.78),rgba(203,219,42,.64),rgba(142,210,226,.9),rgba(255,122,102,0));filter:blur(28px);opacity:.5;animation:spin 14s linear infinite;pointer-events:none}@keyframes spin{to{transform:rotate(360deg)}}
+model-viewer{width:100%;height:100%;min-height:540px;--poster-color:transparent;background:transparent;filter:drop-shadow(0 28px 30px rgba(43,33,64,.18));z-index:2}.loading{position:absolute;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;border-radius:999px;background:rgba(255,243,220,.92);font-weight:900;box-shadow:var(--shadow)}
+.controls{position:absolute;z-index:8;right:4vw;bottom:5vh;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;max-width:530px}.btn{border:0;cursor:pointer;border-radius:999px;padding:13px 18px;font:800 .95rem 'Baloo 2';box-shadow:0 9px 24px rgba(43,33,64,.13);transition:.18s}.btn:hover{transform:translateY(-2px)}.primary{background:var(--coral);color:#fff}.dark{background:var(--ink);color:#fff}.soft{background:rgba(255,243,220,.92);color:var(--ink);border:2px solid rgba(43,33,64,.12)}
+.mmlbox{position:absolute;z-index:7;left:6vw;bottom:5vh;max-width:380px;background:rgba(255,255,255,.72);border:1.5px solid rgba(43,33,64,.09);padding:12px 14px;border-radius:18px;backdrop-filter:blur(12px);font-size:.76rem;font-weight:800;color:var(--ink2);box-shadow:0 12px 35px rgba(43,33,64,.08)}.mmlbox strong{color:var(--ink);display:block;margin-bottom:3px}.mmlbox code{word-break:break-all;color:var(--coral2)}
+@media(max-width:900px){.scene{min-height:1100px}.copy{position:relative;left:auto;top:auto;transform:none;padding:110px 22px 0;max-width:650px;text-align:center;margin:auto}.copy p{margin:auto}.meta{justify-content:center}.stage{left:0;right:0;top:380px;bottom:180px}.ring{width:82vw;height:82vw}.portal{width:70vw;height:70vw}.controls{left:18px;right:18px;bottom:92px;justify-content:center}.mmlbox{left:18px;right:18px;bottom:18px;max-width:none;text-align:center}model-viewer{min-height:640px}}@media(max-width:560px){.scene{min-height:980px}.nav{padding:16px}.copy{padding-top:92px}.copy h1{font-size:3.7rem}.stage{top:330px;bottom:180px}model-viewer{min-height:560px}.controls{bottom:106px}.btn{padding:11px 14px;font-size:.84rem}.mmlbox{font-size:.68rem}}
+</style>
+</head>
+<body>
+<main class="scene" id="scene">
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="glow"></div>
+  <nav class="nav"><a class="logo" href="index.html"><i></i>TOTZ</a><a class="back" href="index.html">← Back home</a></nav>
+  <section class="copy">
+    <span class="eyebrow">☁️ LIVE MML SOURCE</span>
+    <h1>TOTZ <span>IN 3D.</span></h1>
+    <p>Your MML file is the source of truth. This page reads <b>avatar.mml</b>, finds the linked GLB, and renders the avatar directly in the browser.</p>
+    <div class="meta"><span class="chip">MML → GLB</span><span class="chip">Browser only</span><span class="chip">No database</span><span class="chip">No server game loop</span></div>
+  </section>
+  <section class="stage">
+    <div class="ring"></div><div class="portal"></div>
+    <div class="loading" id="loading">Loading avatar.mml…</div>
+    <model-viewer id="avatar" camera-controls auto-rotate autoplay shadow-intensity="1.1" shadow-softness=".8" exposure="1.15" environment-image="neutral" interaction-prompt="auto" camera-orbit="0deg 80deg auto" min-camera-orbit="auto 45deg 2m" max-camera-orbit="auto 105deg 12m" alt="TOTZ 3D avatar"></model-viewer>
+  </section>
+  <div class="controls">
+    <button class="btn primary" id="spin">AUTO SPIN: ON</button>
+    <button class="btn dark" id="anim">ANIMATION: ON</button>
+    <button class="btn soft" id="front">FRONT VIEW</button>
+    <button class="btn soft" id="night">NIGHT MODE</button>
+  </div>
+  <div class="mmlbox"><strong>MML source</strong><code id="mmlSource">https://raw.githubusercontent.com/aitchrif/otherside-avatar/main/avatar.mml</code><div id="glbStatus" style="margin-top:4px">Resolving GLB…</div></div>
+</main>
+<script>
+const MML_URL='https://raw.githubusercontent.com/aitchrif/otherside-avatar/main/avatar.mml';
+const viewer=document.getElementById('avatar');
+const loading=document.getElementById('loading');
+const glbStatus=document.getElementById('glbStatus');
+const scene=document.getElementById('scene');
+let spinning=true, animating=true, night=false;
+async function init(){
+  try{
+    const res=await fetch(MML_URL,{cache:'no-store'});
+    if(!res.ok) throw new Error('MML '+res.status);
+    const text=await res.text();
+    const match=text.match(/<m-character[^>]+src=["']([^"']+)["']/i);
+    if(!match) throw new Error('No m-character src found');
+    const glb=match[1];
+    glbStatus.textContent='GLB: '+glb.split('/').pop();
+    viewer.src=glb;
+  }catch(err){loading.textContent='Could not load MML';glbStatus.textContent=String(err);console.error(err)}
+}
+viewer.addEventListener('load',()=>{loading.style.display='none';const names=viewer.availableAnimations||[];if(names.length){viewer.animationName=names[0];viewer.play()}else{document.getElementById('anim').textContent='NO EMBEDDED ANIM'}});
+viewer.addEventListener('error',()=>{loading.textContent='GLB failed to load';loading.style.display='block'});
+document.getElementById('spin').onclick=()=>{spinning=!spinning;viewer.autoRotate=spinning;document.getElementById('spin').textContent='AUTO SPIN: '+(spinning?'ON':'OFF')};
+document.getElementById('anim').onclick=()=>{const names=viewer.availableAnimations||[];if(!names.length)return;animating=!animating;if(animating)viewer.play();else viewer.pause();document.getElementById('anim').textContent='ANIMATION: '+(animating?'ON':'OFF')};
+document.getElementById('front').onclick=()=>{viewer.cameraOrbit='0deg 80deg auto';viewer.jumpCameraToGoal()};
+document.getElementById('night').onclick=()=>{night=!night;scene.style.background=night?'radial-gradient(circle at 50% 18%,#394567 0,#222841 38%,#171c31 75%,#101425 100%)':'radial-gradient(circle at 50% 18%,#ecfbff 0,#bfe6ee 34%,#9bdbe8 65%,#86cedd 100%)';document.getElementById('night').textContent=night?'DAY MODE':'NIGHT MODE';document.querySelector('.copy').style.color=night?'#fff':'var(--ink)';document.querySelector('.copy p').style.color=night?'#d8d6e4':'var(--ink2)'};
+init();
+</script>
+</body>
+</html>
