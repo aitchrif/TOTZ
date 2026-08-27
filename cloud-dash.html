@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOTZ Cloud Dash — Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--ink:#2B2140;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--coral:#FF7A66;--coral2:#F0533D;--white:#fff;--shadow:0 16px 40px rgba(43,33,64,.15)}
+*{box-sizing:border-box} body{margin:0;font-family:'Nunito',sans-serif;background:linear-gradient(#bfe6ee 0 62%,#fff3dc 62%);color:var(--ink);min-height:100vh;overflow-x:hidden} a{text-decoration:none;color:inherit}
+.top{display:flex;justify-content:space-between;align-items:center;padding:18px 5vw;position:relative;z-index:5}.brand{font:800 1.6rem 'Baloo 2';display:flex;align-items:center;gap:9px}.dot{width:14px;height:14px;border-radius:50%;background:var(--coral)}.back{border:2px solid var(--ink);border-radius:999px;padding:9px 15px;font-weight:800;background:rgba(255,243,220,.86)}
+.wrap{max-width:1180px;margin:0 auto;padding:10px 5vw 42px}.head{text-align:center;margin:10px auto 18px;max-width:720px}.eyebrow{display:inline-block;background:var(--lime);padding:7px 14px;border-radius:999px;font-weight:900;font-size:.78rem;letter-spacing:.05em}.head h1{font:800 clamp(2.4rem,7vw,4.8rem)/.95 'Baloo 2';margin:12px 0 10px}.head h1 span{color:var(--coral2)}.head p{font-weight:700;color:#5b5270;margin:0}
+.game-shell{background:rgba(255,255,255,.94);border:3px solid rgba(43,33,64,.12);border-radius:30px;padding:14px;box-shadow:var(--shadow)}
+.hud{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}.pill{background:var(--cream);border:2px solid rgba(43,33,64,.08);border-radius:18px;padding:10px 14px;font-weight:900;min-width:120px}.pill b{display:block;font:800 1.25rem 'Baloo 2'}
+#game{width:100%;height:auto;display:block;border-radius:22px;background:#bfe6ee;touch-action:none}.controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:14px}.btn{border:0;border-radius:999px;padding:13px 24px;font:800 1rem 'Baloo 2';cursor:pointer}.primary{background:var(--coral);color:white;box-shadow:0 7px 0 var(--coral2)}.ghost{background:var(--ink);color:white}.tip{text-align:center;font-weight:800;color:#5b5270;font-size:.88rem;margin:13px 0 0}
+.card-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.mini{background:rgba(255,255,255,.9);border-radius:20px;padding:15px;border:2px solid rgba(43,33,64,.08)}.mini h3{font:800 1.15rem 'Baloo 2';margin:0 0 4px}.mini p{margin:0;color:#5b5270;font-weight:700;font-size:.87rem}
+@media(max-width:760px){.card-row{grid-template-columns:1fr}.pill{min-width:30%;flex:1}.wrap{padding-left:12px;padding-right:12px}.game-shell{padding:9px;border-radius:22px}.top{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<header class="top"><a class="brand" href="index.html"><span class="dot"></span>TOTZ</a><a class="back" href="index.html">← Back home</a></header>
+<main class="wrap">
+<section class="head"><span class="eyebrow">☁️ PLAYABLE TEST</span><h1>TOTZ <span>CLOUD DASH</span></h1><p>Ride the cloud. Dodge the storm. Grab $TOTZ. No wallet, no database, no server game logic.</p></section>
+<section class="game-shell">
+<div class="hud"><div class="pill">SCORE<b id="score">0</b></div><div class="pill">$TOTZ<b id="coins">0</b></div><div class="pill">BEST<b id="best">0</b></div></div>
+<canvas id="game" width="1000" height="520" aria-label="TOTZ Cloud Dash game"></canvas>
+<div class="controls"><button id="start" class="btn primary">START DASH</button><button id="jump" class="btn ghost">FLAP / JUMP</button></div>
+<p class="tip">SPACE / ↑ / CLICK / TAP to fly • collect green $TOTZ • avoid storm blocks</p>
+</section>
+<div class="card-row"><div class="mini"><h3>☁️ Static game</h3><p>Runs fully in the browser. No serverless function is needed for the gameplay loop.</p></div><div class="mini"><h3>💾 Local best score</h3><p>Your best score is stored only in this browser with localStorage.</p></div><div class="mini"><h3>🍼 TOTZ-ready</h3><p>This test can later swap the placeholder player for an exact TOTZ PNG, sprite or GLB.</p></div></div>
+</main>
+<script>
+const c=document.getElementById('game'),x=c.getContext('2d');
+const scoreEl=document.getElementById('score'),coinsEl=document.getElementById('coins'),bestEl=document.getElementById('best');
+let running=false,last=0,score=0,coins=0,speed=5.2,spawn=0,coinSpawn=0;
+let best=Number(localStorage.getItem('totzCloudDashBest')||0);bestEl.textContent=best;
+const p={x:165,y:240,w:92,h:92,vy:0};let obs=[],drops=[],clouds=[];
+for(let i=0;i<9;i++)clouds.push({x:Math.random()*1000,y:40+Math.random()*330,s:35+Math.random()*55,v:.35+Math.random()*.6});
+function reset(){score=0;coins=0;speed=5.2;spawn=0;coinSpawn=0;p.y=240;p.vy=0;obs=[];drops=[];scoreEl.textContent=0;coinsEl.textContent=0}
+function flap(){if(!running)return;p.vy=-8.2}
+function start(){reset();running=true;last=performance.now();requestAnimationFrame(loop)}
+document.getElementById('start').onclick=start;document.getElementById('jump').onclick=flap;
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();running?flap():start()}});c.addEventListener('pointerdown',()=>running?flap():start());
+function rr(a,b,r){x.beginPath();x.roundRect(a.x,a.y,a.w,a.h,r);x.fill();}
+function drawBg(){let g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,'#9bdbe8');g.addColorStop(.72,'#d9f3f6');g.addColorStop(.721,'#ffeac2');g.addColorStop(1,'#fff3dc');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);
+ for(const q of clouds){q.x-=q.v*speed/5;if(q.x<-140)q.x=1100;x.fillStyle='rgba(255,255,255,.78)';x.beginPath();x.arc(q.x,q.y,q.s*.55,0,Math.PI*2);x.arc(q.x+q.s*.55,q.y+5,q.s*.75,0,Math.PI*2);x.arc(q.x+q.s*1.1,q.y,q.s*.48,0,Math.PI*2);x.fill()}
+ x.fillStyle='rgba(43,33,64,.08)';for(let i=0;i<9;i++)x.fillRect(i*145-((score*2)%145),438,95,10)}
+function drawPlayer(){x.save();x.translate(p.x,p.y);x.fillStyle='#fff';x.strokeStyle='#2B2140';x.lineWidth=5;x.beginPath();x.ellipse(46,67,44,20,0,0,Math.PI*2);x.fill();x.stroke();x.fillStyle='#FFB29D';x.beginPath();x.arc(47,39,31,0,Math.PI*2);x.fill();x.stroke();x.fillStyle='#2B2140';x.beginPath();x.arc(38,35,3.5,0,Math.PI*2);x.arc(57,35,3.5,0,Math.PI*2);x.fill();x.beginPath();x.arc(48,48,8,.1,Math.PI-.1);x.stroke();x.fillStyle='#CBDB2A';x.beginPath();x.arc(47,11,12,0,Math.PI*2);x.fill();x.stroke();x.restore()}
+function draw(){drawBg();for(const o of obs){x.fillStyle='#2B2140';rr(o,16);x.fillStyle='#FF7A66';x.fillRect(o.x+9,o.y+9,o.w-18,10)}for(const d of drops){x.fillStyle='#CBDB2A';x.strokeStyle='#2B2140';x.lineWidth=4;x.beginPath();x.arc(d.x,d.y,d.r,0,Math.PI*2);x.fill();x.stroke();x.fillStyle='#2B2140';x.font="800 18px 'Baloo 2'";x.textAlign='center';x.fillText('$',d.x,d.y+6)}drawPlayer();if(!running){x.fillStyle='rgba(43,33,64,.62)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#fff';x.font="800 44px 'Baloo 2'";x.textAlign='center';x.fillText('TAP START TO DASH',c.width/2,c.height/2-4);x.font="700 20px 'Nunito'";x.fillText('This is a lightweight browser-only prototype',c.width/2,c.height/2+34)}}
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function loop(t){if(!running){draw();return}let dt=Math.min(1.8,(t-last)/16.67);last=t;p.vy+=.48*dt;p.y+=p.vy*dt;if(p.y<5){p.y=5;p.vy=1}if(p.y+p.h>433){end();return}
+ spawn-=dt;coinSpawn-=dt;if(spawn<=0){let h=90+Math.random()*175;obs.push({x:1040,y:433-h,w:46,h});spawn=72+Math.random()*36}if(coinSpawn<=0){drops.push({x:1035,y:80+Math.random()*290,r:17});coinSpawn=45+Math.random()*55}
+ for(const o of obs)o.x-=speed*dt;for(const d of drops)d.x-=speed*dt;obs=obs.filter(o=>o.x>-80);drops=drops.filter(d=>d.x>-50);let pb={x:p.x+15,y:p.y+11,w:p.w-30,h:p.h-18};for(const o of obs)if(hit(pb,o)){end();return}for(let i=drops.length-1;i>=0;i--){let d=drops[i];let dx=(p.x+46)-d.x,dy=(p.y+46)-d.y;if(dx*dx+dy*dy<42*42){coins++;score+=50;coinsEl.textContent=coins;drops.splice(i,1)}}score+=dt;speed=Math.min(10,5.2+score/1500);scoreEl.textContent=Math.floor(score);draw();requestAnimationFrame(loop)}
+function end(){running=false;let s=Math.floor(score);if(s>best){best=s;localStorage.setItem('totzCloudDashBest',best);bestEl.textContent=best}draw();x.fillStyle='rgba(43,33,64,.7)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#fff';x.textAlign='center';x.font="800 52px 'Baloo 2'";x.fillText('CLOUD DOWN!',c.width/2,220);x.font="800 24px 'Nunito'";x.fillText('Score '+s+'  •  $TOTZ '+coins,c.width/2,265);x.font="700 18px 'Nunito'";x.fillText('Press START to run again',c.width/2,303)}
+draw();
+</script>
+</body>
+</html>
