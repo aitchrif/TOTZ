@@ -1,0 +1,44 @@
+name: Cloud Dash background contrast
+
+on:
+  push:
+    branches:
+      - cloud-dash-preview
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+      - name: Increase background contrast and bust JS cache
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path('cloud-dash-v4.js')
+          s = js.read_text()
+          old = "const top = mixColor('#86d9ee', '#7767b7', dusk * .9), mid = mixColor('#d7f4f6', '#e5a6bb', dusk * .65), bottom = mixColor('#fff0c7', '#ffcb91', phase * .65);"
+          new = "const top = mixColor('#63bfe5', '#6654a8', dusk * .9), mid = mixColor('#bfe6f3', '#d994ad', dusk * .65), bottom = mixColor('#ffe2ad', '#f5b776', phase * .65);"
+          if old not in s:
+              raise SystemExit('Background palette target not found')
+          s = s.replace(old, new, 1)
+          js.write_text(s)
+
+          html = Path('cloud-dash-v4.html')
+          h = html.read_text()
+          h = h.replace('src="/cloud-dash-v4.js"', 'src="/cloud-dash-v4.js?v=bgcontrast2"', 1)
+          html.write_text(h)
+          PY
+      - name: Commit test-only background contrast
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js cloud-dash-v4.html
+          git commit -m "Increase Cloud Dash background contrast"
+          git push origin cloud-dash-preview
