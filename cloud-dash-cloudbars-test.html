@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>TOTZ Cloud Dash — Cloud Bars Test</title>
+<style>
+:root{--cream:#fff3dc;--ink:#2b2140;--soft:#665b78;--sky:#8ed2e2;--coral:#ff7a66;--gold:#ffd25a;--lime:#cbdb2a}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(180deg,#fff8ec,#ffe8ba);color:var(--ink)}
+body{padding:14px}.wrap{width:min(1120px,100%);margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.brand{font-weight:1000;font-size:1.35rem}.pill{font-size:.68rem;font-weight:900;background:var(--ink);color:#fff;padding:7px 10px;border-radius:999px}.hero{text-align:center;margin:4px 0 12px}.hero h1{font-size:clamp(2rem,5vw,3.6rem);margin:0;line-height:.95}.hero h1 span{color:#e3a31d}.hero p{margin:7px 0;color:var(--soft);font-weight:800}.shell{background:#fff;border:2px solid var(--sky);border-radius:24px;box-shadow:0 18px 55px rgba(43,33,64,.14);overflow:hidden}.stage{position:relative;aspect-ratio:16/9;min-height:360px;background:#bfe6ee}.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}.hud{position:absolute;z-index:3;left:10px;right:10px;top:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}.hud>div{display:flex;gap:6px;flex-wrap:wrap}.chip{background:rgba(255,255,255,.92);padding:6px 9px;border-radius:999px;font-size:.68rem;font-weight:900;box-shadow:0 6px 16px rgba(43,33,64,.09);backdrop-filter:blur(8px)}.overlay{position:absolute;z-index:5;inset:0;display:grid;place-items:center;padding:20px;background:linear-gradient(rgba(35,49,71,.1),rgba(43,33,64,.35));backdrop-filter:blur(2px)}.overlay[hidden]{display:none}.modal{width:min(500px,94%);background:rgba(255,255,255,.97);border-radius:24px;padding:22px;text-align:center;box-shadow:0 24px 70px rgba(43,33,64,.25)}.modal h2{font-size:2rem;margin:8px 0}.modal p{color:var(--soft);font-weight:800;line-height:1.45}.start{border:0;border-radius:999px;background:var(--coral);color:#fff;padding:12px 22px;font-weight:1000;cursor:pointer;box-shadow:0 6px 0 #e8533e}.start:active{transform:translateY(3px);box-shadow:0 3px 0 #e8533e}.foot{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;color:var(--soft);font-size:.7rem;font-weight:800;flex-wrap:wrap}.tag{background:var(--cream);border-radius:999px;padding:6px 9px;color:var(--ink)}.result{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.result div{background:var(--cream);border-radius:12px;padding:8px}.result small{display:block;color:var(--soft);font-size:.55rem;font-weight:900}.result b{display:block;font-size:1.05rem}.note{text-align:center;margin-top:10px;color:var(--soft);font-size:.72rem;font-weight:800}.note b{color:var(--coral)}
+@media(max-width:650px){body{padding:7px}.stage{min-height:320px}.hud{left:7px;right:7px;top:7px}.chip{font-size:.58rem;padding:5px 7px}.result{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand">☁️ TOTZ</div><div class="pill">CLOUD BARS · VISUAL TEST</div></div>
+  <div class="hero"><h1>CLOUD <span>DASH</span></h1><p>New cloud obstacles + sharper character rendering. Test only, no wallet or backend.</p></div>
+  <section class="shell">
+    <div class="stage" id="stage">
+      <canvas id="game"></canvas>
+      <div class="hud"><div><span class="chip">SCORE <b id="score">0</b></span><span class="chip">🪙 <b id="coins">0</b></span><span class="chip">COMBO <b id="combo">x1</b></span></div><div><span class="chip" id="life">❤️❤️❤️</span><span class="chip">BEST <b id="best">0</b></span></div></div>
+      <div class="overlay" id="startOverlay"><div class="modal"><b>☁️ CLOUD BARS TEST</b><h2>Ready to fly?</h2><p>Hold / click / touch to rise. Release to fall. This build is only for testing the new visual style.</p><button class="start" id="startBtn">START TEST</button></div></div>
+      <div class="overlay" id="gameOver" hidden><div class="modal"><b>TEST COMPLETE</b><h2>How does it look?</h2><div class="result"><div><small>SCORE</small><b id="endScore">0</b></div><div><small>COINS</small><b id="endCoins">0</b></div><div><small>BEST</small><b id="endBest">0</b></div></div><button class="start" id="restartBtn">RUN IT BACK</button></div></div>
+    </div>
+    <div class="foot"><span>SPACE / CLICK / TOUCH · 3 lives · combo x5</span><span class="tag">0 backend usage</span></div>
+  </section>
+  <div class="note"><b>Main TOTZ site untouched.</b> This is a separate preview branch.</div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const W=960,H=540,DT=1/60;
+  const canvas=document.getElementById('game'),ctx=canvas.getContext('2d',{alpha:false});
+  const $=id=>document.getElementById(id);
+  const dpr=()=>Math.min(2,window.devicePixelRatio||1);
+  let scaleX=1,scaleY=1;
+  function resize(){const r=canvas.getBoundingClientRect(),p=dpr();canvas.width=Math.max(1,Math.round(r.width*p));canvas.height=Math.max(1,Math.round(r.height*p));scaleX=canvas.width/W;scaleY=canvas.height/H;ctx.setTransform(scaleX,0,0,scaleY,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high'}
+  window.addEventListener('resize',resize);
+
+  const baby=new Image(); baby.src='/assets/totz-king.jpg';
+  let running=false,hold=false,last=0,acc=0,raf=0,score=0,coins=0,lives=3,combo=1,comboTimer=0,best=Number(localStorage.getItem('totzCloudBarsBest')||0),t=0,speed=235,spawn=.8;
+  let player={x:165,y:185,w:90,h:160,vy:0,inv:0,rot:0},gates=[],pickups=[],clouds=[];
+  for(let i=0;i<12;i++)clouds.push({x:Math.random()*W,y:40+Math.random()*350,s:.4+Math.random()*.8,v:12+Math.random()*20,a:.12+Math.random()*.22});
+  $('best').textContent=best.toLocaleString();
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const rand=(a,b)=>a+Math.random()*(b-a);
+
+  function reset(){running=true;hold=false;score=0;coins=0;lives=3;combo=1;comboTimer=0;t=0;speed=235;spawn=.65;gates=[];pickups=[];player={x:165,y:185,w:90,h:160,vy:0,inv:0,rot:0};$('life').textContent='❤️❤️❤️';$('score').textContent='0';$('coins').textContent='0';$('combo').textContent='x1';$('startOverlay').hidden=true;$('gameOver').hidden=true;last=performance.now();acc=0;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}
+  function spawnGate(){const gapH=clamp(230-t/2200,165,230),gapY=rand(85,H-85-gapH),w=86;gates.push({x:W+40,w,gapY,gapH,hit:false});pickups.push({x:W+40+w/2,y:gapY+gapH*rand(.3,.7),r:14,taken:false,p:Math.random()*6.28})}
+  function hitGate(g){const px=player.x+22,py=player.y+20,pw=player.w-38,ph=player.h-36;return px<g.x+g.w&&px+pw>g.x&&(py<g.gapY||py+ph>g.gapY+g.gapH)}
+  function damage(g){if(player.inv>0||g.hit)return true;g.hit=true;lives--;player.inv=1.05;player.vy=-180;combo=1;comboTimer=0;$('life').textContent='❤️'.repeat(lives);return lives>0}
+  function collect(p){if(p.taken)return;p.taken=true;coins++;combo=comboTimer>0?Math.min(5,combo+1):1;comboTimer=2.2;$('coins').textContent=coins;$('combo').textContent='x'+combo}
+
+  function step(){t+=1000/60;speed=Math.min(360,235+t/1000*1.25);spawn-=DT;if(spawn<=0){spawnGate();spawn=Math.max(1.02,1.45-t/120000)+rand(-.05,.08)}player.vy+=(hold?-615:725)*DT;player.vy=clamp(player.vy,-360,390);player.y+=player.vy*DT;player.rot=clamp(player.vy/950,-.2,.25);if(player.y<6){player.y=6;player.vy=45}if(player.y+player.h>H-8){player.y=H-player.h-8;player.vy=-120;if(!damage({hit:false})){finish();return}}if(player.inv>0)player.inv-=DT;if(comboTimer>0){comboTimer-=DT;if(comboTimer<=0){combo=1;$('combo').textContent='x1'}}for(const g of gates){g.x-=speed*DT;if(hitGate(g)&&!damage(g)){finish();return}}gates=gates.filter(g=>g.x>-120);for(const p of pickups){p.x-=speed*DT;if(!p.taken){const dx=player.x+46-p.x,dy=player.y+78-p.y;if(dx*dx+dy*dy<(p.r+27)*(p.r+27))collect(p)}}pickups=pickups.filter(p=>p.x>-60&&!p.taken);for(const c of clouds){c.x-=c.v*DT;if(c.x<-150)c.x=W+rand(40,180)}score=Math.max(0,Math.floor(t/15)+coins*120+(combo-1)*75);$('score').textContent=score.toLocaleString()}
+
+  function drawCloud(x,y,s,a=.7){ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,34*s,0,6.283);ctx.arc(x+34*s,y-10*s,44*s,0,6.283);ctx.arc(x+75*s,y,33*s,0,6.283);ctx.fill();ctx.restore()}
+  function roundRect(x,y,w,h,r){const rr=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath()}
+  function drawCloudPillar(x,y,w,h,top){if(h<=0)return;ctx.save();const grad=ctx.createLinearGradient(x,y,x+w,y);grad.addColorStop(0,'#ffffff');grad.addColorStop(.5,'#ecfbff');grad.addColorStop(1,'#9fdcea');ctx.fillStyle=grad;ctx.shadowColor='rgba(67,115,145,.22)';ctx.shadowBlur=16;roundRect(x,y,w,h,26);ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=3;ctx.strokeStyle='rgba(70,120,145,.5)';roundRect(x,y,w,h,26);ctx.stroke();ctx.fillStyle='rgba(255,255,255,.55)';roundRect(x+9,y+12,9,Math.max(16,h-24),6);ctx.fill();const edgeY=top?y+h:y,puffY=top?edgeY-6:edgeY+6;ctx.fillStyle='#f7fdff';ctx.strokeStyle='rgba(70,120,145,.34)';ctx.lineWidth=2;[.17,.39,.62,.82].forEach((m,i)=>{const r=13+(i%2?4:0);ctx.beginPath();ctx.arc(x+w*m,puffY,r,0,6.283);ctx.fill();ctx.stroke()});ctx.restore()}
+  function drawGate(g){drawCloudPillar(g.x,0,g.w,g.gapY-8,true);drawCloudPillar(g.x,g.gapY+g.gapH+8,g.w,H-(g.gapY+g.gapH+8),false)}
+  function drawPickup(p){ctx.save();ctx.translate(p.x,p.y);const pulse=1+Math.sin(t/140+p.p)*.08;ctx.scale(pulse,pulse);ctx.shadowColor='#ffd25a';ctx.shadowBlur=22;ctx.fillStyle='#ffd25a';ctx.beginPath();ctx.arc(0,0,p.r,0,6.283);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#fff2ad';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#5d4214';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$',0,1);ctx.restore()}
+  function drawPlayer(){const bob=Math.sin(t/210)*2.5,squash=clamp(Math.abs(player.vy)/900,0,.045);ctx.save();ctx.translate(player.x+player.w/2,player.y+player.h/2+bob);ctx.rotate(player.rot+Math.sin(t/145)*.02);ctx.scale(1+squash,1-squash*.55);ctx.globalAlpha=player.inv>0&&Math.floor(player.inv*12)%2?.45:1;const aura=ctx.createRadialGradient(0,0,8,0,0,82);aura.addColorStop(0,'rgba(255,210,90,.16)');aura.addColorStop(1,'rgba(255,210,90,0)');ctx.fillStyle=aura;ctx.beginPath();ctx.arc(0,0,82,0,6.283);ctx.fill();ctx.shadowColor='rgba(255,210,90,.35)';ctx.shadowBlur=20;if(baby.complete&&baby.naturalWidth)ctx.drawImage(baby,-player.w/2,-player.h/2,player.w,player.h);else{ctx.fillStyle='#ffd25a';ctx.beginPath();ctx.arc(0,0,38,0,6.283);ctx.fill()}ctx.restore()}
+  function drawBg(){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#82d7ed');g.addColorStop(.62,'#d9f5f7');g.addColorStop(1,'#fff0c7');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(const c of clouds)drawCloud(c.x,c.y,c.s,c.a);const sun=ctx.createRadialGradient(760,95,3,760,95,100);sun.addColorStop(0,'rgba(255,245,180,.5)');sun.addColorStop(1,'rgba(255,245,180,0)');ctx.fillStyle=sun;ctx.fillRect(650,-10,220,220)}
+  function draw(){ctx.save();drawBg();for(const g of gates)drawGate(g);for(const p of pickups)drawPickup(p);drawPlayer();ctx.restore()}
+  function loop(now){if(!running)return;const f=Math.min(.1,(now-last)/1000||DT);last=now;acc+=f;while(acc>=DT&&running){step();acc-=DT}draw();if(running)raf=requestAnimationFrame(loop)}
+  function finish(){if(!running)return;running=false;hold=false;cancelAnimationFrame(raf);if(score>best){best=score;localStorage.setItem('totzCloudBarsBest',String(best));$('best').textContent=best.toLocaleString()}$('endScore').textContent=score.toLocaleString();$('endCoins').textContent=coins;$('endBest').textContent=best.toLocaleString();$('gameOver').hidden=false}
+  function press(v){hold=v}
+  $('startBtn').onclick=reset;$('restartBtn').onclick=reset;canvas.addEventListener('pointerdown',e=>{e.preventDefault();press(true)});window.addEventListener('pointerup',()=>press(false));window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();press(true)}});window.addEventListener('keyup',e=>{if(e.code==='Space')press(false)});
+  resize();draw();
+})();
+</script>
+</body>
+</html>
