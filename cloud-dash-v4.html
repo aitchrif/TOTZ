@@ -9,6 +9,31 @@
 </style>
 <script src="/cloud-dash-v4.js" defer></script>
 <script src="/cloud-dash-meta.js" defer></script>
+<script defer>
+window.addEventListener('DOMContentLoaded',()=>{
+  const practice=document.getElementById('practiceMode');
+  const ranked=document.getElementById('rankedMode');
+  const start=document.getElementById('startBtn');
+  if(!practice||!start)return;
+  const unlockPractice=()=>{
+    requestAnimationFrame(()=>{
+      if(practice.classList.contains('active')){
+        start.disabled=false;
+        start.removeAttribute('disabled');
+      }
+    });
+  };
+  practice.addEventListener('click',unlockPractice,true);
+  const observer=new MutationObserver(()=>{
+    if(practice.classList.contains('active')&&start.disabled){
+      start.disabled=false;
+      start.removeAttribute('disabled');
+    }
+  });
+  observer.observe(start,{attributes:true,attributeFilter:['disabled']});
+  if(ranked) ranked.addEventListener('click',()=>{},true);
+});
+</script>
 </head>
 <body>
 <div class="wrap">
