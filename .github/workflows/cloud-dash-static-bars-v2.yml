@@ -1,0 +1,31 @@
+name: Cloud Dash Static Bars V2
+
+on:
+  push:
+    branches:
+      - cloud-dash-preview
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloud-dash-preview
+      - name: Patch static bars
+        run: python scripts/cloud_dash_static_bars_patch.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-dash-v4.js
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Make Cloud Dash bars visually calm and static"
+            git push origin cloud-dash-preview
+          fi
