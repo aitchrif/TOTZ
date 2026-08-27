@@ -433,7 +433,7 @@
   }
   function drawBg() {
     const phase = Math.min(1, state.t / 150000), dusk = Math.max(0, (state.t - 65000) / 85000);
-    const top = mixColor('#86d9ee', '#7767b7', dusk * .9), mid = mixColor('#d7f4f6', '#e5a6bb', dusk * .65), bottom = mixColor('#fff0c7', '#ffcb91', phase * .65);
+    const top = mixColor('#63bfe5', '#6654a8', dusk * .9), mid = mixColor('#bfe6f3', '#d994ad', dusk * .65), bottom = mixColor('#ffe2ad', '#f5b776', phase * .65);
     const grad = ctx.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, top); grad.addColorStop(.62, mid); grad.addColorStop(1, bottom); ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
     const sunX = 760 - phase * 80, sunY = 100 + phase * 42; const rg = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 95); rg.addColorStop(0, `rgba(255,244,184,${.55 - dusk * .15})`); rg.addColorStop(1, 'rgba(255,244,184,0)'); ctx.fillStyle = rg; ctx.fillRect(sunX - 100, sunY - 100, 200, 200);
     for (let i = 0; i < sparkles.length; i += quality().sparkleStep) { const s = sparkles[i], tw = .35 + Math.sin(state.t / 550 + s.p) * .25; ctx.globalAlpha = clamp(s.a * tw + dusk * .15, .05, .75); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
