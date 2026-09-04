@@ -156,3 +156,38 @@ showMore = async function(count = MORE_RENDER, scrollToNew = false) {
   script.dataset.stakingSelection = '1';
   document.head.appendChild(script);
 })();
+
+// Keep individual soft staking available even when Blockscout's NFT enumeration
+// endpoint is blocked or temporarily unavailable. Ownership is still verified
+// server-side with ownerOf() before a stake is accepted.
+(() => {
+  const previousLoadPortfolio = loadPortfolio;
+  loadPortfolio = async function(...args) {
+    const result = await previousLoadPortfolio(...args);
+
+    const failedGrid = /Could not load collection data/i.test(grid?.textContent || '');
+    if (!wallet || !failedGrid) return result;
+
+    manual?.classList.add('show');
+
+    if (!portfolio || portfolio.wallet !== wallet) {
+      portfolio = {
+        wallet,
+        balance: 0,
+        balanceDisplay: '—',
+        activeTokenIds: [],
+        stakes: [],
+        totalPoints: 0,
+        enumerable: false
+      };
+      loadedTokens = [];
+      renderedCount = 0;
+      nextCursor = null;
+    }
+
+    grid.innerHTML = '<div class="empty"><b>Automatic NFT discovery is temporarily unavailable.</b><br>Soft staking still works. Enter a Token ID above and press VERIFY NFT.</div>';
+    updateBulkUI();
+    showStatus('Automatic NFT discovery is temporarily unavailable. You can still soft stake safely using the Token ID verifier above.', 'ok');
+    return result;
+  };
+})();
