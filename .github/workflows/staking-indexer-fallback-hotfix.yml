@@ -1,0 +1,89 @@
+name: Staking Indexer Fallback Hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/staking-indexer-fallback-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Keep staking available when NFT indexer fails
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('staking.js')
+          s = p.read_text()
+          old = '''    } catch (error) {
+      showStatus(error.name === 'AbortError' ? 'The collection lookup took too long to respond. Please try again.' : (error.message || 'Could not load your TOTZ.'), 'error');
+      grid.innerHTML = '<div class="empty">Could not load collection data. Try again in a moment.</div>';
+    } finally {'''
+          new = '''    } catch (error) {
+      if (wallet !== walletAtStart) return;
+
+      const rawMessage = String(error?.message || '');
+      const discoveryBlocked = /Indexer lookup failed \\((?:403|404)\\)|indexer|collection lookup/i.test(rawMessage);
+      const hasLoadedCards = Boolean(portfolio?.wallet === walletAtStart && loadedTokens.length);
+
+      // Automatic NFT enumeration depends on a third-party indexer. If it is
+      // blocked or unavailable, do not block staking itself: ownerOf() verification
+      // remains available through the manual Token ID flow below.
+      manual.classList.add('show');
+
+      if (!hasLoadedCards) {
+        portfolio = {
+          wallet: walletAtStart,
+          balance: 0,
+          balanceDisplay: '—',
+          activeTokenIds: [],
+          stakes: [],
+          totalPoints: 0,
+          enumerable: false
+        };
+        loadedTokens = [];
+        renderedCount = 0;
+        nextCursor = null;
+        grid.innerHTML = '<div class="empty"><b>Automatic NFT discovery is temporarily unavailable.</b><br>Staking still works. Enter the Token ID from your wallet above and press VERIFY NFT.</div>';
+        updateBulkUI();
+      }
+
+      if (discoveryBlocked) {
+        showStatus('Automatic NFT discovery is temporarily unavailable. You can still soft stake safely using the Token ID verifier above.', 'ok');
+      } else {
+        showStatus(error.name === 'AbortError' ? 'The NFT list took too long to load. You can still soft stake using the Token ID verifier above.' : (rawMessage || 'Could not load the automatic NFT list. Use the Token ID verifier above.'), 'error');
+      }
+    } finally {'''
+          if old not in s:
+              raise SystemExit('Target staking catch block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Validate
+        run: |
+          node --check staking.js
+          grep -q 'Automatic NFT discovery is temporarily unavailable' staking.js
+          grep -q 'Token ID verifier above' staking.js
+          git diff --check
+
+      - name: Commit hotfix
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add staking.js
+          git commit -m "Keep staking available when NFT indexer is unavailable"
+          git push origin HEAD:main
