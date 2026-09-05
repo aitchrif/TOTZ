@@ -1,118 +1,111 @@
 import { Interface } from 'ethers';
 
-const RPC = 'https://rpc.mainnet.chain.robinhood.com';
 const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11';
 const MAX_SUPPLY = 20000;
-const MULTICALL_SIZE = 300;
+const MULTICALL_SIZE = 500;
+
+const CHAINS = {
+  robinhood: {
+    key: 'robinhood', name: 'Robinhood Chain', chainId: 4663, confirmations: 2,
+    rpcs: [process.env.ROBINHOOD_RPC_URL, 'https://rpc.mainnet.chain.robinhood.com'].filter(Boolean)
+  },
+  ink: {
+    key: 'ink', name: 'Ink', chainId: 57073, confirmations: 2,
+    rpcs: [process.env.INK_RPC_URL, 'https://rpc-gel.inkonchain.com', 'https://rpc-qnd.inkonchain.com'].filter(Boolean)
+  },
+  ethereum: {
+    key: 'ethereum', name: 'Ethereum', chainId: 1, confirmations: 3,
+    rpcs: [process.env.ETHEREUM_RPC_URL, 'https://ethereum-rpc.publicnode.com', 'https://cloudflare-eth.com'].filter(Boolean)
+  }
+};
 
 const erc721 = new Interface([
   'function totalSupply() view returns (uint256)',
   'function name() view returns (string)',
   'function symbol() view returns (string)',
   'function tokenByIndex(uint256) view returns (uint256)',
-  'function ownerOf(uint256) view returns (address)'
+  'function ownerOf(uint256) view returns (address)',
+  'function balanceOf(address) view returns (uint256)'
 ]);
 
 const multicall = new Interface([
   'function aggregate3((address target,bool allowFailure,bytes callData)[] calls) payable returns ((bool success,bytes returnData)[] returnData)'
 ]);
 
-function isAddress(value) {
-  return /^0x[a-fA-F0-9]{40}$/.test(String(value || ''));
-}
+function isAddress(value) { return /^0x[a-fA-F0-9]{40}$/.test(String(value || '')); }
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function rpc(method, params, timeoutMs = 18000, retries = 4) {
+async function rpc(chain, method, params, { timeoutMs = 18000, retries = 2 } = {}) {
   let lastError;
+  const endpoints = [...new Set(chain.rpcs)];
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(RPC, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-      });
-
-      if (response.status === 429) throw new Error('RPC_RATE_LIMIT');
-      if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
-
-      const json = await response.json();
-      if (json?.error) throw new Error(json.error.message || 'RPC error');
-      return json?.result;
-    } catch (error) {
-      lastError = error;
-      if (attempt < retries) {
-        const base = String(error?.message || '').includes('RATE_LIMIT') ? 1100 : 500;
-        await sleep(base * Math.pow(1.8, attempt));
-      }
-    } finally {
-      clearTimeout(timer);
+    for (const endpoint of endpoints) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST', signal: controller.signal,
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+        });
+        if (response.status === 429) throw new Error(`RATE_LIMIT:${endpoint}`);
+        if (!response.ok) throw new Error(`RPC_HTTP_${response.status}:${endpoint}`);
+        const json = await response.json();
+        if (json?.error) throw new Error(json.error.message || 'RPC error');
+        return json?.result;
+      } catch (error) { lastError = error; }
+      finally { clearTimeout(timer); }
     }
+    if (attempt < retries) await sleep(450 * Math.pow(1.8, attempt));
   }
   throw lastError || new Error('RPC request failed');
 }
 
-async function multicallRead(contract, callDatas, blockTag) {
+function toBlockTag(blockNumber) { return `0x${Math.max(0, Number(blockNumber || 0)).toString(16)}`; }
+
+async function snapshotBlock(chain) {
+  const result = await rpc(chain, 'eth_blockNumber', []);
+  const latest = Number(BigInt(result || '0x0'));
+  return Math.max(0, latest - Number(chain.confirmations || 0));
+}
+
+async function assertContract(chain, contract, blockTag) {
+  const code = await rpc(chain, 'eth_getCode', [contract, blockTag]);
+  if (!code || code === '0x' || code === '0x0') throw new Error('No smart contract exists at this address on the selected network.');
+}
+
+async function multicallRead(chain, contract, callDatas, blockTag) {
   if (!callDatas.length) return [];
   const calls = callDatas.map((callData) => ({ target: contract, allowFailure: true, callData }));
   const data = multicall.encodeFunctionData('aggregate3', [calls]);
-  const result = await rpc('eth_call', [{ to: MULTICALL3, data }, blockTag], 22000, 4);
+  const result = await rpc(chain, 'eth_call', [{ to: MULTICALL3, data }, blockTag], { timeoutMs: 24000, retries: 2 });
   const decoded = multicall.decodeFunctionResult('aggregate3', result)[0];
   return decoded.map((item) => ({ success: Boolean(item.success), returnData: item.returnData }));
 }
 
-async function readChunks(contract, callDatas, decoder, blockTag) {
+async function readChunks(chain, contract, callDatas, decoder, blockTag) {
   const out = [];
   for (let i = 0; i < callDatas.length; i += MULTICALL_SIZE) {
     const chunk = callDatas.slice(i, i + MULTICALL_SIZE);
-    const results = await multicallRead(contract, chunk, blockTag);
+    const results = await multicallRead(chain, contract, chunk, blockTag);
     for (const result of results) {
-      if (!result.success) {
-        out.push(null);
-        continue;
-      }
-      try { out.push(decoder(result.returnData)); }
-      catch (_) { out.push(null); }
+      if (!result.success) { out.push(null); continue; }
+      try { out.push(decoder(result.returnData)); } catch (_) { out.push(null); }
     }
-    if (i + MULTICALL_SIZE < callDatas.length) await sleep(120);
+    if (i + MULTICALL_SIZE < callDatas.length) await sleep(60);
   }
   return out;
 }
 
-async function metadata(contract, blockTag) {
-  const calls = [
-    erc721.encodeFunctionData('totalSupply', []),
-    erc721.encodeFunctionData('name', []),
-    erc721.encodeFunctionData('symbol', [])
-  ];
-  const results = await multicallRead(contract, calls, blockTag);
-
-  let totalSupply = null;
-  let name = '';
-  let symbol = '';
-
-  if (results[0]?.success) {
-    try { totalSupply = Number(erc721.decodeFunctionResult('totalSupply', results[0].returnData)[0]); } catch (_) {}
-  }
-  if (results[1]?.success) {
-    try { name = String(erc721.decodeFunctionResult('name', results[1].returnData)[0] || ''); } catch (_) {}
-  }
-  if (results[2]?.success) {
-    try { symbol = String(erc721.decodeFunctionResult('symbol', results[2].returnData)[0] || ''); } catch (_) {}
-  }
-
-  if (!Number.isInteger(totalSupply) || totalSupply <= 0) {
-    throw new Error('This contract does not expose a usable ERC-721 totalSupply().');
-  }
-  if (totalSupply > MAX_SUPPLY) {
-    throw new Error(`Collection is larger than the current FORGE V1 limit of ${MAX_SUPPLY.toLocaleString()} NFTs.`);
-  }
-
+async function metadata(chain, contract, blockTag) {
+  const calls = [erc721.encodeFunctionData('totalSupply', []), erc721.encodeFunctionData('name', []), erc721.encodeFunctionData('symbol', [])];
+  const results = await multicallRead(chain, contract, calls, blockTag);
+  let totalSupply = null, name = '', symbol = '';
+  if (results[0]?.success) { try { totalSupply = Number(erc721.decodeFunctionResult('totalSupply', results[0].returnData)[0]); } catch (_) {} }
+  if (results[1]?.success) { try { name = String(erc721.decodeFunctionResult('name', results[1].returnData)[0] || ''); } catch (_) {} }
+  if (results[2]?.success) { try { symbol = String(erc721.decodeFunctionResult('symbol', results[2].returnData)[0] || ''); } catch (_) {} }
+  if (!Number.isInteger(totalSupply) || totalSupply <= 0) throw new Error('This contract does not expose a usable ERC-721 totalSupply(). ERC-1155 and custom collections are not supported in X-RAY V1 yet.');
+  if (totalSupply > MAX_SUPPLY) throw new Error(`This collection has ${totalSupply.toLocaleString()} live NFTs. X-RAY V1 currently supports up to ${MAX_SUPPLY.toLocaleString()} per scan.`);
   return { totalSupply, name, symbol, type: 'ERC-721' };
 }
 
@@ -123,135 +116,106 @@ function aggregateOwners(owners) {
     if (!isAddress(address) || address === '0x0000000000000000000000000000000000000000') continue;
     map.set(address, (map.get(address) || 0) + 1);
   }
-  return [...map.entries()]
-    .map(([address, balance]) => ({ address, balance }))
-    .sort((a, b) => b.balance - a.balance || a.address.localeCompare(b.address));
+  return [...map.entries()].map(([address, balance]) => ({ address, balance })).sort((a, b) => b.balance - a.balance || a.address.localeCompare(b.address));
 }
 
-async function enumerableOwners(contract, totalSupply, blockTag) {
-  const probeCall = erc721.encodeFunctionData('tokenByIndex', [0]);
-  const probe = await multicallRead(contract, [probeCall], blockTag);
+async function enumerableOwners(chain, contract, totalSupply, blockTag) {
+  const probe = await multicallRead(chain, contract, [erc721.encodeFunctionData('tokenByIndex', [0])], blockTag);
   if (!probe[0]?.success) return null;
-
-  const indexCalls = Array.from({ length: totalSupply }, (_, i) => erc721.encodeFunctionData('tokenByIndex', [i]));
-  const tokenIds = await readChunks(
-    contract,
-    indexCalls,
-    (data) => Number(erc721.decodeFunctionResult('tokenByIndex', data)[0]),
-    blockTag
-  );
-  const validIds = tokenIds.filter((x) => Number.isInteger(x) && x >= 0);
-  if (validIds.length !== totalSupply) return null;
-
+  const indexCalls = Array.from({ length: totalSupply }, (_, index) => erc721.encodeFunctionData('tokenByIndex', [index]));
+  const tokenIds = await readChunks(chain, contract, indexCalls, (data) => erc721.decodeFunctionResult('tokenByIndex', data)[0], blockTag);
+  if (tokenIds.filter((value) => value !== null).length !== totalSupply) return null;
   const ownerCalls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
-  const owners = await readChunks(
-    contract,
-    ownerCalls,
-    (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(),
-    blockTag
-  );
+  const owners = await readChunks(chain, contract, ownerCalls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(), blockTag);
   if (owners.filter(Boolean).length !== totalSupply) return null;
-
-  const sortedIds = [...validIds].sort((a, b) => a - b);
-  return {
-    owners,
-    diagnostics: {
-      enumeration: 'ERC721Enumerable',
-      liveTokenCount: owners.filter(Boolean).length,
-      firstTokenId: sortedIds[0] ?? null,
-      lastTokenId: sortedIds[sortedIds.length - 1] ?? null,
-      hasTokenZero: sortedIds.includes(0)
-    }
-  };
+  const numericIds = tokenIds.map((id) => { try { return Number(id); } catch (_) { return null; } }).filter((id) => Number.isSafeInteger(id));
+  return { owners, diagnostics: { enumeration: 'erc721-enumerable', firstTokenId: numericIds.length ? Math.min(...numericIds) : null, lastTokenId: numericIds.length ? Math.max(...numericIds) : null, tokenZeroExists: numericIds.includes(0) } };
 }
 
-async function sequentialOwners(contract, totalSupply, blockTag) {
-  const extra = Math.min(12000, Math.max(2500, Math.ceil(totalSupply * 0.8)));
-  const maxId = totalSupply + extra;
-  const tokenIds = Array.from({ length: maxId + 1 }, (_, tokenId) => tokenId);
-  const calls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
-  const owners = await readChunks(
-    contract,
-    calls,
-    (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(),
-    blockTag
-  );
+async function probeOwner(chain, contract, tokenId, blockTag) {
+  const result = await multicallRead(chain, contract, [erc721.encodeFunctionData('ownerOf', [tokenId])], blockTag);
+  if (!result[0]?.success) return null;
+  try { return String(erc721.decodeFunctionResult('ownerOf', result[0].returnData)[0]).toLowerCase(); } catch (_) { return null; }
+}
 
-  const live = owners
-    .map((owner, index) => owner ? { tokenId: index, owner } : null)
-    .filter(Boolean);
+async function sequentialOwners(chain, contract, totalSupply, blockTag) {
+  const zeroOwner = await probeOwner(chain, contract, 0, blockTag);
+  const oneOwner = await probeOwner(chain, contract, 1, blockTag);
+  const start = zeroOwner ? 0 : (oneOwner ? 1 : 0);
+  let end = start + totalSupply - 1;
+  const maxEnd = end + Math.min(12000, Math.max(3000, Math.ceil(totalSupply * .8)));
+  const owners = [];
+  let scannedUntil = start - 1, firstLiveId = null, lastLiveId = null;
 
-  if (live.length < totalSupply) {
-    throw new Error(`FORGE found ${live.length.toLocaleString()} live ERC-721 tokens but expected ${totalSupply.toLocaleString()}. This collection may use sparse or custom token IDs.`);
+  while (owners.length < totalSupply && scannedUntil < maxEnd) {
+    const batchStart = scannedUntil + 1;
+    const batchEnd = Math.min(maxEnd, Math.max(end, batchStart + 999));
+    const tokenIds = [];
+    for (let tokenId = batchStart; tokenId <= batchEnd; tokenId++) tokenIds.push(tokenId);
+    const calls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
+    const batchOwners = await readChunks(chain, contract, calls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(), blockTag);
+    batchOwners.forEach((owner, index) => {
+      if (!owner || owners.length >= totalSupply) return;
+      const tokenId = tokenIds[index]; owners.push(owner);
+      if (firstLiveId === null) firstLiveId = tokenId; lastLiveId = tokenId;
+    });
+    scannedUntil = batchEnd;
+    end = Math.max(end, scannedUntil + 1000);
   }
 
-  const selected = live.slice(0, totalSupply);
-  return {
-    owners: selected.map((item) => item.owner),
-    diagnostics: {
-      enumeration: 'ownerOf scan',
-      liveTokenCount: live.length,
-      firstTokenId: selected[0]?.tokenId ?? null,
-      lastTokenId: selected[selected.length - 1]?.tokenId ?? null,
-      hasTokenZero: selected.some((item) => item.tokenId === 0),
-      scanMaxTokenId: maxId,
-      extraLiveTokensBeyondTotalSupply: Math.max(0, live.length - totalSupply)
-    }
-  };
+  if (owners.length < totalSupply) throw new Error(`FORGE found ${owners.length.toLocaleString()} live ERC-721 tokens but expected ${totalSupply.toLocaleString()}. This collection likely uses sparse or custom token IDs and needs an indexed scan.`);
+  return { owners, diagnostics: { enumeration: 'ownerof-range', firstTokenId: firstLiveId, lastTokenId: lastLiveId, tokenZeroExists: Boolean(zeroOwner) } };
+}
+
+async function walletBalance(chain, contract, wallet, blockTag) {
+  const result = await multicallRead(chain, contract, [erc721.encodeFunctionData('balanceOf', [wallet])], blockTag);
+  if (!result[0]?.success) throw new Error('Could not read this wallet balance from the contract.');
+  return Number(erc721.decodeFunctionResult('balanceOf', result[0].returnData)[0]);
 }
 
 export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+  if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({ error: 'Method not allowed' }); }
+  const chainKey = String(req.query?.chain || 'robinhood').trim().toLowerCase();
+  const chain = CHAINS[chainKey];
+  if (!chain) return res.status(400).json({ error: 'Unsupported network. Use robinhood, ink, or ethereum.' });
   const contract = String(req.query?.contract || '').trim().toLowerCase();
   if (!isAddress(contract)) return res.status(400).json({ error: 'Invalid contract address' });
 
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
-
   try {
-    const blockTag = await rpc('eth_blockNumber', []);
-    const info = await metadata(contract, blockTag);
-    let result = await enumerableOwners(contract, info.totalSupply, blockTag);
-    let source = 'multicall-enumerable';
+    const blockNumber = await snapshotBlock(chain);
+    const blockTag = toBlockTag(blockNumber);
+    await assertContract(chain, contract, blockTag);
 
-    if (!result) {
-      result = await sequentialOwners(contract, info.totalSupply, blockTag);
-      source = 'multicall-ownerof';
+    if (String(req.query?.mode || '').toLowerCase() === 'balance') {
+      const wallet = String(req.query?.wallet || '').trim().toLowerCase();
+      if (!isAddress(wallet)) return res.status(400).json({ error: 'Invalid wallet address' });
+      res.setHeader('Cache-Control', 'no-store');
+      const balance = await walletBalance(chain, contract, wallet, blockTag);
+      return res.status(200).json({ chain: chain.key, chainId: chain.chainId, contract, wallet, balance, snapshotBlock: blockNumber, fetchedAt: new Date().toISOString() });
     }
 
-    const holders = aggregateOwners(result.owners);
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    const info = await metadata(chain, contract, blockTag);
+    let ownership = await enumerableOwners(chain, contract, info.totalSupply, blockTag);
+    let source = 'multicall-enumerable';
+    if (!ownership) { ownership = await sequentialOwners(chain, contract, info.totalSupply, blockTag); source = 'multicall-ownerof'; }
+    const holders = aggregateOwners(ownership.owners);
     if (!holders.length) throw new Error('No current holders found.');
 
     return res.status(200).json({
-      contract,
-      info: {
-        name: info.name || 'NFT Collection',
-        symbol: info.symbol || '',
-        totalSupply: info.totalSupply,
-        holdersCount: holders.length,
-        type: info.type
-      },
-      holders,
-      source,
-      diagnostics: result.diagnostics,
-      snapshotBlock: Number(BigInt(blockTag)),
-      partial: false,
-      fetchedAt: new Date().toISOString()
+      chain: chain.key, chainId: chain.chainId, contract, snapshotBlock: blockNumber,
+      info: { name: info.name || 'NFT Collection', symbol: info.symbol || '', totalSupply: info.totalSupply, holdersCount: holders.length, type: info.type },
+      holders, source, diagnostics: ownership.diagnostics, partial: false, fetchedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('FORGE holders error', contract, error);
-    const message = String(error?.message || 'Could not load holder data from Robinhood Chain right now.');
-    let status = /does not expose|larger than|sparse|custom token IDs/i.test(message) ? 422 : 502;
+    console.error('FORGE holders error', chainKey, contract, error);
+    const message = String(error?.message || 'Could not load holder data right now.');
+    let status = /does not expose|not supported|larger than|custom token IDs|sparse|No smart contract|up to/i.test(message) ? 422 : 502;
     let publicMessage = message;
-    if (/RPC_RATE_LIMIT|RPC HTTP 429/i.test(message)) {
-      status = 503;
-      publicMessage = 'Robinhood public RPC is rate-limiting this scan. Please retry in a moment.';
-    }
+    if (/RATE_LIMIT|429/i.test(message)) { status = 503; publicMessage = `${chain.name} RPC is rate-limiting this scan. Please retry in a moment.`; }
+    if (/aborted|timeout/i.test(message)) { status = 504; publicMessage = 'The on-chain scan timed out. Please retry.'; }
     return res.status(status).json({ error: publicMessage });
   }
 }
