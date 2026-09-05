@@ -31,9 +31,24 @@
     el.className = `scan-status show ${type}`;
   }
 
+  function clearStatus() {
+    const el = $('scanStatus');
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'scan-status';
+  }
+
+  function invalidateCurrentResult({ clearMessage = false } = {}) {
+    current = null;
+    const dashboard = $('dashboard');
+    if (dashboard) dashboard.hidden = true;
+    if (clearMessage) clearStatus();
+  }
+
   function setBusy(busy) {
     $('scanBtn').disabled = busy;
     $('genesisBtn').disabled = busy;
+    document.querySelectorAll('.network-btn').forEach((btn) => { btn.disabled = busy; });
     $('scanBtn').textContent = busy ? 'SCANNING…' : 'SCAN COLLECTION';
   }
 
@@ -52,11 +67,16 @@
 
   function setNetwork(chainKey, { updateUrl = true } = {}) {
     if (!CHAINS[chainKey]) return;
+    const changed = selectedChain !== chainKey;
     selectedChain = chainKey;
     document.querySelectorAll('.network-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.chain === chainKey));
+
+    if (changed) invalidateCurrentResult({ clearMessage: true });
+
     if (updateUrl) {
       const url = new URL(location.href);
       url.searchParams.set('chain', chainKey);
+      if (changed) url.searchParams.delete('contract');
       history.replaceState({}, '', url);
     }
     if (chainKey !== 'robinhood' && $('contractInput').value.trim().toLowerCase() === GENESIS) $('contractInput').value = '';
@@ -242,8 +262,14 @@
 
   async function scan(contractValue) {
     const contract = String(contractValue || $('contractInput').value || '').trim().toLowerCase();
-    if (!isAddress(contract)) { showStatus('Enter a valid ERC-721 contract address.', 'error'); return; }
+    if (!isAddress(contract)) {
+      invalidateCurrentResult();
+      showStatus('Enter a valid ERC-721 contract address.', 'error');
+      return;
+    }
+
     $('contractInput').value = contract;
+    invalidateCurrentResult();
     setBusy(true);
     showStatus(`Reading ${CHAINS[selectedChain].name} at one pinned block…`);
     try {
@@ -257,6 +283,7 @@
       url.searchParams.set('contract', contract);
       history.replaceState({}, '', url);
     } catch (error) {
+      invalidateCurrentResult();
       let message = error?.message || 'Could not scan this collection.';
       if (error?.name === 'AbortError') message = 'The scan took too long. Please retry.';
       if (/failed to fetch/i.test(message)) message = 'FORGE backend could not be reached. Refresh and retry.';
@@ -326,6 +353,11 @@
   document.querySelectorAll('.network-btn').forEach((btn) => btn.addEventListener('click', () => setNetwork(btn.dataset.chain)));
   $('scanBtn').addEventListener('click', () => scan());
   $('genesisBtn').addEventListener('click', () => { setNetwork('robinhood'); $('contractInput').value = GENESIS; scan(GENESIS); });
+  $('contractInput').addEventListener('input', () => {
+    if (!current) return;
+    const nextContract = $('contractInput').value.trim().toLowerCase();
+    if (nextContract !== current.contract) invalidateCurrentResult({ clearMessage: true });
+  });
   $('contractInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') scan(); });
   $('holderSearch').addEventListener('input', renderTable);
   $('minHoldings').addEventListener('change', () => { $('customMin').classList.toggle('show', $('minHoldings').value === 'custom'); renderTable(); });
