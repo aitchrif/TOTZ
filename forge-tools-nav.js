@@ -9,7 +9,7 @@
     if (chain) out.set('chain', chain);
     if (isAddress(contract)) out.set('contract', contract.toLowerCase());
     const qs = out.toString();
-    return `/forge/epochs${qs ? `?${qs}` : ''}`;
+    return `/forge-epochs${qs ? `?${qs}` : ''}`;
   }
 
   function installStyle() {
