@@ -18,6 +18,7 @@ contract ForgeMerkleClaim {
     uint64 public immutable deadline;
 
     uint256 public totalClaimed;
+    uint256 public claimCount;
     mapping(address => bool) public claimed;
 
     event Claimed(address indexed account, uint256 amount);
@@ -66,9 +67,21 @@ contract ForgeMerkleClaim {
 
         claimed[msg.sender] = true;
         totalClaimed += amount;
+        claimCount += 1;
         token.safeTransfer(msg.sender, amount);
 
         emit Claimed(msg.sender, amount);
+    }
+
+    /// @notice Current reward-token balance held by this epoch contract.
+    function contractBalance() external view returns (uint256) {
+        return token.balanceOf(address(this));
+    }
+
+    /// @notice True when the contract currently has enough tokens to cover every still-unclaimed allocation.
+    function isFullyFunded() external view returns (bool) {
+        uint256 remaining = totalAllocated - totalClaimed;
+        return token.balanceOf(address(this)) >= remaining;
     }
 
     /// @notice Recover only the tokens still left after the claim deadline.
