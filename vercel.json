@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/forge/epochs",
-      "destination": "/forge-epochs.html"
+      "destination": "/forge-epochs"
     },
     {
       "source": "/discord-link/start",
@@ -76,6 +76,12 @@
     },
     {
       "source": "/forge/epochs",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/forge-epochs",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" }
       ]
