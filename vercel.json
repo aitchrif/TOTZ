@@ -9,33 +9,23 @@
     { "source": "/api/discord-link/challenge", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=challenge" },
     { "source": "/api/discord-link/complete", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=complete" }
   ],
-  "redirects": [
-    { "source": "/rewards-admin", "destination": "/admin", "permanent": true }
-  ],
+  "redirects": [{ "source": "/rewards-admin", "destination": "/admin", "permanent": true }],
   "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()" }
-      ]
-    },
-    { "source": "/admin", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }, { "key": "Cache-Control", "value": "no-store" }] },
-    { "source": "/discord-link", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }, { "key": "Cache-Control", "value": "no-store" }] },
-    { "source": "/sweep", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/sweep.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge/epochs", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-epochs", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-epochs.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-claim-launcher", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }, { "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
-    { "source": "/forge-claim", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge.js", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-epochs-page.js", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-claim-launcher.js", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
-    { "source": "/forge-claim.js", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] }
+    {"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},{"key":"Permissions-Policy","value":"camera=(), microphone=(), geolocation=(), payment=(), usb=()"}]},
+    {"source":"/admin","headers":[{"key":"X-Robots-Tag","value":"noindex, nofollow, noarchive"},{"key":"Cache-Control","value":"no-store"}]},
+    {"source":"/discord-link","headers":[{"key":"X-Robots-Tag","value":"noindex, nofollow, noarchive"},{"key":"Cache-Control","value":"no-store"}]},
+    {"source":"/sweep","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/sweep.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge/epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-epochs.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-claim-launcher","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
+    {"source":"/forge-claim","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-epochs-page.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-claim-launcher.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-claim.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}
   ]
 }
