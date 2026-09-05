@@ -5,7 +5,8 @@
   const isStaking = page === 'staking';
   const isRewards = page === 'rewards';
   const isAdmin = page === 'rewards-admin';
-  const hasDock = isHome || isStaking || isRewards;
+  const isForge = page === 'forge';
+  const hasDock = isHome || isStaking || isRewards || isForge;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -49,6 +50,10 @@
       .economy-card-line{margin:-2px 0 9px!important;gap:5px!important}.economy-chip{font-size:.63rem!important;padding:3px 7px!important}
       .nft-actions .btn{padding:8px 12px!important;font-size:.78rem!important}.load-more-wrap{padding:18px 0 2px!important}.footer{margin-top:42px!important}
     ` : ''}
+    ${isForge ? `
+      .forge-source-note{margin:-3px 0 14px;padding:10px 14px;border-radius:15px;background:rgba(191,230,238,.48);color:var(--soft,#5B5270);font-size:.72rem;font-weight:800;line-height:1.42}
+      .forge-source-note b{color:var(--ink,#2B2140)}
+    ` : ''}
     ${hasDock ? `
       .totz-section-dock{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:9998;display:flex;flex-direction:column;gap:6px;padding:8px;width:132px;box-sizing:border-box;overflow:hidden;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:2px solid var(--sky2,var(--sky-deep,#8ED2E2));border-radius:22px;box-shadow:0 14px 34px rgba(43,33,64,.16)}
       .totz-section-dock::before{content:'TOTZ';display:block;text-align:center;padding:3px 4px 2px;color:var(--soft,var(--ink-soft,#5B5270));font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;letter-spacing:.14em}
@@ -73,8 +78,35 @@
     dock.innerHTML = `
       <a href="/" class="${isHome ? 'active' : ''}" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
       <a href="/staking" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
-      <a href="/rewards" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
+      <a href="/rewards" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>
+      <a href="/forge" class="${isForge ? 'active' : ''}" title="Forge" aria-label="Forge"><span class="dock-icon">⚒️</span><span class="dock-label">FORGE</span></a>`;
     document.body.appendChild(dock);
+  }
+
+  function installForgeLabels() {
+    if (!isForge) return;
+    const stats = [...document.querySelectorAll('.stat')];
+    for (const stat of stats) {
+      const label = stat.querySelector('small');
+      const sub = stat.querySelector('span');
+      const text = (label?.textContent || '').trim().toUpperCase();
+      if (text === 'TOTAL SUPPLY') {
+        label.textContent = 'ON-CHAIN SUPPLY';
+        if (sub) sub.textContent = 'Live ERC-721 tokens at snapshot block';
+      }
+      if (text === 'UNIQUE HOLDERS') {
+        label.textContent = 'ON-CHAIN HOLDERS';
+        if (sub) sub.textContent = 'Unique owner addresses at snapshot block';
+      }
+    }
+
+    const statsGrid = document.querySelector('.stats');
+    if (statsGrid && !document.querySelector('.forge-source-note')) {
+      const note = document.createElement('div');
+      note.className = 'forge-source-note';
+      note.innerHTML = '<b>On-chain snapshot:</b> FORGE reads the NFT contract directly. Marketplace item/owner counts can differ because of indexing, hidden items, filters or timing.';
+      statsGrid.insertAdjacentElement('afterend', note);
+    }
   }
 
   function loadHomeEarnings() {
@@ -124,7 +156,8 @@
       'index.html': '/', './index.html': '/',
       'staking.html': '/staking', './staking.html': '/staking',
       'rewards.html': '/rewards', './rewards.html': '/rewards',
-      'rewards-admin.html': '/rewards-admin', './rewards-admin.html': '/rewards-admin'
+      'rewards-admin.html': '/rewards-admin', './rewards-admin.html': '/rewards-admin',
+      'forge.html': '/forge', './forge.html': '/forge'
     };
     if (cleanMap[href]) anchor.setAttribute('href', cleanMap[href]);
   }
@@ -142,6 +175,7 @@
   }
 
   installSectionDock();
+  installForgeLabels();
   loadHomeEarnings();
   rewrite(document.body);
 
@@ -155,6 +189,7 @@
       if (mutation.type === 'characterData') rewriteTextNode(mutation.target);
       for (const node of mutation.addedNodes || []) rewrite(node);
     }
+    if (isForge) installForgeLabels();
   });
   observer.observe(document.body, { childList:true, subtree:true, characterData:true });
 })();
