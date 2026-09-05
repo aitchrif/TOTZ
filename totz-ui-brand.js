@@ -117,6 +117,15 @@
     document.head.appendChild(script);
   }
 
+  function loadForgeHistory() {
+    if (!isForge || document.querySelector('script[data-forge-history]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-history.js?v=1';
+    script.dataset.forgeHistory = '1';
+    script.async = false;
+    document.head.appendChild(script);
+  }
+
   async function silentStakingConnect() {
     if (!isStaking || !window.ethereum) return;
     if (localStorage.getItem('totz_staking_disconnect') === '1') return;
@@ -177,6 +186,7 @@
   installSectionDock();
   installForgeLabels();
   loadHomeEarnings();
+  loadForgeHistory();
   rewrite(document.body);
 
   if (isStaking) {
