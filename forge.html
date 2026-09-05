@@ -3,73 +3,92 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TOTZ FORGE — Holder X-Ray</title>
-<meta name="description" content="TOTZ FORGE turns Robinhood Chain NFT holder data into a clean, live holder X-ray. Read-only. No approvals. No gas.">
+<title>TOTZ FORGE — Multi-Chain Holder X-Ray</title>
+<meta name="description" content="TOTZ FORGE scans ERC-721 holder distribution across Robinhood Chain, Ink and Ethereum. Read-only, no approvals, no gas.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--cream:#FFF3DC;--cream2:#FFEAC2;--cloud:#fff;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF7A66;--coral2:#F0533D;--mint:#DDF4E8;--shadow:0 14px 32px rgba(43,33,64,.12)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif;overflow-x:hidden}h1,h2,h3,.logo,.display{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}button,input{font:inherit}.wrap{max-width:1180px;margin:auto;padding:0 5vw 80px}.cloud-field{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:-1}.cloud-field img{position:absolute;opacity:.1;filter:grayscale(1);animation:drift 52s linear infinite}.cloud-field img:nth-child(1){width:120px;top:10%;left:-14%}.cloud-field img:nth-child(2){width:82px;top:48%;left:-18%;animation-delay:-18s}.cloud-field img:nth-child(3){width:156px;top:76%;left:-28%;animation-delay:-34s}@keyframes drift{to{transform:translateX(138vw)}}
-nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;gap:18px}.logo{font-size:1.6rem;font-weight:800;display:flex;gap:10px;align-items:center}.dot{width:14px;height:14px;background:var(--coral);border-radius:50%}.nav-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 15px;font-weight:900;font-size:.84rem;background:transparent;cursor:pointer;color:var(--ink)}.pill.dark{background:var(--ink);color:var(--cream)}.pill.live{border-color:var(--lime);background:var(--lime)}
-.hero{text-align:center;padding:46px 0 24px}.eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--lime);padding:7px 14px;border-radius:999px;font-weight:900;font-size:.76rem;letter-spacing:.07em;text-transform:uppercase}.hero h1{font-size:clamp(2.55rem,6.7vw,5.7rem);line-height:.9;margin:18px auto 14px;max-width:930px;letter-spacing:-.04em}.hero h1 span{color:var(--coral2)}.hero p{max-width:760px;margin:auto;color:var(--soft);font-size:1.08rem;font-weight:800;line-height:1.58}.safety-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:18px}.safe{display:inline-flex;gap:7px;align-items:center;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;box-shadow:var(--shadow);font-size:.78rem}
-.scanner{background:#fff;border:2.5px solid var(--sky2);border-radius:30px;box-shadow:var(--shadow);padding:24px;margin:26px auto 28px}.scanner-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.scanner-copy h2{margin:0;font-size:1.65rem}.scanner-copy p{margin:5px 0 0;color:var(--soft);font-weight:800;line-height:1.45}.scan-form{margin-top:17px;display:grid;grid-template-columns:1fr auto auto;gap:10px}.scan-form input{min-width:0;border:2px solid var(--sky2);border-radius:999px;padding:13px 17px;font-family:monospace;font-weight:800;color:var(--ink);outline:0;background:var(--cream)}.scan-form input:focus{border-color:var(--coral)}.btn{border:0;cursor:pointer;font-family:'Baloo 2',cursive;font-weight:800;border-radius:999px;padding:13px 20px;font-size:.94rem}.btn.primary{background:var(--coral);color:white;box-shadow:0 6px 0 var(--coral2)}.btn.primary:active{transform:translateY(3px);box-shadow:0 3px 0 var(--coral2)}.btn.ghost{background:var(--cream);border:2px solid var(--ink);color:var(--ink)}.btn.dark{background:var(--ink);color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}.scan-status{display:none;margin-top:13px;border-radius:15px;padding:11px 13px;background:var(--cream);font-weight:900;font-size:.85rem}.scan-status.show{display:block}.scan-status.ok{background:#eef6c9}.scan-status.error{background:#ffe0dc;color:#8b2b1f}
-.dashboard[hidden]{display:none}.collection-head{display:flex;justify-content:space-between;align-items:center;gap:18px;background:var(--ink);color:white;border-radius:27px;padding:22px 24px;box-shadow:var(--shadow);margin-bottom:14px}.collection-id{display:flex;align-items:center;gap:14px}.collection-mark{width:50px;height:50px;border-radius:17px;background:var(--cream);display:grid;place-items:center;font-size:1.45rem}.collection-copy h2{margin:0;font-size:1.45rem;line-height:1}.collection-copy p{margin:5px 0 0;color:#d8d2e3;font-family:monospace;font-size:.74rem;font-weight:800}.collection-meta{text-align:right}.collection-meta strong{display:block;font-size:.85rem}.collection-meta span{display:block;color:#d8d2e3;font-size:.72rem;font-weight:800;margin-top:4px}.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--lime);margin-right:6px;box-shadow:0 0 0 4px rgba(203,219,42,.16)}
-.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:14px 0}.stat{background:#fff;border-radius:21px;padding:17px;box-shadow:var(--shadow);min-height:112px}.stat small{display:block;font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.055em;font-size:.66rem}.stat strong{display:block;font-family:'Baloo 2';font-size:1.62rem;line-height:1.05;margin-top:8px}.stat span{display:block;color:var(--soft);font-size:.69rem;font-weight:800;margin-top:5px;line-height:1.25}.stat.hot{background:var(--lime)}.stat.hot small,.stat.hot span{color:var(--ink)}
-.grid-2{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;margin-top:14px}.panel{background:#fff;border-radius:25px;padding:21px;box-shadow:var(--shadow)}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}.panel-head h2{font-size:1.45rem;margin:0}.panel-head p{margin:4px 0 0;color:var(--soft);font-weight:800;font-size:.82rem;line-height:1.35}.tag{display:inline-flex;align-items:center;gap:6px;background:var(--cream);border-radius:999px;padding:6px 9px;font-size:.66rem;font-weight:900;white-space:nowrap}.tag.beta{background:var(--sky)}
-.score-wrap{display:grid;grid-template-columns:138px 1fr;gap:18px;align-items:center}.score-ring{width:138px;height:138px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--coral) calc(var(--score,0)*1%),var(--cream2) 0);position:relative}.score-ring:after{content:"";position:absolute;inset:12px;background:white;border-radius:50%}.score-ring .inside{position:relative;z-index:1;text-align:center}.score-ring strong{display:block;font-family:'Baloo 2';font-size:2.25rem;line-height:.9}.score-ring span{font-size:.63rem;font-weight:900;color:var(--soft)}.score-lines{display:grid;gap:9px}.score-line{display:grid;grid-template-columns:95px 1fr 38px;gap:8px;align-items:center;font-size:.72rem;font-weight:900}.meter{height:8px;background:var(--cream2);border-radius:999px;overflow:hidden}.meter i{display:block;height:100%;background:var(--ink);border-radius:999px}.score-note{margin:14px 0 0;color:var(--soft);font-size:.7rem;font-weight:800;line-height:1.4}
-.movement-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.move{border-radius:17px;background:var(--cream);padding:13px}.move b{display:block;font-family:'Baloo 2';font-size:1.5rem}.move span{font-size:.68rem;font-weight:900;color:var(--soft)}.baseline-note{margin:12px 0 0;color:var(--soft);font-size:.72rem;font-weight:800;line-height:1.4}
-.tier-list{display:grid;gap:12px}.tier-row{display:grid;grid-template-columns:72px 1fr 55px;gap:10px;align-items:center;font-size:.78rem;font-weight:900}.tier-bar{height:12px;background:var(--cream2);border-radius:999px;overflow:hidden}.tier-bar i{display:block;height:100%;border-radius:999px;background:var(--coral)}.tier-row:nth-child(2) .tier-bar i{background:var(--sky2)}.tier-row:nth-child(3) .tier-bar i{background:var(--lime)}.tier-row:nth-child(4) .tier-bar i{background:var(--ink)}.tier-row:nth-child(5) .tier-bar i{background:var(--coral2)}
-.access-card{margin-top:14px;background:linear-gradient(135deg,var(--ink),#46395e);color:white;border-radius:25px;padding:20px;box-shadow:var(--shadow);display:flex;justify-content:space-between;gap:20px;align-items:center}.access-card h3{font-size:1.35rem;margin:0}.access-card p{margin:4px 0 0;color:#d8d2e3;font-weight:800;font-size:.8rem;line-height:1.4}.access-state{min-width:180px;text-align:center;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:13px}.access-state strong{display:block;font-family:'Baloo 2';font-size:1rem}.access-state span{display:block;color:#d8d2e3;font-size:.67rem;font-weight:900;margin-top:3px}.access-card.unlocked{background:linear-gradient(135deg,#314629,#465e39)}.access-card.unlocked .access-state{background:rgba(203,219,42,.15);border-color:rgba(203,219,42,.35)}
-.table-panel{margin-top:14px}.table-tools{display:flex;gap:8px;flex-wrap:wrap}.table-tools input{border:2px solid var(--sky2);border-radius:999px;padding:10px 13px;font-family:monospace;font-size:.8rem;outline:0;min-width:220px}.table-wrap{overflow:auto;border:1px solid rgba(43,33,64,.08);border-radius:18px}.holders-table{width:100%;border-collapse:collapse;min-width:680px}.holders-table th,.holders-table td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(43,33,64,.07);font-size:.78rem}.holders-table th{position:sticky;top:0;background:var(--cream);font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft)}.holders-table tr:last-child td{border-bottom:0}.holders-table td.wallet{font-family:monospace;font-weight:800}.rank-badge{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:10px;background:var(--cream);font-weight:900}.balance-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:var(--sky);font-weight:900}.holders-table a{font-weight:900;text-decoration:underline;text-decoration-color:var(--sky2);text-underline-offset:3px}.empty-row{text-align:center!important;color:var(--soft);font-weight:800!important;padding:24px!important}
-.module-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.module{background:#fff;border:2px dashed var(--sky2);border-radius:21px;padding:16px}.module b{display:block;font-family:'Baloo 2';font-size:1rem}.module span{display:block;color:var(--soft);font-size:.72rem;font-weight:800;margin-top:3px;line-height:1.35}.footer{text-align:center;margin-top:50px;color:var(--soft);font-weight:800;font-size:.8rem}
-@media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}.grid-2{grid-template-columns:1fr}.module-strip{grid-template-columns:1fr 1fr 1fr}}@media(max-width:760px){.wrap{padding-left:4vw;padding-right:4vw}.hero{padding-top:28px}.scanner-top,.access-card{align-items:flex-start;flex-direction:column}.scan-form{grid-template-columns:1fr}.scan-form .btn{width:100%}.stats{grid-template-columns:1fr 1fr}.score-wrap{grid-template-columns:115px 1fr}.score-ring{width:115px;height:115px}.movement-grid{grid-template-columns:1fr 1fr}.module-strip{grid-template-columns:1fr}.collection-head{align-items:flex-start}.collection-meta{display:none}}@media(max-width:500px){.stats{grid-template-columns:1fr 1fr}.stat{min-height:101px;padding:14px}.stat strong{font-size:1.38rem}.score-wrap{grid-template-columns:1fr}.score-ring{margin:auto}.score-lines{margin-top:2px}.table-tools{width:100%}.table-tools input,.table-tools .btn{width:100%;min-width:0}.nav-actions .home-pill{display:none}}
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF715F;--coral2:#E9503D;--white:#fff;--mint:#E9F5D0;--shadow:0 14px 34px rgba(43,33,64,.12);--shadow-sm:0 8px 20px rgba(43,33,64,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif;overflow-x:hidden}h1,h2,h3,.logo{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}button,input,select{font:inherit}.wrap{max-width:1190px;margin:auto;padding:0 4.5vw 84px}
+.cloud-field{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:-1}.cloud-field img{position:absolute;opacity:.07;filter:grayscale(1);animation:drift 56s linear infinite}.cloud-field img:nth-child(1){width:125px;top:10%;left:-16%}.cloud-field img:nth-child(2){width:88px;top:49%;left:-20%;animation-delay:-18s}.cloud-field img:nth-child(3){width:155px;top:78%;left:-30%;animation-delay:-36s}@keyframes drift{to{transform:translateX(140vw)}}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;gap:16px}.logo{display:flex;gap:10px;align-items:center;font-size:1.62rem;font-weight:800}.dot{width:14px;height:14px;background:var(--coral);border-radius:50%}.nav-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 14px;background:transparent;color:var(--ink);font-size:.78rem;font-weight:900;cursor:pointer}.pill.dark{background:var(--ink);color:var(--cream)}
+.hero{text-align:center;padding:42px 0 22px}.eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--lime);border-radius:999px;padding:7px 14px;font-size:.74rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.hero h1{font-size:clamp(2.55rem,6.5vw,5.6rem);line-height:.91;margin:18px auto 14px;letter-spacing:-.045em;max-width:970px}.hero h1 span{color:var(--coral2)}.hero p{max-width:790px;margin:auto;color:var(--soft);font-size:1.04rem;font-weight:800;line-height:1.58}.safety-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:17px}.safe{display:inline-flex;align-items:center;gap:7px;background:white;border-radius:999px;padding:8px 12px;font-size:.76rem;font-weight:900;box-shadow:var(--shadow-sm)}
+.scanner{background:white;border:2.5px solid var(--sky2);border-radius:30px;padding:24px;box-shadow:var(--shadow);margin:26px 0 28px}.scanner-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.scanner-copy h2{font-size:1.68rem;margin:0}.scanner-copy p{margin:4px 0 0;color:var(--soft);font-size:.9rem;font-weight:800;line-height:1.45}.tag{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:var(--cream);font-size:.65rem;font-weight:900;white-space:nowrap}.tag.blue{background:var(--sky)}
+.network-label{display:block;margin:18px 0 8px;color:var(--soft);font-size:.65rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.network-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.network-btn{border:2px solid transparent;border-radius:17px;background:var(--cream);padding:11px 13px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;transition:.15s ease;color:var(--ink)}.network-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}.network-btn.active{background:white;border-color:var(--ink);box-shadow:0 5px 0 rgba(43,33,64,.1)}.network-icon{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;background:white;font-family:'Baloo 2';font-size:.83rem;font-weight:900;border:1px solid rgba(43,33,64,.08)}.network-btn.active .network-icon{background:var(--ink);color:#fff}.network-btn b{display:block;font-size:.82rem}.network-btn span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:1px}
+.scan-form{margin-top:13px;display:grid;grid-template-columns:1fr auto auto;gap:10px}.scan-form input{min-width:0;border:2px solid var(--sky2);border-radius:999px;background:var(--cream);padding:13px 17px;font-family:monospace;font-weight:800;color:var(--ink);outline:0}.scan-form input:focus{border-color:var(--coral)}.btn{border:0;border-radius:999px;padding:12px 18px;cursor:pointer;font-family:'Baloo 2';font-size:.88rem;font-weight:800;white-space:nowrap}.btn.primary{background:var(--coral);color:white;box-shadow:0 6px 0 var(--coral2)}.btn.primary:active{transform:translateY(3px);box-shadow:0 3px 0 var(--coral2)}.btn.ghost{background:var(--cream);color:var(--ink);border:2px solid var(--ink)}.btn.dark{background:var(--ink);color:white}.btn.soft{background:var(--sky);color:var(--ink)}.btn:disabled{opacity:.5;cursor:not-allowed}.scan-status{display:none;margin-top:12px;border-radius:15px;padding:11px 13px;background:var(--cream);font-size:.81rem;font-weight:900;line-height:1.35}.scan-status.show{display:block}.scan-status.ok{background:#EDF5C8}.scan-status.error{background:#FFDEDA;color:#8D2B1F}
+.dashboard[hidden]{display:none}.collection-head{background:var(--ink);color:white;border-radius:27px;padding:21px 23px;display:flex;justify-content:space-between;align-items:center;gap:18px;box-shadow:var(--shadow);margin-bottom:13px}.collection-id{display:flex;align-items:center;gap:13px;min-width:0}.collection-mark{width:50px;height:50px;flex:0 0 50px;border-radius:17px;background:var(--cream);display:grid;place-items:center;font-size:1.4rem}.collection-copy{min-width:0}.collection-copy h2{margin:0;font-size:1.42rem;line-height:1}.collection-copy p{margin:6px 0 0;color:#D9D2E2;font-family:monospace;font-size:.7rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:610px}.collection-meta{text-align:right;white-space:nowrap}.collection-meta strong{display:block;font-size:.8rem}.collection-meta span{display:block;color:#D9D2E2;font-size:.66rem;font-weight:800;margin-top:3px}.chain-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);padding:5px 8px;border-radius:999px;margin-bottom:5px;font-size:.62rem!important;color:white!important}.live-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--lime);box-shadow:0 0 0 4px rgba(203,219,42,.14)}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin:13px 0}.stat{background:white;border-radius:21px;padding:16px;min-height:110px;box-shadow:var(--shadow-sm)}.stat.hot{background:var(--lime)}.stat small{display:block;color:var(--soft);font-size:.62rem;font-weight:900;letter-spacing:.055em;text-transform:uppercase}.stat.hot small,.stat.hot span{color:var(--ink)}.stat strong{display:block;font-family:'Baloo 2';font-size:1.55rem;line-height:1.04;margin-top:8px}.stat span{display:block;color:var(--soft);font-size:.65rem;font-weight:800;line-height:1.25;margin-top:5px}
+.snapshot-note{background:linear-gradient(90deg,#E7F4EF,var(--sky));border-radius:17px;padding:10px 13px;color:var(--soft);font-size:.71rem;font-weight:800;line-height:1.4}.snapshot-note strong{color:var(--ink)}
+.grid-2{display:grid;grid-template-columns:1.04fr .96fr;gap:13px;margin-top:13px}.panel{background:white;border-radius:25px;padding:20px;box-shadow:var(--shadow-sm)}.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:15px}.panel-head h2{font-size:1.42rem;margin:0}.panel-head p{margin:4px 0 0;color:var(--soft);font-size:.78rem;font-weight:800;line-height:1.38}
+.score-wrap{display:grid;grid-template-columns:132px 1fr;gap:18px;align-items:center}.score-ring{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--coral) calc(var(--score,0)*1%),var(--cream2) 0);position:relative}.score-ring:after{content:"";position:absolute;inset:11px;background:white;border-radius:50%}.inside{position:relative;z-index:1;text-align:center}.inside strong{display:block;font-family:'Baloo 2';font-size:2.15rem;line-height:.9}.inside span{font-size:.61rem;font-weight:900;color:var(--soft)}.score-lines{display:grid;gap:8px}.score-line{display:grid;grid-template-columns:96px 1fr 34px;gap:8px;align-items:center;font-size:.68rem;font-weight:900}.meter{height:8px;border-radius:999px;background:var(--cream2);overflow:hidden}.meter i{display:block;height:100%;background:var(--ink);border-radius:999px}.score-note,.baseline-note{margin:13px 0 0;color:var(--soft);font-size:.68rem;font-weight:800;line-height:1.4}
+.movement-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.move{background:var(--cream);border-radius:17px;padding:12px;min-height:95px}.move b{display:block;font-family:'Baloo 2';font-size:1.4rem}.move span{display:block;color:var(--soft);font-size:.62rem;font-weight:900;margin-top:5px;line-height:1.2}
+.concentration{display:grid;gap:11px}.conc-row{display:grid;grid-template-columns:72px 1fr 54px;gap:10px;align-items:center;font-size:.72rem;font-weight:900}.conc-bar{height:11px;background:var(--cream2);border-radius:999px;overflow:hidden}.conc-bar i{height:100%;display:block;border-radius:999px;background:var(--coral)}.conc-row:nth-child(2) .conc-bar i{background:var(--sky2)}.conc-row:nth-child(3) .conc-bar i{background:var(--lime)}.conc-row:nth-child(4) .conc-bar i{background:var(--ink)}.conc-row:nth-child(5) .conc-bar i{background:var(--coral2)}
+.lookup-box{display:grid;grid-template-columns:1fr auto;gap:8px}.lookup-box input{min-width:0;border:2px solid var(--sky2);border-radius:999px;padding:11px 13px;font-family:monospace;font-size:.76rem;outline:0;background:var(--cream)}.lookup-result{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.lookup-stat{background:var(--cream);border-radius:16px;padding:12px}.lookup-stat small{display:block;color:var(--soft);font-size:.59rem;font-weight:900;text-transform:uppercase}.lookup-stat b{display:block;font-family:'Baloo 2';font-size:1.25rem;margin-top:4px}.lookup-message{margin:10px 0 0;color:var(--soft);font-size:.68rem;font-weight:800}
+.access-card{margin-top:13px;background:linear-gradient(135deg,var(--ink),#483A61);color:white;border-radius:25px;padding:19px 20px;display:flex;justify-content:space-between;gap:18px;align-items:center;box-shadow:var(--shadow-sm)}.access-card.unlocked{background:linear-gradient(135deg,#304729,#49643A)}.access-card h3{font-size:1.28rem;margin:0}.access-card p{margin:3px 0 0;color:#D9D2E2;font-size:.76rem;font-weight:800;line-height:1.4}.access-state{min-width:185px;text-align:center;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px}.access-state strong{display:block;font-family:'Baloo 2';font-size:.96rem}.access-state span{display:block;color:#D9D2E2;font-size:.63rem;font-weight:900;margin-top:3px}
+.table-panel{margin-top:13px}.table-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.table-tools input,.table-tools select{border:2px solid var(--sky2);border-radius:999px;padding:9px 12px;background:var(--cream);color:var(--ink);font-size:.74rem;font-weight:800;outline:0}.table-tools input{font-family:monospace;min-width:190px}.table-tools select{min-width:126px}.custom-min{display:none!important;width:105px;min-width:105px!important}.custom-min.show{display:block!important}.view-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 10px;color:var(--soft);font-size:.68rem;font-weight:800}.table-wrap{overflow:auto;border:1px solid rgba(43,33,64,.08);border-radius:18px}.holders-table{width:100%;border-collapse:collapse;min-width:650px}.holders-table th,.holders-table td{padding:11px 13px;border-bottom:1px solid rgba(43,33,64,.07);text-align:left;font-size:.75rem}.holders-table th{position:sticky;top:0;background:var(--cream);color:var(--soft);font-size:.61rem;letter-spacing:.06em;text-transform:uppercase}.holders-table tr:last-child td{border-bottom:0}.wallet{font-family:monospace;font-weight:800}.rank-badge{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:10px;background:var(--cream);font-weight:900}.balance-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:var(--sky);font-weight:900}.holders-table a{font-weight:900;text-decoration:underline;text-decoration-color:var(--sky2);text-underline-offset:3px}.empty-row{text-align:center!important;color:var(--soft);font-weight:800!important;padding:23px!important}
+.module-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}.module{background:white;border:2px dashed var(--sky2);border-radius:20px;padding:15px}.module b{display:block;font-family:'Baloo 2';font-size:.96rem}.module span{display:block;color:var(--soft);font-size:.68rem;font-weight:800;line-height:1.35;margin-top:3px}.footer{text-align:center;color:var(--soft);font-size:.76rem;font-weight:800;margin-top:48px}
+.toast{position:fixed;right:20px;bottom:20px;z-index:9999;background:var(--ink);color:white;border-radius:15px;padding:11px 14px;font-size:.74rem;font-weight:900;box-shadow:var(--shadow);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s ease}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}.grid-2{grid-template-columns:1fr}.module-strip{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:760px){.wrap{padding-left:4vw;padding-right:4vw}.hero{padding-top:26px}.scanner-top,.access-card{flex-direction:column;align-items:flex-start}.network-row{grid-template-columns:1fr}.scan-form{grid-template-columns:1fr}.scan-form .btn{width:100%}.stats{grid-template-columns:1fr 1fr}.score-wrap{grid-template-columns:112px 1fr}.score-ring{width:112px;height:112px}.movement-grid{grid-template-columns:1fr 1fr}.module-strip{grid-template-columns:1fr}.collection-meta{display:none}.lookup-result{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:500px){.stat{padding:14px;min-height:101px}.stat strong{font-size:1.34rem}.score-wrap{grid-template-columns:1fr}.score-ring{margin:auto}.table-tools{width:100%}.table-tools>*{width:100%!important;min-width:0!important}.lookup-box{grid-template-columns:1fr}.lookup-box .btn{width:100%}.nav-actions .home-pill{display:none}}
 </style>
 </head>
 <body>
 <div class="cloud-field"><img src="assets/totz-logo.png" alt=""><img src="assets/totz-logo.png" alt=""><img src="assets/totz-logo.png" alt=""></div>
 <div class="wrap">
 <nav>
-  <a class="logo" href="index.html"><span class="dot"></span>TOTZ</a>
-  <div class="nav-actions">
-    <a class="pill home-pill" href="index.html">Home</a>
-    <span class="pill live">ROBINHOOD CHAIN</span>
-    <button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button>
-  </div>
+  <a class="logo" href="/"><span class="dot"></span>TOTZ</a>
+  <div class="nav-actions"><a class="pill home-pill" href="/">HOME</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div>
 </nav>
+
 <section class="hero">
-  <span class="eyebrow">⚒️ TOTZ FORGE · BETA</span>
-  <h1>X-RAY YOUR <span>HOLDERS.</span></h1>
-  <p>Paste any Robinhood Chain NFT contract. FORGE turns raw on-chain holder data into a clean live view of distribution, whales, holder tiers and wallet movement.</p>
-  <div class="safety-row"><span class="safe">👁️ Read-only</span><span class="safe">🔒 No approvals</span><span class="safe">⛽ No gas</span><span class="safe">⚡ Live chain data</span></div>
+  <span class="eyebrow">⚒️ TOTZ FORGE · X-RAY V1</span>
+  <h1>KNOW YOUR <span>HOLDERS.</span></h1>
+  <p>Multi-chain ERC-721 holder intelligence for Robinhood Chain, Ink and Ethereum. Scan distribution, concentration and wallets directly from on-chain ownership.</p>
+  <div class="safety-row"><span class="safe">👁️ Read-only</span><span class="safe">🔒 No approvals</span><span class="safe">⛽ No gas</span><span class="safe">🧱 Block-pinned snapshots</span></div>
 </section>
+
 <section class="scanner">
   <div class="scanner-top">
-    <div class="scanner-copy"><h2>Collection scanner</h2><p>Start with TOTZ Genesis or paste another ERC-721 / ERC-1155 contract on Robinhood Chain.</p></div>
-    <span class="tag beta">X-RAY V1</span>
+    <div class="scanner-copy"><h2>Collection scanner</h2><p>Select a network, paste an ERC-721 contract, and create a verifiable holder snapshot.</p></div>
+    <span class="tag blue">MULTI-CHAIN BETA</span>
   </div>
+
+  <span class="network-label">Network</span>
+  <div class="network-row" id="networkRow">
+    <button class="network-btn active" data-chain="robinhood" type="button"><span class="network-icon">RH</span><span><b>Robinhood Chain</b><span>Chain ID 4663</span></span></button>
+    <button class="network-btn" data-chain="ink" type="button"><span class="network-icon">INK</span><span><b>Ink</b><span>Chain ID 57073</span></span></button>
+    <button class="network-btn" data-chain="ethereum" type="button"><span class="network-icon">Ξ</span><span><b>Ethereum</b><span>Chain ID 1</span></span></button>
+  </div>
+
   <div class="scan-form">
-    <input id="contractInput" spellcheck="false" autocomplete="off" aria-label="NFT contract address" value="0x107c4e7cf931b18e022d40184d03d00b4ec99d5a">
+    <input id="contractInput" spellcheck="false" autocomplete="off" aria-label="ERC-721 contract address" value="0x107c4e7cf931b18e022d40184d03d00b4ec99d5a">
     <button id="scanBtn" class="btn primary" type="button">SCAN COLLECTION</button>
     <button id="genesisBtn" class="btn ghost" type="button">TOTZ GENESIS</button>
   </div>
   <div id="scanStatus" class="scan-status"></div>
 </section>
+
 <section id="dashboard" class="dashboard" hidden>
   <div class="collection-head">
     <div class="collection-id"><div class="collection-mark">⚒️</div><div class="collection-copy"><h2 id="collectionName">Collection</h2><p id="collectionContract">0x…</p></div></div>
-    <div class="collection-meta"><strong><span class="live-dot"></span>LIVE SCAN</strong><span id="scanTime">—</span></div>
+    <div class="collection-meta"><span id="chainBadge" class="chain-badge">ROBINHOOD CHAIN</span><strong><span class="live-dot"></span> SNAPSHOT READY</strong><span id="scanTime">—</span><span id="scanBlock">Block —</span></div>
   </div>
+
   <div class="stats">
-    <article class="stat hot"><small>Total supply</small><strong id="supplyStat">—</strong><span>Tracked NFTs</span></article>
-    <article class="stat"><small>Unique holders</small><strong id="holdersStat">—</strong><span>Wallets with balance</span></article>
+    <article class="stat hot"><small>On-chain supply</small><strong id="supplyStat">—</strong><span>Live ERC-721 tokens at snapshot block</span></article>
+    <article class="stat"><small>On-chain holders</small><strong id="holdersStat">—</strong><span>Unique owner addresses</span></article>
     <article class="stat"><small>Holder ratio</small><strong id="holderRatioStat">—</strong><span>Holders / supply</span></article>
-    <article class="stat"><small>Top 10 control</small><strong id="top10Stat">—</strong><span>Share of total supply</span></article>
-    <article class="stat"><small>Largest wallet</small><strong id="largestStat">—</strong><span>Single-wallet share</span></article>
-    <article class="stat"><small>10+ whales</small><strong id="whalesStat">—</strong><span>Wallets holding 10+</span></article>
+    <article class="stat"><small>Top 10 control</small><strong id="top10Stat">—</strong><span>Supply held by top 10 wallets</span></article>
+    <article class="stat"><small>Largest wallet</small><strong id="largestStat">—</strong><span>Largest single-wallet share</span></article>
+    <article class="stat"><small>10+ holders</small><strong id="whalesStat">—</strong><span>Wallets holding at least 10 NFTs</span></article>
   </div>
+
+  <div class="snapshot-note"><strong>On-chain snapshot:</strong> FORGE reads the selected ERC-721 contract at one pinned block. Marketplace counts can differ because of indexing, filters, hidden items, custody contracts or timing.</div>
+
   <div class="grid-2">
     <article class="panel">
-      <div class="panel-head"><div><h2>FORGE SCORE</h2><p>Experimental distribution health score from live holder structure.</p></div><span class="tag">V1 · DISTRIBUTION</span></div>
+      <div class="panel-head"><div><h2>FORGE SCORE</h2><p>Distribution health derived from concentration and holder spread.</p></div><span class="tag">V1 · DISTRIBUTION</span></div>
       <div class="score-wrap">
         <div id="scoreRing" class="score-ring" style="--score:0"><div class="inside"><strong id="scoreStat">0</strong><span>/ 100</span></div></div>
         <div class="score-lines">
@@ -78,44 +97,82 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
           <div class="score-line"><span>Holder spread</span><div class="meter"><i id="spreadMeter" style="width:0%"></i></div><b id="spreadScore">0</b></div>
         </div>
       </div>
-      <p class="score-note">FORGE SCORE is a transparent V1 heuristic based only on holder distribution. It is not a price, safety or investment prediction.</p>
+      <p class="score-note">FORGE SCORE is a transparent holder-distribution heuristic. It is not a safety, price or investment rating.</p>
     </article>
+
     <article class="panel">
-      <div class="panel-head"><div><h2>MOVEMENTS</h2><p>Compared with the previous scan saved in this browser.</p></div><span class="tag">LOCAL BASELINE</span></div>
+      <div class="panel-head"><div><h2>MOVEMENTS</h2><p>Compared with the previous scan stored in this browser.</p></div><span class="tag">LOCAL BASELINE</span></div>
       <div class="movement-grid">
         <div class="move"><b id="newMove">—</b><span>NEW HOLDERS</span></div>
         <div class="move"><b id="upMove">—</b><span>ACCUMULATING</span></div>
         <div class="move"><b id="downMove">—</b><span>REDUCING</span></div>
         <div class="move"><b id="exitMove">—</b><span>FULL EXITS</span></div>
       </div>
-      <p id="baselineNote" class="baseline-note">Your first scan creates a local baseline. Scan again later to see wallet movement.</p>
+      <p id="baselineNote" class="baseline-note">Your first scan creates a local baseline.</p>
     </article>
   </div>
+
   <div class="grid-2">
     <article class="panel">
-      <div class="panel-head"><div><h2>HOLDER TIERS</h2><p>See how ownership is distributed across wallet sizes.</p></div><span class="tag" id="tierTotal">0 wallets</span></div>
-      <div id="tierList" class="tier-list"></div>
+      <div class="panel-head"><div><h2>OWNERSHIP CONCENTRATION</h2><p>No arbitrary tiers — just the actual share controlled by the largest wallets.</p></div><span class="tag" id="concLabel">LIVE</span></div>
+      <div id="concentrationList" class="concentration"></div>
     </article>
-    <article id="accessCard" class="access-card">
-      <div><h3>☁️ Genesis Access</h3><p>Connect your wallet. Holding a TOTZ Genesis unlocks the OG access badge and future advanced FORGE tools.</p></div>
-      <div class="access-state"><strong id="accessTitle">NOT CHECKED</strong><span id="accessSub">Connect wallet</span></div>
+
+    <article class="panel">
+      <div class="panel-head"><div><h2>WALLET LOOKUP</h2><p>Check any wallet against the current collection snapshot.</p></div><span class="tag">CURRENT SNAPSHOT</span></div>
+      <div class="lookup-box"><input id="lookupInput" placeholder="0x wallet…" spellcheck="false"><button id="lookupBtn" class="btn dark" type="button">CHECK</button></div>
+      <div class="lookup-result">
+        <div class="lookup-stat"><small>NFTs held</small><b id="lookupBalance">—</b></div>
+        <div class="lookup-stat"><small>Holder rank</small><b id="lookupRank">—</b></div>
+        <div class="lookup-stat"><small>Top percentile</small><b id="lookupPercentile">—</b></div>
+      </div>
+      <p id="lookupMessage" class="lookup-message">Paste a wallet to inspect its current position.</p>
     </article>
   </div>
+
+  <article id="accessCard" class="access-card">
+    <div><h3>☁️ TOTZ Genesis Access</h3><p>Connect your wallet. Genesis ownership is checked on Robinhood Chain regardless of which network you are scanning.</p></div>
+    <div class="access-state"><strong id="accessTitle">NOT CHECKED</strong><span id="accessSub">Connect wallet</span></div>
+  </article>
+
   <article class="panel table-panel">
     <div class="panel-head">
-      <div><h2>HOLDER X-RAY</h2><p>Search wallets, isolate whales and export the current holder snapshot.</p></div>
-      <div class="table-tools"><input id="holderSearch" placeholder="Search wallet…" spellcheck="false"><button id="whaleFilterBtn" class="btn ghost" type="button">10+ ONLY</button><button id="exportBtn" class="btn dark" type="button">EXPORT CSV</button></div>
+      <div><h2>HOLDER X-RAY</h2><p>Search, filter, copy or export the exact snapshot you need.</p></div>
+      <span id="resultCountTag" class="tag">0 WALLETS</span>
     </div>
-    <div class="table-wrap"><table class="holders-table"><thead><tr><th>#</th><th>Wallet</th><th>Balance</th><th>Supply %</th><th>Tier</th><th>Explorer</th></tr></thead><tbody id="holderRows"><tr><td class="empty-row" colspan="6">Scan a collection to load holders.</td></tr></tbody></table></div>
+    <div class="table-tools">
+      <input id="holderSearch" placeholder="Search wallet…" spellcheck="false">
+      <select id="minHoldings" aria-label="Minimum holdings">
+        <option value="1">ALL HOLDERS</option>
+        <option value="2">2+ NFTs</option>
+        <option value="5">5+ NFTs</option>
+        <option value="10">10+ NFTs</option>
+        <option value="35">35+ NFTs</option>
+        <option value="custom">CUSTOM…</option>
+      </select>
+      <input id="customMin" class="custom-min" type="number" min="1" step="1" placeholder="Min NFTs">
+      <button id="copyBtn" class="btn soft" type="button">COPY WALLETS</button>
+      <button id="exportBtn" class="btn dark" type="button">EXPORT CSV</button>
+    </div>
+    <div class="view-meta"><span id="filterSummary">Showing all holders</span><span>Exports respect the active filter.</span></div>
+    <div class="table-wrap">
+      <table class="holders-table">
+        <thead><tr><th>#</th><th>Wallet</th><th>NFTs Held</th><th>Supply %</th><th>Explorer</th></tr></thead>
+        <tbody id="holderRows"><tr><td class="empty-row" colspan="5">Scan a collection to load holders.</td></tr></tbody>
+      </table>
+    </div>
   </article>
+
   <div class="module-strip">
-    <div class="module"><b>⚒️ EPOCHS</b><span>Build holder reward epochs from rules, weights and real reward pools. Next module.</span></div>
+    <div class="module"><b>⚒️ EPOCHS</b><span>Build verifiable holder reward epochs from rules, weights and real reward pools. Next module.</span></div>
     <div class="module"><b>🛡️ WL CLEANER</b><span>Score and cluster allowlist wallets before a mint. Planned.</span></div>
-    <div class="module"><b>✅ GTD CHECK</b><span>Verify that mint phases are actually guaranteed before launch. Planned.</span></div>
+    <div class="module"><b>✅ GTD CHECK</b><span>Verify whether a mint phase is actually guaranteed before launch. Planned.</span></div>
   </div>
 </section>
-<div class="footer">© 2026 TOTZ FORGE · Built for Robinhood Chain projects · Read-only by default.</div>
+
+<div class="footer">© 2026 TOTZ FORGE · Multi-chain holder intelligence · Read-only by default.</div>
 </div>
+<div id="toast" class="toast"></div>
 <script src="forge.js"></script>
 <script src="totz-ui-brand.js"></script>
 </body>
