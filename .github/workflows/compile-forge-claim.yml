@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   compile:
@@ -27,6 +27,7 @@ jobs:
           npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1
       - name: Compile ForgeMerkleClaim
         run: |
+          mkdir -p artifacts
           node <<'NODE'
           const fs = require('fs');
           const path = require('path');
@@ -60,8 +61,16 @@ jobs:
             bytecode: '0x' + c.evm.bytecode.object,
             deployedBytecode: '0x' + c.evm.deployedBytecode.object
           };
-          fs.writeFileSync('/tmp/ForgeMerkleClaim.artifact.json', JSON.stringify(artifact));
-          console.log('FORGE_ARTIFACT_BEGIN');
-          console.log(JSON.stringify(artifact));
-          console.log('FORGE_ARTIFACT_END');
+          fs.writeFileSync('artifacts/ForgeMerkleClaim.json', JSON.stringify(artifact));
           NODE
+      - name: Commit deterministic artifact
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/ForgeMerkleClaim.json
+          if git diff --cached --quiet; then
+            echo "Artifact unchanged"
+          else
+            git commit -m "Update Forge Merkle claim artifact [skip ci]"
+            git push origin HEAD:forge-v1
+          fi
