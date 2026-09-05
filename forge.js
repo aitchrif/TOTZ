@@ -5,6 +5,11 @@
     ink: { key: 'ink', name: 'Ink', short: 'INK', chainId: 57073, explorer: 'https://explorer.inkonchain.com' },
     ethereum: { key: 'ethereum', name: 'Ethereum', short: 'ETHEREUM', chainId: 1, explorer: 'https://etherscan.io' }
   };
+  const NETWORK_LOGOS = {
+    robinhood: 'https://docs.robinhood.com/favicon.ico',
+    ink: 'https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png',
+    ethereum: 'https://ethereum.org/images/assets/svgs/eth-diamond-glyph.svg'
+  };
 
   const $ = (id) => document.getElementById(id);
   let selectedChain = 'robinhood';
@@ -63,6 +68,29 @@
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  function installNetworkLogos() {
+    if (!document.getElementById('forge-network-logo-style')) {
+      const style = document.createElement('style');
+      style.id = 'forge-network-logo-style';
+      style.textContent = '.network-icon{background:#fff!important;color:var(--ink)!important}.network-icon img{width:24px;height:24px;display:block;object-fit:contain}.network-btn.active .network-icon{background:#fff!important;color:var(--ink)!important}';
+      document.head.appendChild(style);
+    }
+    document.querySelectorAll('.network-btn').forEach((btn) => {
+      const chain = btn.dataset.chain;
+      const icon = btn.querySelector('.network-icon');
+      const src = NETWORK_LOGOS[chain];
+      if (!icon || !src || icon.querySelector('img')) return;
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = CHAINS[chain]?.name || chain;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.onerror = () => { img.remove(); };
+      icon.textContent = '';
+      icon.appendChild(img);
+    });
   }
 
   function setNetwork(chainKey, { updateUrl = true } = {}) {
@@ -350,6 +378,7 @@
     } finally { btn.disabled = false; }
   }
 
+  installNetworkLogos();
   document.querySelectorAll('.network-btn').forEach((btn) => btn.addEventListener('click', () => setNetwork(btn.dataset.chain)));
   $('scanBtn').addEventListener('click', () => scan());
   $('genesisBtn').addEventListener('click', () => { setNetwork('robinhood'); $('contractInput').value = GENESIS; scan(GENESIS); });
