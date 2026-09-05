@@ -10,12 +10,27 @@
   const $ = id => document.getElementById(id);
   const short = a => a ? `${a.slice(0,6)}…${a.slice(-4)}` : '—';
   let deploying = false;
+  let packageDecimals = 6;
 
   function setStatus(message, type='') {
     const el = $('testTokenStatus');
     if (!el) return;
     el.textContent = message;
     el.className = `status show ${type}`;
+  }
+
+  async function readPackageMeta(file) {
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const d = Number(data?.reward?.decimals);
+      if (Number.isInteger(d) && d >= 0 && d <= 18) {
+        packageDecimals = d;
+        const btn = $('createTestTokenBtn');
+        if (btn && !deploying && !btn.dataset.ready) btn.textContent = `CREATE ${d}-DECIMAL TEST TOKEN`;
+        setStatus(`Test helper detected the EPOCHS package uses ${d} decimals. The test token will match it exactly.`, 'ok');
+      }
+    } catch (_) {}
   }
 
   async function ensureTestnet() {
@@ -54,7 +69,7 @@
     deploying = true;
     const btn = $('createTestTokenBtn');
     if (btn) btn.disabled = true;
-    setStatus('Preparing a fixed-supply tUSDG token on Robinhood Chain Testnet…');
+    setStatus(`Preparing a fixed-supply tUSDG token with ${packageDecimals} decimals on Robinhood Chain Testnet…`);
     try {
       const provider = await ensureTestnet();
       const signer = await provider.getSigner();
@@ -64,15 +79,15 @@
 
       const artifact = await loadArtifact();
       const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, signer);
-      setStatus('MetaMask approval required. This deploys TEST tokens only; no real funds are used.','warn');
-      const token = await factory.deploy();
+      setStatus(`MetaMask approval required. This deploys TEST tokens only and matches the package at ${packageDecimals} decimals.`, 'warn');
+      const token = await factory.deploy(packageDecimals);
       await token.waitForDeployment();
       const address = (await token.getAddress()).toLowerCase();
 
       const [symbol, decimals, tokenBalance] = await Promise.all([
         token.symbol(), token.decimals(), token.balanceOf(signerAddress)
       ]);
-      if (String(symbol) !== 'tUSDG' || Number(decimals) !== 6) throw new Error('Deployed test token failed metadata verification.');
+      if (String(symbol) !== 'tUSDG' || Number(decimals) !== packageDecimals) throw new Error('Deployed test token failed metadata verification.');
 
       const input = $('tokenInput');
       if (input) {
@@ -81,13 +96,14 @@
         input.dispatchEvent(new Event('change', {bubbles:true}));
       }
       if ($('tokenSymbol')) $('tokenSymbol').textContent = 'tUSDG';
-      if ($('tokenDecimals')) $('tokenDecimals').textContent = '6';
+      if ($('tokenDecimals')) $('tokenDecimals').textContent = String(packageDecimals);
 
-      const amount = ethers.formatUnits(tokenBalance, 6);
-      setStatus(`Test token ready ✓ ${amount} tUSDG minted to ${short(signerAddress)}. Contract ${short(address)} was filled in automatically.`, 'ok');
+      const amount = ethers.formatUnits(tokenBalance, packageDecimals);
+      setStatus(`Test token ready ✓ ${amount} tUSDG (${packageDecimals} decimals) minted to ${short(signerAddress)}. Contract ${short(address)} was filled in automatically.`, 'ok');
       if (btn) {
         btn.textContent = 'TEST TOKEN READY ✓';
         btn.disabled = true;
+        btn.dataset.ready = '1';
       }
       const open = $('testTokenExplorer');
       if (open) {
@@ -98,7 +114,7 @@
       try {
         await window.ethereum.request({
           method:'wallet_watchAsset',
-          params:{type:'ERC20',options:{address,symbol:'tUSDG',decimals:6}}
+          params:{type:'ERC20',options:{address,symbol:'tUSDG',decimals:packageDecimals}}
         });
       } catch (_) {}
     } catch (e) {
@@ -135,8 +151,14 @@
     const note = document.createElement('div');
     note.id = 'testTokenStatus';
     note.className = 'status show warn';
-    note.textContent = 'New to test tokens? CREATE TEST TOKEN deploys 100,000 fixed-supply tUSDG (6 decimals) to your connected wallet on Chain 46630 and fills the reward-token field automatically.';
+    note.textContent = 'CREATE TEST TOKEN deploys 100,000 fixed-supply tUSDG on Chain 46630 and automatically matches the decimals in the loaded EPOCHS package.';
     actions.parentElement.insertBefore(note, actions.nextSibling);
+
+    const fileInput = $('fileInput');
+    if (fileInput) {
+      fileInput.addEventListener('change', () => readPackageMeta(fileInput.files?.[0]));
+      if (fileInput.files?.[0]) readPackageMeta(fileInput.files[0]);
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
