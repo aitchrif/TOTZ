@@ -3,6 +3,8 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/forge/epochs", "destination": "/forge-epochs" },
+    { "source": "/forge/claim-launcher", "destination": "/forge-claim-launcher" },
+    { "source": "/forge/claim", "destination": "/forge-claim" },
     { "source": "/discord-link/start", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=oauth-start" },
     { "source": "/api/discord-link/challenge", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=challenge" },
     { "source": "/api/discord-link/complete", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=complete" }
