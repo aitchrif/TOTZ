@@ -1,10 +1,11 @@
-name: Compile Forge Merkle Claim
+name: Compile Forge Contracts
 
 on:
   push:
     branches: [forge-v1]
     paths:
       - 'contracts/ForgeMerkleClaim.sol'
+      - 'contracts/ForgeTestUSDG.sol'
       - '.github/workflows/compile-forge-claim.yml'
   workflow_dispatch:
 
@@ -25,17 +26,19 @@ jobs:
         run: |
           npm init -y >/dev/null 2>&1
           npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1
-      - name: Compile ForgeMerkleClaim
+      - name: Compile Forge contracts
         run: |
           mkdir -p artifacts
           node <<'NODE'
           const fs = require('fs');
           const path = require('path');
           const solc = require('solc');
-          const source = fs.readFileSync('contracts/ForgeMerkleClaim.sol', 'utf8');
+          const contractFiles = ['contracts/ForgeMerkleClaim.sol','contracts/ForgeTestUSDG.sol'];
+          const sources = {};
+          for (const file of contractFiles) sources[file] = {content: fs.readFileSync(file, 'utf8')};
           const input = {
             language: 'Solidity',
-            sources: {'contracts/ForgeMerkleClaim.sol': {content: source}},
+            sources,
             settings: {
               optimizer: {enabled: true, runs: 200},
               outputSelection: {'*': {'*': ['abi','evm.bytecode.object','evm.deployedBytecode.object','metadata']}}
@@ -52,25 +55,28 @@ jobs:
             console.error(errors.map(e => e.formattedMessage).join('\n'));
             process.exit(1);
           }
-          const c = output.contracts['contracts/ForgeMerkleClaim.sol'].ForgeMerkleClaim;
-          const artifact = {
-            contractName: 'ForgeMerkleClaim',
-            compiler: '0.8.24',
-            optimizer: {enabled: true, runs: 200},
-            abi: c.abi,
-            bytecode: '0x' + c.evm.bytecode.object,
-            deployedBytecode: '0x' + c.evm.deployedBytecode.object
-          };
-          fs.writeFileSync('artifacts/ForgeMerkleClaim.json', JSON.stringify(artifact));
+          function writeArtifact(sourcePath, contractName) {
+            const c = output.contracts[sourcePath][contractName];
+            fs.writeFileSync(`artifacts/${contractName}.json`, JSON.stringify({
+              contractName,
+              compiler: '0.8.24',
+              optimizer: {enabled: true, runs: 200},
+              abi: c.abi,
+              bytecode: '0x' + c.evm.bytecode.object,
+              deployedBytecode: '0x' + c.evm.deployedBytecode.object
+            }));
+          }
+          writeArtifact('contracts/ForgeMerkleClaim.sol','ForgeMerkleClaim');
+          writeArtifact('contracts/ForgeTestUSDG.sol','ForgeTestUSDG');
           NODE
-      - name: Commit deterministic artifact
+      - name: Commit deterministic artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/ForgeMerkleClaim.json
+          git add artifacts/ForgeMerkleClaim.json artifacts/ForgeTestUSDG.json
           if git diff --cached --quiet; then
-            echo "Artifact unchanged"
+            echo "Artifacts unchanged"
           else
-            git commit -m "Update Forge Merkle claim artifact [skip ci]"
+            git commit -m "Update Forge contract artifacts [skip ci]"
             git push origin HEAD:forge-v1
           fi
