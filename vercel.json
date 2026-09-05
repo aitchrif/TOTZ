@@ -3,6 +3,10 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/forge/epochs",
+      "destination": "/forge-epochs.html"
+    },
+    {
       "source": "/discord-link/start",
       "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=oauth-start"
     },
@@ -71,7 +75,25 @@
       ]
     },
     {
+      "source": "/forge/epochs",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/forge-epochs.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
       "source": "/forge.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/forge-epochs-page.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" }
       ]
