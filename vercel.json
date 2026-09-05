@@ -57,6 +57,24 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" }
       ]
+    },
+    {
+      "source": "/forge",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/forge.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/forge.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
     }
   ]
 }
