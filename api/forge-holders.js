@@ -3,6 +3,7 @@ import { Interface } from 'ethers';
 const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11';
 const MAX_SUPPLY = 20000;
 const MULTICALL_SIZE = 500;
+const DISCOVERY_EMPTY_STOP = 1000;
 
 const CHAINS = {
   robinhood: {
@@ -104,8 +105,8 @@ async function metadata(chain, contract, blockTag) {
   if (results[0]?.success) { try { totalSupply = Number(erc721.decodeFunctionResult('totalSupply', results[0].returnData)[0]); } catch (_) {} }
   if (results[1]?.success) { try { name = String(erc721.decodeFunctionResult('name', results[1].returnData)[0] || ''); } catch (_) {} }
   if (results[2]?.success) { try { symbol = String(erc721.decodeFunctionResult('symbol', results[2].returnData)[0] || ''); } catch (_) {} }
-  if (!Number.isInteger(totalSupply) || totalSupply <= 0) throw new Error('This contract does not expose a usable ERC-721 totalSupply(). ERC-1155 and custom collections are not supported in X-RAY V1 yet.');
-  if (totalSupply > MAX_SUPPLY) throw new Error(`This collection has ${totalSupply.toLocaleString()} live NFTs. X-RAY V1 currently supports up to ${MAX_SUPPLY.toLocaleString()} per scan.`);
+  if (!Number.isInteger(totalSupply) || totalSupply <= 0) totalSupply = null;
+  if (totalSupply && totalSupply > MAX_SUPPLY) throw new Error(`This collection has ${totalSupply.toLocaleString()} live NFTs. X-RAY V1 currently supports up to ${MAX_SUPPLY.toLocaleString()} per scan.`);
   return { totalSupply, name, symbol, type: 'ERC-721' };
 }
 
@@ -129,7 +130,7 @@ async function enumerableOwners(chain, contract, totalSupply, blockTag) {
   const owners = await readChunks(chain, contract, ownerCalls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(), blockTag);
   if (owners.filter(Boolean).length !== totalSupply) return null;
   const numericIds = tokenIds.map((id) => { try { return Number(id); } catch (_) { return null; } }).filter((id) => Number.isSafeInteger(id));
-  return { owners, diagnostics: { enumeration: 'erc721-enumerable', firstTokenId: numericIds.length ? Math.min(...numericIds) : null, lastTokenId: numericIds.length ? Math.max(...numericIds) : null, tokenZeroExists: numericIds.includes(0) } };
+  return { owners, diagnostics: { enumeration: 'erc721-enumerable', firstTokenId: numericIds.length ? Math.min(...numericIds) : null, lastTokenId: numericIds.length ? Math.max(...numericIds) : null, tokenZeroExists: numericIds.includes(0), supplyMode: 'totalSupply' } };
 }
 
 async function probeOwner(chain, contract, tokenId, blockTag) {
@@ -164,7 +165,65 @@ async function sequentialOwners(chain, contract, totalSupply, blockTag) {
   }
 
   if (owners.length < totalSupply) throw new Error(`FORGE found ${owners.length.toLocaleString()} live ERC-721 tokens but expected ${totalSupply.toLocaleString()}. This collection likely uses sparse or custom token IDs and needs an indexed scan.`);
-  return { owners, diagnostics: { enumeration: 'ownerof-range', firstTokenId: firstLiveId, lastTokenId: lastLiveId, tokenZeroExists: Boolean(zeroOwner) } };
+  return { owners, diagnostics: { enumeration: 'ownerof-range', firstTokenId: firstLiveId, lastTokenId: lastLiveId, tokenZeroExists: Boolean(zeroOwner), supplyMode: 'totalSupply' } };
+}
+
+async function discoverSequentialOwners(chain, contract, blockTag) {
+  const zeroOwner = await probeOwner(chain, contract, 0, blockTag);
+  const oneOwner = await probeOwner(chain, contract, 1, blockTag);
+  if (!zeroOwner && !oneOwner) throw new Error('This ERC-721 does not expose totalSupply() and FORGE could not discover a sequential token range. Sparse/custom-ID collections need an indexed scan.');
+
+  const start = zeroOwner ? 0 : 1;
+  const maxTokenId = start + MAX_SUPPLY - 1;
+  const owners = [];
+  let firstLiveId = null;
+  let lastLiveId = null;
+  let consecutiveEmpty = 0;
+  let scannedUntil = start - 1;
+
+  while (scannedUntil < maxTokenId) {
+    const batchStart = scannedUntil + 1;
+    const batchEnd = Math.min(maxTokenId, batchStart + MULTICALL_SIZE - 1);
+    const tokenIds = [];
+    for (let tokenId = batchStart; tokenId <= batchEnd; tokenId++) tokenIds.push(tokenId);
+    const calls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
+    const batchOwners = await readChunks(chain, contract, calls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(), blockTag);
+
+    for (let i = 0; i < batchOwners.length; i++) {
+      const owner = batchOwners[i];
+      const tokenId = tokenIds[i];
+      if (owner && isAddress(owner) && owner !== '0x0000000000000000000000000000000000000000') {
+        owners.push(owner);
+        if (firstLiveId === null) firstLiveId = tokenId;
+        lastLiveId = tokenId;
+        consecutiveEmpty = 0;
+      } else if (firstLiveId !== null) {
+        consecutiveEmpty++;
+      }
+    }
+
+    scannedUntil = batchEnd;
+    if (firstLiveId !== null && consecutiveEmpty >= DISCOVERY_EMPTY_STOP) break;
+    if (batchEnd < maxTokenId) await sleep(40);
+  }
+
+  if (!owners.length) throw new Error('No live ERC-721 tokens were discovered in the supported token range.');
+  if (scannedUntil >= maxTokenId && consecutiveEmpty < DISCOVERY_EMPTY_STOP) {
+    throw new Error(`This custom ERC-721 needs a token-ID scan beyond ${MAX_SUPPLY.toLocaleString()} positions. X-RAY V1 keeps the discovery window capped at ${MAX_SUPPLY.toLocaleString()} to stay fast and free.`);
+  }
+
+  return {
+    owners,
+    diagnostics: {
+      enumeration: 'ownerof-discovery',
+      firstTokenId: firstLiveId,
+      lastTokenId: lastLiveId,
+      tokenZeroExists: Boolean(zeroOwner),
+      supplyMode: 'discovered',
+      scannedUntil,
+      emptyStop: DISCOVERY_EMPTY_STOP
+    }
+  };
 }
 
 async function walletBalance(chain, contract, wallet, blockTag) {
@@ -198,9 +257,19 @@ export default async function handler(req, res) {
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     const info = await metadata(chain, contract, blockTag);
-    let ownership = await enumerableOwners(chain, contract, info.totalSupply, blockTag);
-    let source = 'multicall-enumerable';
-    if (!ownership) { ownership = await sequentialOwners(chain, contract, info.totalSupply, blockTag); source = 'multicall-ownerof'; }
+    let ownership;
+    let source;
+
+    if (info.totalSupply) {
+      ownership = await enumerableOwners(chain, contract, info.totalSupply, blockTag);
+      source = 'multicall-enumerable';
+      if (!ownership) { ownership = await sequentialOwners(chain, contract, info.totalSupply, blockTag); source = 'multicall-ownerof'; }
+    } else {
+      ownership = await discoverSequentialOwners(chain, contract, blockTag);
+      source = 'multicall-ownerof-discovery';
+      info.totalSupply = ownership.owners.length;
+    }
+
     const holders = aggregateOwners(ownership.owners);
     if (!holders.length) throw new Error('No current holders found.');
 
@@ -212,7 +281,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('FORGE holders error', chainKey, contract, error);
     const message = String(error?.message || 'Could not load holder data right now.');
-    let status = /does not expose|not supported|larger than|custom token IDs|sparse|No smart contract|up to/i.test(message) ? 422 : 502;
+    let status = /not supported|custom token IDs|custom-ID|sparse|No smart contract|up to|discovery window|token-ID scan/i.test(message) ? 422 : 502;
     let publicMessage = message;
     if (/RATE_LIMIT|429/i.test(message)) { status = 503; publicMessage = `${chain.name} RPC is rate-limiting this scan. Please retry in a moment.`; }
     if (/aborted|timeout/i.test(message)) { status = 504; publicMessage = 'The on-chain scan timed out. Please retry.'; }
