@@ -38,12 +38,8 @@ async function rpc(method, params, timeoutMs = 18000, retries = 4) {
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
       });
 
-      if (response.status === 429) {
-        throw new Error('RPC_RATE_LIMIT');
-      }
-      if (!response.ok) {
-        throw new Error(`RPC HTTP ${response.status}`);
-      }
+      if (response.status === 429) throw new Error('RPC_RATE_LIMIT');
+      if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
 
       const json = await response.json();
       if (json?.error) throw new Error(json.error.message || 'RPC error');
@@ -61,47 +57,40 @@ async function rpc(method, params, timeoutMs = 18000, retries = 4) {
   throw lastError || new Error('RPC request failed');
 }
 
-async function multicallRead(contract, callDatas) {
+async function multicallRead(contract, callDatas, blockTag) {
   if (!callDatas.length) return [];
-  const calls = callDatas.map((callData) => ({
-    target: contract,
-    allowFailure: true,
-    callData
-  }));
+  const calls = callDatas.map((callData) => ({ target: contract, allowFailure: true, callData }));
   const data = multicall.encodeFunctionData('aggregate3', [calls]);
-  const result = await rpc('eth_call', [{ to: MULTICALL3, data }, 'latest'], 22000, 4);
+  const result = await rpc('eth_call', [{ to: MULTICALL3, data }, blockTag], 22000, 4);
   const decoded = multicall.decodeFunctionResult('aggregate3', result)[0];
   return decoded.map((item) => ({ success: Boolean(item.success), returnData: item.returnData }));
 }
 
-async function readChunks(contract, callDatas, decoder) {
+async function readChunks(contract, callDatas, decoder, blockTag) {
   const out = [];
   for (let i = 0; i < callDatas.length; i += MULTICALL_SIZE) {
     const chunk = callDatas.slice(i, i + MULTICALL_SIZE);
-    const results = await multicallRead(contract, chunk);
+    const results = await multicallRead(contract, chunk, blockTag);
     for (const result of results) {
       if (!result.success) {
         out.push(null);
         continue;
       }
-      try {
-        out.push(decoder(result.returnData));
-      } catch (_) {
-        out.push(null);
-      }
+      try { out.push(decoder(result.returnData)); }
+      catch (_) { out.push(null); }
     }
     if (i + MULTICALL_SIZE < callDatas.length) await sleep(120);
   }
   return out;
 }
 
-async function metadata(contract) {
+async function metadata(contract, blockTag) {
   const calls = [
     erc721.encodeFunctionData('totalSupply', []),
     erc721.encodeFunctionData('name', []),
     erc721.encodeFunctionData('symbol', [])
   ];
-  const results = await multicallRead(contract, calls);
+  const results = await multicallRead(contract, calls, blockTag);
 
   let totalSupply = null;
   let name = '';
@@ -139,31 +128,76 @@ function aggregateOwners(owners) {
     .sort((a, b) => b.balance - a.balance || a.address.localeCompare(b.address));
 }
 
-async function enumerableOwners(contract, totalSupply) {
+async function enumerableOwners(contract, totalSupply, blockTag) {
   const probeCall = erc721.encodeFunctionData('tokenByIndex', [0]);
-  const probe = await multicallRead(contract, [probeCall]);
+  const probe = await multicallRead(contract, [probeCall], blockTag);
   if (!probe[0]?.success) return null;
 
   const indexCalls = Array.from({ length: totalSupply }, (_, i) => erc721.encodeFunctionData('tokenByIndex', [i]));
-  const tokenIds = await readChunks(contract, indexCalls, (data) => Number(erc721.decodeFunctionResult('tokenByIndex', data)[0]));
-  if (tokenIds.filter((x) => Number.isInteger(x) && x >= 0).length !== totalSupply) return null;
+  const tokenIds = await readChunks(
+    contract,
+    indexCalls,
+    (data) => Number(erc721.decodeFunctionResult('tokenByIndex', data)[0]),
+    blockTag
+  );
+  const validIds = tokenIds.filter((x) => Number.isInteger(x) && x >= 0);
+  if (validIds.length !== totalSupply) return null;
 
   const ownerCalls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
-  const owners = await readChunks(contract, ownerCalls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase());
+  const owners = await readChunks(
+    contract,
+    ownerCalls,
+    (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(),
+    blockTag
+  );
   if (owners.filter(Boolean).length !== totalSupply) return null;
-  return owners;
+
+  const sortedIds = [...validIds].sort((a, b) => a - b);
+  return {
+    owners,
+    diagnostics: {
+      enumeration: 'ERC721Enumerable',
+      liveTokenCount: owners.filter(Boolean).length,
+      firstTokenId: sortedIds[0] ?? null,
+      lastTokenId: sortedIds[sortedIds.length - 1] ?? null,
+      hasTokenZero: sortedIds.includes(0)
+    }
+  };
 }
 
-async function sequentialOwners(contract, totalSupply) {
+async function sequentialOwners(contract, totalSupply, blockTag) {
   const extra = Math.min(12000, Math.max(2500, Math.ceil(totalSupply * 0.8)));
   const maxId = totalSupply + extra;
-  const calls = Array.from({ length: maxId + 1 }, (_, tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
-  const owners = await readChunks(contract, calls, (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase());
-  const liveOwners = owners.filter(Boolean);
-  if (liveOwners.length < totalSupply) {
-    throw new Error(`FORGE found ${liveOwners.length.toLocaleString()} live ERC-721 tokens but expected ${totalSupply.toLocaleString()}. This collection may use sparse or custom token IDs.`);
+  const tokenIds = Array.from({ length: maxId + 1 }, (_, tokenId) => tokenId);
+  const calls = tokenIds.map((tokenId) => erc721.encodeFunctionData('ownerOf', [tokenId]));
+  const owners = await readChunks(
+    contract,
+    calls,
+    (data) => String(erc721.decodeFunctionResult('ownerOf', data)[0]).toLowerCase(),
+    blockTag
+  );
+
+  const live = owners
+    .map((owner, index) => owner ? { tokenId: index, owner } : null)
+    .filter(Boolean);
+
+  if (live.length < totalSupply) {
+    throw new Error(`FORGE found ${live.length.toLocaleString()} live ERC-721 tokens but expected ${totalSupply.toLocaleString()}. This collection may use sparse or custom token IDs.`);
   }
-  return liveOwners.slice(0, totalSupply);
+
+  const selected = live.slice(0, totalSupply);
+  return {
+    owners: selected.map((item) => item.owner),
+    diagnostics: {
+      enumeration: 'ownerOf scan',
+      liveTokenCount: live.length,
+      firstTokenId: selected[0]?.tokenId ?? null,
+      lastTokenId: selected[selected.length - 1]?.tokenId ?? null,
+      hasTokenZero: selected.some((item) => item.tokenId === 0),
+      scanMaxTokenId: maxId,
+      extraLiveTokensBeyondTotalSupply: Math.max(0, live.length - totalSupply)
+    }
+  };
 }
 
 export const config = { maxDuration: 60 };
@@ -180,16 +214,17 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
 
   try {
-    const info = await metadata(contract);
-    let owners = await enumerableOwners(contract, info.totalSupply);
+    const blockTag = await rpc('eth_blockNumber', []);
+    const info = await metadata(contract, blockTag);
+    let result = await enumerableOwners(contract, info.totalSupply, blockTag);
     let source = 'multicall-enumerable';
 
-    if (!owners) {
-      owners = await sequentialOwners(contract, info.totalSupply);
+    if (!result) {
+      result = await sequentialOwners(contract, info.totalSupply, blockTag);
       source = 'multicall-ownerof';
     }
 
-    const holders = aggregateOwners(owners);
+    const holders = aggregateOwners(result.owners);
     if (!holders.length) throw new Error('No current holders found.');
 
     return res.status(200).json({
@@ -203,6 +238,8 @@ export default async function handler(req, res) {
       },
       holders,
       source,
+      diagnostics: result.diagnostics,
+      snapshotBlock: Number(BigInt(blockTag)),
       partial: false,
       fetchedAt: new Date().toISOString()
     });
