@@ -81,7 +81,36 @@ Run the complete production-shaped flow on Testnet with the final code:
 11. After deadline, sponsor recovers unclaimed funds.
 12. Published metadata still matches the live contract.
 
-Any failure returns the release to LOCKED.
+### Automated release rehearsal
+
+The repository includes the manual-only GitHub Action `FORGE Testnet Wallet E2E` and runner `tests/forge-testnet-wallet-e2e.mjs`.
+
+Use a dedicated Robinhood Testnet-only operator wallet and add its private key as the encrypted repository secret:
+
+`FORGE_TESTNET_OPERATOR_PRIVATE_KEY`
+
+The operator wallet must hold a small amount of Robinhood Chain Testnet ETH for gas. Testnet tokens have no real-world value; obtain Testnet ETH from the official Robinhood Chain Testnet faucet.
+
+The workflow automatically performs and verifies:
+
+- deploy a fresh `ForgeTestUSDG`,
+- build a two-wallet Merkle root/proofs,
+- deploy the approved `ForgeMerkleClaim` artifact,
+- fund the exact pool,
+- sign the V2 publication message,
+- create/upload/publish through the live FORGE claim service,
+- perform one real eligible claim,
+- prove double claim rejection,
+- prove non-eligible rejection,
+- wait until the short Testnet deadline,
+- recover the exact unclaimed balance,
+- write addresses and transaction hashes to the GitHub Actions step summary.
+
+It is intentionally `workflow_dispatch` only and has a concurrency lock so it cannot consume Testnet gas automatically or run two rehearsals at the same time.
+
+`FORGE Mainnet Readiness` syntax-checks this E2E runner on every relevant change even when the Testnet operator secret is not present.
+
+Any E2E failure returns the release to LOCKED. Do not replace this release rehearsal with only read-only probes.
 
 ## Gate 5 — Prepare Canary policy while still locked
 
@@ -233,7 +262,9 @@ Application rollback and blockchain rollback are different:
 
 ## Never do these
 
-- Never paste a seed phrase/private key into FORGE, GitHub, Supabase, Vercel, logs, or support chats.
+- Never commit a private key, seed phrase, API key, or RPC credential to repository files.
+- Never paste a private key/seed phrase into FORGE UI, source code, logs, issues, support chats, or ordinary chat messages.
+- The only automated signing exception is a dedicated Testnet-only operator private key stored as the encrypted `FORGE_TESTNET_OPERATOR_PRIVATE_KEY` GitHub Secret. Never put a Mainnet, treasury, holder, or valuable wallet key in that secret.
 - Never commit an Alchemy/API key.
 - Never enable the server master gate before the client Canary preview is approved.
 - Never set release mode directly from `locked` to `public` for first launch.
