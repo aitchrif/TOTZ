@@ -1,0 +1,33 @@
+name: FORGE RPC Live Check
+
+on:
+  push:
+    branches: [ops/forge-rpc-ready-gate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-rpc-ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Verify live Mainnet RPC readiness while launch stays locked
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: |
+          node <<'NODE'
+          const url = `${process.env.FORGE_CLAIMS_URL}?route=status`;
+          const r = await fetch(url, { cache: 'no-store' });
+          const j = await r.json().catch(() => ({}));
+          if (r.status !== 200) throw new Error(`status HTTP ${r.status}: ${j?.error || 'unknown'}`);
+          if (j?.mainnet?.rpcReady !== true) throw new Error(`expected rpcReady=true, got ${j?.mainnet?.rpcReady}`);
+          if (j?.mainnet?.masterEnabled !== false) throw new Error('Mainnet master gate is not OFF');
+          if (j?.mainnet?.mode !== 'locked') throw new Error(`expected mode=locked, got ${j?.mainnet?.mode}`);
+          if (j?.mainnet?.canaryActive !== false) throw new Error('Canary unexpectedly active');
+          console.log('PASS production Mainnet RPC is ready while launch remains locked');
+          NODE
