@@ -32,10 +32,12 @@
   const environment = 'testnet';
   const mainnetClaimsEnabled = false;
   const claimNetwork = networks.testnet;
+  const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
     environment,
     mainnetClaimsEnabled,
+    testHelpersEnabled,
     claimNetwork,
     networks,
     services: Object.freeze({
@@ -105,6 +107,32 @@
     return new ethers.JsonRpcProvider(resolved.rpc, resolved.chainId, { staticNetwork: true });
   }
 
+  function installTestHelperGuard() {
+    if (config.testHelpersEnabled) return;
+    const selector = '#createTestTokenBtn,#createEpochTestTokenBtn,#useSavedTestTokenBtn,#quickTestCard,#testTokenExplorer,#testTokenStatus,.test-token-helper,#rewardTestTokenStatus';
+    const suppress = () => {
+      document.querySelectorAll(selector).forEach(el => {
+        try { if ('disabled' in el) el.disabled = true; } catch (_) {}
+        el.setAttribute('hidden', '');
+        el.style.display = 'none';
+        el.setAttribute('aria-hidden', 'true');
+      });
+    };
+    document.addEventListener('click', event => {
+      const target = event.target?.closest?.(selector);
+      if (!target) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    const start = () => {
+      suppress();
+      const root = document.documentElement || document.body;
+      if (root) new MutationObserver(suppress).observe(root, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -119,4 +147,6 @@
 
   document.documentElement.dataset.forgeEnvironment = config.environment;
   document.documentElement.dataset.forgeMainnetClaims = config.mainnetClaimsEnabled ? 'enabled' : 'locked';
+  document.documentElement.dataset.forgeTestHelpers = config.testHelpersEnabled ? 'enabled' : 'locked';
+  installTestHelperGuard();
 })();
