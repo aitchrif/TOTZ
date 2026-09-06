@@ -91,11 +91,13 @@ await expect('public release status is fail-closed and non-sensitive', async () 
   assert(Number(r.json?.mainnet?.chainId) === 4663, 'status endpoint lost Mainnet chain identity');
   assert(r.json?.mainnet?.masterEnabled === false, 'Mainnet master gate must remain false before Canary authorization');
   assert(r.json?.mainnet?.mode === 'locked', `expected locked mode, got ${r.json?.mainnet?.mode}`);
+  assert(r.json?.mainnet?.canaryActive === false, 'Mainnet Canary must remain inactive before explicit authorization');
   assert(Number(r.json?.mainnet?.canaryMaxWallets) === 10, 'unexpected Mainnet Canary wallet cap');
   assert(typeof r.json?.mainnet?.rpcReady === 'boolean', 'status endpoint must expose only an RPC readiness boolean');
   assert(r.json?.mainnet?.sponsorAllowed === null, 'status without a wallet must not identify or authorize a sponsor');
   const serialized = JSON.stringify(r.json).toLowerCase();
   assert(!serialized.includes('canarysponsor'), 'status endpoint must not expose the configured Canary sponsor address');
+  assert(!serialized.includes('canaryexpiresat'), 'status endpoint must not expose raw Canary expiry');
   assert(!serialized.includes('rpcurl'), 'status endpoint must not expose a private production RPC URL');
 });
 
