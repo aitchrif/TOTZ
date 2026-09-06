@@ -120,6 +120,14 @@ jobs:
         run: |
           node --check tests/forge-testnet-wallet-e2e.mjs
           node --check tests/forge-canary-prep.mjs
+          node --check tests/forge-canary-arm-preview.mjs
+      - name: Verify atomic first-Canary arm stays preview-only
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          FORGE_CANARY_SPONSOR: '0x1111111111111111111111111111111111111111'
+          FORGE_CANARY_HOURS: '2'
+          FORGE_CANARY_MAX_WALLETS: '1'
+        run: node tests/forge-canary-arm-preview.mjs >/tmp/forge-canary-arm-preview.txt
       - name: Verify published claim continuity under launch lockdown
         run: node tests/forge-published-claim-continuity.mjs
       - name: Verify Mainnet server release handshake invariant
