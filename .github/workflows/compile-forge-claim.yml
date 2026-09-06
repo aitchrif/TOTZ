@@ -1,4 +1,4 @@
-name: Compile Forge Contracts
+name: Compile and Test Forge Contracts
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'contracts/ForgeMerkleClaim.sol'
       - 'contracts/ForgeTestUSDG.sol'
+      - 'tests/forge-claim.test.cjs'
       - '.github/workflows/compile-forge-claim.yml'
   workflow_dispatch:
 
@@ -13,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  compile:
+  compile-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,10 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install pinned compiler dependencies
+      - name: Install pinned compiler and test dependencies
         run: |
           npm init -y >/dev/null 2>&1
-          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0 ganache@7.9.2
       - name: Compile Forge contracts
         run: |
           mkdir -p artifacts
@@ -69,6 +70,8 @@ jobs:
           writeArtifact('contracts/ForgeMerkleClaim.sol','ForgeMerkleClaim');
           writeArtifact('contracts/ForgeTestUSDG.sol','ForgeTestUSDG');
           NODE
+      - name: Run claim contract behavior tests
+        run: node tests/forge-claim.test.cjs
       - name: Commit deterministic artifacts
         run: |
           git config user.name "github-actions[bot]"
