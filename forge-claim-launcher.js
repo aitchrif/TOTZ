@@ -1,12 +1,13 @@
 (() => {
-  const TESTNET = {
+  const RUNTIME = window.TOTZ_FORGE_CONFIG || {};
+  const TESTNET = RUNTIME.claimNetwork || {
     chainId: 46630,
     hex: '0xb626',
     name: 'Robinhood Chain Testnet',
     rpc: 'https://rpc.testnet.chain.robinhood.com',
     explorer: 'https://explorer.testnet.chain.robinhood.com'
   };
-  const CLAIM_SERVICE = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
+  const CLAIM_SERVICE = RUNTIME.services?.claims || 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
   const ERC20_ABI = [
     'function symbol() view returns (string)',
     'function decimals() view returns (uint8)',
@@ -55,6 +56,7 @@
   function setDefaultDeadline(){const d=new Date(Date.now()+30*86400000);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());$('deadlineInput').value=d.toISOString().slice(0,16);}
   function randomHex(bytes=32){const a=new Uint8Array(bytes);crypto.getRandomValues(a);return '0x'+[...a].map(b=>b.toString(16).padStart(2,'0')).join('');}
   function makeSlug(){const base=(pkg?.source?.collection||'claim').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'claim';return `${base}-${Date.now().toString(36)}-${randomHex(3).slice(2)}`;}
+  function readProvider(){return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider():new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});}
 
   async function verifyPackage(data){
     verified=false;pkg=null;claimAddress=null;publishedSlug=null;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
@@ -103,6 +105,7 @@
   }
   async function ensureTestnet(){
     await ensureWallet(true);
+    if(window.ForgeRuntime?.ensureClaimNetwork){await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false});return new ethers.BrowserProvider(window.ethereum);}
     try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:TESTNET.hex}]});}
     catch(e){if(e?.code===4902||String(e?.message||'').toLowerCase().includes('unrecognized')){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:TESTNET.hex,chainName:TESTNET.name,nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[TESTNET.rpc],blockExplorerUrls:[TESTNET.explorer]}]});}else throw e;}
     return new ethers.BrowserProvider(window.ethereum);
@@ -116,7 +119,7 @@
   async function deploy(){
     if(!verified)return;
     const token=$('tokenInput').value.trim().toLowerCase(), sponsor=$('sponsorInput').value.trim().toLowerCase();updateDeployReady();if($('deployBtn').disabled)return;
-    $('deployBtn').disabled=true;status('deployStatus','Checking token and preparing testnet deployment…');
+    $('deployBtn').disabled=true;status('deployStatus',`Checking token and preparing ${TESTNET.name} deployment…`);
     try{
       const provider=await ensureTestnet();const signer=await provider.getSigner();const signerAddr=(await signer.getAddress()).toLowerCase();
       if(signerAddr!==sponsor)throw new Error('Sponsor wallet must match the connected signing wallet for this V1 test flow.');
@@ -129,14 +132,14 @@
       const c=await factory.deploy(token,pkg.root,BigInt(pkg.reward.totalUnits),deadlineUnix,sponsor);await c.waitForDeployment();claimAddress=(await c.getAddress()).toLowerCase();
       const deployed=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [r,t,total,d,s]=await Promise.all([deployed.merkleRoot(),deployed.token(),deployed.totalAllocated(),deployed.deadline(),deployed.sponsor()]);
       if(String(r).toLowerCase()!==pkg.root.toLowerCase()||String(t).toLowerCase()!==token||BigInt(total)!==BigInt(pkg.reward.totalUnits)||Number(d)!==deadlineUnix||String(s).toLowerCase()!==sponsor)throw new Error('Deployed contract verification failed. Do not fund it.');
-      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${TESTNET.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus','Claim contract deployed and verified on Robinhood Testnet.','ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
+      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${TESTNET.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus',`Claim contract deployed and verified on ${TESTNET.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
     }catch(e){status('deployStatus',e?.shortMessage||e?.message||'Deployment failed.','error');updateDeployReady();}
   }
 
   async function refreshFunding(existingProvider=null){
     if(!claimAddress||!pkg)return;
     try{
-      const provider=existingProvider||new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId);const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full,totalClaimed]=await Promise.all([c.contractBalance(),c.isFullyFunded(),c.totalClaimed()]);const required=BigInt(pkg.reward.totalUnits);const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full);$('publishBtn').disabled=!full;$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
+      const provider=existingProvider||readProvider();const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full,totalClaimed]=await Promise.all([c.contractBalance(),c.isFullyFunded(),c.totalClaimed()]);const required=BigInt(pkg.reward.totalUnits);const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full);$('publishBtn').disabled=!full;$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
       return Boolean(full);
     }catch(e){status('fundStatus',e?.message||'Could not read contract funding.','error');return false;}
   }
@@ -159,7 +162,7 @@
     }catch(e){status('publishStatus',e?.message||'Could not publish claim.','error');$('publishBtn').disabled=false;}
   }
 
-  $('fileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)readFile(f);});$('connectBtn').addEventListener('click',async()=>{try{await ensureWallet(true);const chain=await currentChain();if(chain===TESTNET.chainId)toast('Wallet connected on Robinhood Testnet');else toast('Wallet connected · switch to testnet before deployment');updateDeployReady();}catch(e){toast(e?.message||'Wallet connection failed');}});$('switchBtn').addEventListener('click',async()=>{try{await ensureTestnet();toast('Robinhood Testnet ready');}catch(e){status('deployStatus',e?.message||'Could not switch network.','error');}});['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));$('deployBtn').addEventListener('click',deploy);$('fundBtn').addEventListener('click',fund);$('refreshFundBtn').addEventListener('click',()=>refreshFunding());$('publishBtn').addEventListener('click',publish);$('copyLinkBtn').addEventListener('click',async()=>{const u=$('claimLink').textContent;if(u){await navigator.clipboard.writeText(u);toast('Claim link copied');}});
+  $('fileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)readFile(f);});$('connectBtn').addEventListener('click',async()=>{try{await ensureWallet(true);const chain=await currentChain();if(chain===TESTNET.chainId)toast(`Wallet connected on ${TESTNET.name}`);else toast('Wallet connected · switch to testnet before deployment');updateDeployReady();}catch(e){toast(e?.message||'Wallet connection failed');}});$('switchBtn').addEventListener('click',async()=>{try{await ensureTestnet();toast(`${TESTNET.name} ready`);}catch(e){status('deployStatus',e?.message||'Could not switch network.','error');}});['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));$('deployBtn').addEventListener('click',deploy);$('fundBtn').addEventListener('click',fund);$('refreshFundBtn').addEventListener('click',()=>refreshFunding());$('publishBtn').addEventListener('click',publish);$('copyLinkBtn').addEventListener('click',async()=>{const u=$('claimLink').textContent;if(u){await navigator.clipboard.writeText(u);toast('Claim link copied');}});
   if(window.ethereum?.on){window.ethereum.on('accountsChanged',a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet)$('sponsorInput').value=wallet;updateDeployReady();});}
   setDefaultDeadline();ensureWallet(false).catch(()=>{}).finally(updateDeployReady);flow(0);
 })();
