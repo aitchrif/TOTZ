@@ -25,10 +25,12 @@
     })
   });
 
-  // Release-candidate safety: Testnet is the only executable claim network.
+  // Release-candidate safety: Testnet is the only launch network.
   // Mainnet is defined now so the UI/backend can be migrated without changing
-  // chain constants later, but write actions remain locked until an explicit
-  // production release flips the corresponding server + client feature gates.
+  // chain constants later, but NEW deploy/fund/publish actions remain locked
+  // until an explicit production release flips the corresponding server +
+  // client gates. Already-published, verified claims remain interactable so a
+  // later launch lockdown never strands holders from an immutable contract.
   const environment = 'testnet';
   const mainnetClaimsEnabled = false;
   const claimNetwork = networks.testnet;
@@ -54,6 +56,8 @@
     return null;
   }
 
+  // Backwards-compatible name used by launcher/review code. This is a LAUNCH
+  // permission, not permission to interact with an already-published epoch.
   function canExecuteClaims(network = claimNetwork) {
     const resolved = resolveClaimNetwork(network);
     if (!resolved) return false;
@@ -61,11 +65,18 @@
     return resolved.environment === 'mainnet' && config.mainnetClaimsEnabled === true;
   }
 
+  function canInteractWithPublishedClaim(network = claimNetwork) {
+    // Publication already passed FORGE server verification, runtime attestation,
+    // DB release policy and immutable metadata checks. A later launch kill switch
+    // must not prevent holders/sponsor from using that verified on-chain contract.
+    return Boolean(resolveClaimNetwork(network));
+  }
+
   function assertClaimExecutionEnabled(network = claimNetwork) {
     const resolved = resolveClaimNetwork(network);
     if (!resolved) throw new Error('Unsupported FORGE claim network.');
     if (!canExecuteClaims(resolved)) {
-      throw new Error('Robinhood Chain mainnet claims are locked until the FORGE mainnet release gate is enabled.');
+      throw new Error('Robinhood Chain mainnet claim launches are locked until the FORGE mainnet release gate is enabled.');
     }
     return resolved;
   }
@@ -135,8 +146,10 @@
 
   function installLockedClaimUiGuard() {
     if (canExecuteClaims(claimNetwork)) return;
-    const selector = '#switchBtn,#deployBtn,#fundBtn,#publishBtn,#claimBtn,#recoverBtn,#tokenPolicyAck,#reviewAck';
-    const message = `${claimNetwork.name} writes are locked until the FORGE mainnet release gate is enabled.`;
+    // Scope this guard to NEW epoch launch controls only. Never include claimBtn
+    // or recoverBtn: published verified epochs must survive a later launch lock.
+    const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';
+    const message = `${claimNetwork.name} new claim launches are locked until the FORGE mainnet release gate is enabled.`;
     const lock = () => {
       document.querySelectorAll(selector).forEach(el => {
         try { if ('disabled' in el) el.disabled = true; } catch (_) {}
@@ -148,7 +161,7 @@
         review.className = 'status show warn';
       }
       const networkChip = document.getElementById('claimNetworkChip');
-      if (networkChip) networkChip.textContent = `🔒 ${claimNetwork.name} · locked`;
+      if (networkChip) networkChip.textContent = `🔒 ${claimNetwork.name} · new launches locked`;
     };
     document.addEventListener('click', event => {
       const target = event.target?.closest?.(selector);
@@ -173,6 +186,7 @@
     claimNetwork,
     resolveClaimNetwork,
     canExecuteClaims,
+    canInteractWithPublishedClaim,
     assertClaimExecutionEnabled,
     ensureClaimNetwork,
     createReadProvider
