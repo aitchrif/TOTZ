@@ -1,0 +1,137 @@
+name: FORGE Pull Request Required Checks
+
+on:
+  pull_request:
+    branches: [forge-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pinned compiler and test dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0 ganache@7.9.2
+      - name: Compile Forge contracts
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const solc = require('solc');
+          const { keccak256 } = require('ethers');
+          const contractFiles = ['contracts/ForgeMerkleClaim.sol','contracts/ForgeTestUSDG.sol'];
+          const sources = {};
+          for (const file of contractFiles) sources[file] = {content: fs.readFileSync(file, 'utf8')};
+          const input = {
+            language: 'Solidity',
+            sources,
+            settings: {
+              optimizer: {enabled: true, runs: 200},
+              outputSelection: {'*': {'*': ['abi','evm.bytecode.object','evm.deployedBytecode.object','evm.deployedBytecode.immutableReferences','metadata']}}
+            }
+          };
+          function findImports(importPath) {
+            const p = path.resolve('node_modules', importPath);
+            try { return {contents: fs.readFileSync(p, 'utf8')}; }
+            catch (e) { return {error: `Import not found: ${importPath}`}; }
+          }
+          const output = JSON.parse(solc.compile(JSON.stringify(input), {import: findImports}));
+          const errors = (output.errors || []).filter(e => e.severity === 'error');
+          if (errors.length) {
+            console.error(errors.map(e => e.formattedMessage).join('\n'));
+            process.exit(1);
+          }
+          function normalizedRuntimeHash(deployedHex, immutableReferences) {
+            const bytes = Buffer.from(deployedHex, 'hex');
+            for (const ranges of Object.values(immutableReferences || {})) {
+              for (const {start, length} of ranges) bytes.fill(0, start, start + length);
+            }
+            return keccak256('0x' + bytes.toString('hex'));
+          }
+          function writeArtifact(sourcePath, contractName) {
+            const c = output.contracts[sourcePath][contractName];
+            const deployedBytecode = c.evm.deployedBytecode.object;
+            const immutableReferences = c.evm.deployedBytecode.immutableReferences || {};
+            fs.writeFileSync(`artifacts/${contractName}.json`, JSON.stringify({
+              contractName,
+              compiler: '0.8.24',
+              optimizer: {enabled: true, runs: 200},
+              abi: c.abi,
+              bytecode: '0x' + c.evm.bytecode.object,
+              deployedBytecode: '0x' + deployedBytecode,
+              immutableReferences,
+              normalizedRuntimeHash: normalizedRuntimeHash(deployedBytecode, immutableReferences)
+            }));
+          }
+          writeArtifact('contracts/ForgeMerkleClaim.sol','ForgeMerkleClaim');
+          writeArtifact('contracts/ForgeTestUSDG.sol','ForgeTestUSDG');
+          NODE
+      - name: Run claim contract behavior tests
+        run: node tests/forge-claim.test.cjs
+      - name: Verify committed artifacts are deterministic
+        run: |
+          if ! git diff --exit-code -- artifacts/ForgeMerkleClaim.json artifacts/ForgeTestUSDG.json; then
+            echo "::error::Committed FORGE artifacts do not match the pinned compiler output."
+            exit 1
+          fi
+
+  live-security-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Parse critical FORGE frontend scripts
+        run: |
+          node --check forge-runtime-config.js
+          node --check forge-claim.js
+          node --check forge-my-epochs.js
+          node --check forge-claim-launcher.js
+          node --check forge-epochs-page.js
+          node --check forge-epoch-reward-token.js
+      - name: Install probe dependency
+        run: npm install --no-save ethers@6.15.0
+      - name: Probe live FORGE claims service
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-claims-live-probe.mjs
+
+  locked-pre-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Parse release operator scripts
+        run: |
+          node --check tests/forge-testnet-wallet-e2e.mjs
+          node --check tests/forge-canary-prep.mjs
+      - name: Verify published claim continuity under launch lockdown
+        run: node tests/forge-published-claim-continuity.mjs
+      - name: Verify Mainnet server release handshake invariant
+        run: node tests/forge-release-handshake.mjs
+      - name: Verify Canary expiry invariant
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-canary-expiry-invariant.mjs
+      - name: Install pinned read-only preflight dependency
+        run: npm install --no-save ethers@6.15.0
+      - name: Run locked mainnet readiness preflight
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          FORGE_REQUIRE_RPC_PREFLIGHT: '1'
+        run: node tests/forge-mainnet-readiness.mjs
