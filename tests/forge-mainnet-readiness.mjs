@@ -46,18 +46,30 @@ async function checkBackendReleaseConfig() {
   const backend = await text('supabase/functions/forge-claims/index.ts');
   assert(backend.includes('46630:'), 'backend Testnet claim profile is missing');
   assert(backend.includes('4663:'), 'backend mainnet claim profile is missing');
-  assert(backend.includes('FORGE_MAINNET_RPC_URL'), 'backend does not support a production mainnet RPC override');
-  assert(backend.includes('mainnet_claims_enabled'), 'backend mainnet release flag lookup is missing');
+  assert(backend.includes('const MAINNET_RPC_URL = (Deno.env.get("FORGE_MAINNET_RPC_URL") || "").trim();'), 'backend does not isolate the dedicated production RPC secret');
+  assert(backend.includes('FORGE mainnet requires a dedicated production RPC before writes can be enabled.'), 'backend does not fail closed when the dedicated production RPC is missing');
+  assert(backend.includes('mainnet_claims_enabled'), 'backend mainnet master kill switch lookup is missing');
+  assert(backend.includes('mainnet_release_mode'), 'backend staged mainnet release mode lookup is missing');
+  assert(backend.includes('mainnet_canary_sponsor'), 'backend Canary sponsor allowlist lookup is missing');
+  assert(backend.includes('mainnet_canary_max_wallets'), 'backend Canary wallet cap lookup is missing');
+  assert(backend.includes('policy.mode==="canary"'), 'backend Canary policy enforcement is missing');
   assert((backend.match(/assertClaimWriteEnabled\(supabase/g) || []).length >= 4, 'backend write gate is not enforced across create/upload/publish/on-chain verification');
-  pass('backend is network-aware and checks the server-side mainnet release gate');
+  pass('backend requires the master gate, staged Canary policy and dedicated production RPC for mainnet writes');
 }
 
 async function checkDatabaseGateTracked() {
-  const migration = await text('supabase/migrations/20260906154000_forge_mainnet_release_gate.sql');
-  assert(migration.includes("values ('mainnet_claims_enabled', false)"), 'database release flag is not default-off');
-  assert(migration.includes('forge_claim_epoch_release_gate'), 'database claim-chain trigger is missing');
-  assert(migration.includes('new.claim_chain_id = 4663'), 'database trigger does not explicitly protect Robinhood mainnet');
-  pass('database migration tracks a default-off mainnet release gate and trigger');
+  const master = await text('supabase/migrations/20260906154000_forge_mainnet_release_gate.sql');
+  assert(master.includes("values ('mainnet_claims_enabled', false)"), 'database master release flag is not default-off');
+
+  const canary = await text('supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql');
+  assert(canary.includes("('mainnet_release_mode', 'locked')"), 'database mainnet release mode is not default-locked');
+  assert(canary.includes("('mainnet_canary_sponsor', '')"), 'database Canary sponsor is not fail-closed by default');
+  assert(canary.includes("('mainnet_canary_max_wallets', '10')"), 'database Canary wallet cap is not pinned to 10 by default');
+  assert(canary.includes("release_mode = 'canary'"), 'database trigger does not enforce Canary mode');
+  assert(canary.includes('lower(coalesce(new.creator_wallet'), 'database trigger does not enforce the Canary sponsor');
+  assert(canary.includes('new.eligible_wallets > canary_max_wallets'), 'database trigger does not enforce the Canary wallet cap');
+  assert(canary.includes('before insert or update of claim_chain_id, creator_wallet, eligible_wallets'), 'database trigger does not guard post-insert Canary policy changes');
+  pass('database tracks a default-locked staged release with sponsor allowlist and 10-wallet Canary cap');
 }
 
 async function checkArtifact() {
@@ -161,4 +173,4 @@ await checkPublishedTestnetEpoch();
 await checkLiveMainnetKillSwitch();
 
 console.log('\nFORGE MAINNET READINESS: LOCKED PRE-CANARY CHECKS PASSED.');
-console.log('Mainnet remains disabled. A dedicated production RPC, branch protection, final wallet-signed Testnet E2E and explicit Canary authorization are still required before enabling writes.');
+console.log('Mainnet remains disabled. A dedicated production RPC, branch protection, final wallet-signed Testnet E2E and explicit Canary sponsor authorization are still required before enabling writes.');
