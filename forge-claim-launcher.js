@@ -55,6 +55,7 @@
   function formatUnits(units,decimals){try{return ethers.formatUnits(BigInt(units),decimals);}catch{return String(units);}}
   function setDefaultDeadline(){const d=new Date(Date.now()+30*86400000);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());$('deadlineInput').value=d.toISOString().slice(0,16);}
   function randomHex(bytes=32){const a=new Uint8Array(bytes);crypto.getRandomValues(a);return '0x'+[...a].map(b=>b.toString(16).padStart(2,'0')).join('');}
+  async function sha256Hex(text){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return '0x'+[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');}
   function makeSlug(){const base=(pkg?.source?.collection||'claim').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'claim';return `${base}-${Date.now().toString(36)}-${randomHex(3).slice(2)}`;}
   function readProvider(){return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider():new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});}
 
@@ -62,7 +63,7 @@
     const snapshotBlock=body.snapshotBlock==null?'':String(body.snapshotBlock);
     const fingerprint=String(body.packageFingerprint||'');
     return [
-      'TOTZ FORGE CLAIM PUBLISH V1',
+      'TOTZ FORGE CLAIM PUBLISH V2',
       `creator=${String(body.creatorWallet||'').toLowerCase()}`,
       `slug=${String(body.slug||'').toLowerCase()}`,
       `sourceChain=${String(body.sourceChain||'').toLowerCase()}`,
@@ -79,6 +80,7 @@
       `claimContract=${String(body.claimContract||'').toLowerCase()}`,
       `deadline=${Number(body.deadline||0)}`,
       `packageFingerprint=${fingerprint}`,
+      `uploadTokenHash=${String(body.uploadTokenHash||'').toLowerCase()}`,
       `issuedAt=${Number(body.issuedAt||0)}`
     ].join('\n');
   }
@@ -147,7 +149,7 @@
     $('deployBtn').disabled=true;status('deployStatus',`Checking token and preparing ${TESTNET.name} deployment…`);
     try{
       const provider=await ensureTestnet();const signer=await provider.getSigner();const signerAddr=(await signer.getAddress()).toLowerCase();
-      if(signerAddr!==sponsor)throw new Error('Sponsor wallet must match the connected signing wallet for this V1 test flow.');
+      if(signerAddr!==sponsor)throw new Error('Sponsor wallet must match the connected signing wallet for this testnet flow.');
       tokenMeta=await inspectToken(provider,token);
       if(tokenMeta.decimals!==Number(pkg.reward.decimals))throw new Error(`Token decimals mismatch: package=${pkg.reward.decimals}, token=${tokenMeta.decimals}.`);
       if(tokenMeta.symbol!==String(pkg.reward.symbol))status('deployStatus',`Token symbol is ${tokenMeta.symbol}, while package says ${pkg.reward.symbol}. Decimals match; confirm this is intentional.`,'warn');
@@ -184,9 +186,9 @@
       wallet=(await signer.getAddress()).toLowerCase();
       const sponsor=$('sponsorInput').value.trim().toLowerCase();
       if(wallet!==sponsor)throw new Error('Connected wallet must match the claim sponsor before publication.');
-      const slug=makeSlug();uploadToken=randomHex(32);
+      const slug=makeSlug();uploadToken=randomHex(32);const uploadTokenHash=await sha256Hex(uploadToken);
       const createBody={
-        slug,uploadToken,creatorWallet:wallet,
+        slug,uploadToken,uploadTokenHash,creatorWallet:wallet,
         sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
         sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
         snapshotBlock:pkg.source?.snapshotBlock??null,
@@ -195,13 +197,13 @@
         eligibleWallets:Number(pkg.eligibleWallets),claimChainId:TESTNET.chainId,claimContract:claimAddress,
         deadline:deadlineUnix,packageFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
       };
-      status('publishStatus','Sponsor signature required to authorize this exact FORGE publication. No gas is used for this signature.','warn');
+      status('publishStatus','Sponsor signature required to authorize this exact FORGE publication and protected upload session. No gas is used.','warn');
       createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
       status('publishStatus','Authorization verified locally. Creating the protected upload session…');
       await api('create',createBody);
       const entries=Object.entries(pkg.claims).map(([wallet,c])=>({wallet:wallet.toLowerCase(),amountUnits:String(c.amountUnits),leaf:c.leaf,proof:c.proof}));
       for(let i=0;i<entries.length;i+=200){status('publishStatus',`Uploading verified proofs… ${Math.min(i+200,entries.length)}/${entries.length}`);await api('upload',{slug,uploadToken,entries:entries.slice(i,i+200)});}
-      status('publishStatus','Server is re-checking the exact allocation total and live claim contract…');
+      status('publishStatus','Server is re-checking the exact allocation total, approved claim runtime and live contract…');
       await api('publish',{slug,uploadToken});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
     }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');$('publishBtn').disabled=false;}
   }
