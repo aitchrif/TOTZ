@@ -83,6 +83,22 @@ const base = {
   issuedAt: Math.floor(Date.now() / 1000),
 };
 
+await expect('public release status is fail-closed and non-sensitive', async () => {
+  const r = await request('status');
+  assert(r.status === 200, `expected 200, got ${r.status}: ${r.json?.error || ''}`);
+  assert(Number(r.json?.testnet?.chainId) === 46630, 'status endpoint lost Testnet chain identity');
+  assert(r.json?.testnet?.launchEnabled === true, 'status endpoint unexpectedly disables Testnet launch flow');
+  assert(Number(r.json?.mainnet?.chainId) === 4663, 'status endpoint lost Mainnet chain identity');
+  assert(r.json?.mainnet?.masterEnabled === false, 'Mainnet master gate must remain false before Canary authorization');
+  assert(r.json?.mainnet?.mode === 'locked', `expected locked mode, got ${r.json?.mainnet?.mode}`);
+  assert(Number(r.json?.mainnet?.canaryMaxWallets) === 10, 'unexpected Mainnet Canary wallet cap');
+  assert(typeof r.json?.mainnet?.rpcReady === 'boolean', 'status endpoint must expose only an RPC readiness boolean');
+  assert(r.json?.mainnet?.sponsorAllowed === null, 'status without a wallet must not identify or authorize a sponsor');
+  const serialized = JSON.stringify(r.json).toLowerCase();
+  assert(!serialized.includes('canarysponsor'), 'status endpoint must not expose the configured Canary sponsor address');
+  assert(!serialized.includes('rpcurl'), 'status endpoint must not expose a private production RPC URL');
+});
+
 await expect('invalid public slug is rejected', async () => {
   const r = await request('get', { query: 'slug=x' });
   assert(r.status === 400, `expected 400, got ${r.status}`);
