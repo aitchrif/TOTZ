@@ -1,0 +1,45 @@
+name: FORGE Prepare Mainnet Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      sponsor:
+        description: 'Dedicated Mainnet Canary sponsor wallet (0x...)'
+        required: true
+        type: string
+      hours:
+        description: 'Canary authorization window in hours (max 24)'
+        required: true
+        default: '4'
+        type: string
+      max_wallets:
+        description: 'Eligible wallet cap for first Canary (1-10)'
+        required: true
+        default: '10'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-mainnet-canary-preparation
+  cancel-in-progress: false
+
+jobs:
+  validate-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: forge-v1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Validate locked release state and generate Canary SQL preview
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          FORGE_CANARY_SPONSOR: ${{ inputs.sponsor }}
+          FORGE_CANARY_HOURS: ${{ inputs.hours }}
+          FORGE_CANARY_MAX_WALLETS: ${{ inputs.max_wallets }}
+        run: node tests/forge-canary-prep.mjs
