@@ -1,6 +1,7 @@
 (() => {
-  const INDEX='https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index';
-  const TESTNET={chainId:46630,rpc:'https://rpc.testnet.chain.robinhood.com',explorer:'https://explorer.testnet.chain.robinhood.com'};
+  const RUNTIME=window.TOTZ_FORGE_CONFIG||{};
+  const INDEX=RUNTIME.services?.epochIndex||'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index';
+  const TESTNET=RUNTIME.claimNetwork||{chainId:46630,rpc:'https://rpc.testnet.chain.robinhood.com',explorer:'https://explorer.testnet.chain.robinhood.com'};
   const ABI=[
     'function token() view returns (address)',
     'function sponsor() view returns (address)',
@@ -18,7 +19,7 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let wallet=null, epochs=[], filter='all', loading=false;
-  const provider=new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});
+  const provider=window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider():new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});
 
   function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1900);}
   function status(m,type=''){const e=$('loadStatus');e.textContent=m;e.className=`status show ${type}`;}
