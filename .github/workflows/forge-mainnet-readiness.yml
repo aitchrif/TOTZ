@@ -18,6 +18,7 @@ on:
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
       - 'tests/forge-published-claim-continuity.mjs'
+      - 'tests/forge-release-handshake.mjs'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -37,6 +38,8 @@ jobs:
           node-version: '24'
       - name: Verify published claim continuity under launch lockdown
         run: node tests/forge-published-claim-continuity.mjs
+      - name: Verify Mainnet server release handshake invariant
+        run: node tests/forge-release-handshake.mjs
       - name: Install pinned read-only preflight dependency
         run: npm install --no-save ethers@6.15.0
       - name: Run locked mainnet readiness preflight
