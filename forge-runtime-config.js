@@ -133,6 +133,39 @@
     else start();
   }
 
+  function installLockedClaimUiGuard() {
+    if (canExecuteClaims(claimNetwork)) return;
+    const selector = '#switchBtn,#deployBtn,#fundBtn,#publishBtn,#claimBtn,#recoverBtn,#tokenPolicyAck,#reviewAck';
+    const message = `${claimNetwork.name} writes are locked until the FORGE mainnet release gate is enabled.`;
+    const lock = () => {
+      document.querySelectorAll(selector).forEach(el => {
+        try { if ('disabled' in el) el.disabled = true; } catch (_) {}
+        el.setAttribute('aria-disabled', 'true');
+      });
+      const review = document.getElementById('finalReviewStatus');
+      if (review) {
+        review.textContent = message;
+        review.className = 'status show warn';
+      }
+      const networkChip = document.getElementById('claimNetworkChip');
+      if (networkChip) networkChip.textContent = `🔒 ${claimNetwork.name} · locked`;
+    };
+    document.addEventListener('click', event => {
+      const target = event.target?.closest?.(selector);
+      if (!target) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      lock();
+    }, true);
+    const start = () => {
+      lock();
+      const root = document.documentElement || document.body;
+      if (root) new MutationObserver(lock).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -149,4 +182,5 @@
   document.documentElement.dataset.forgeMainnetClaims = config.mainnetClaimsEnabled ? 'enabled' : 'locked';
   document.documentElement.dataset.forgeTestHelpers = config.testHelpersEnabled ? 'enabled' : 'locked';
   installTestHelperGuard();
+  installLockedClaimUiGuard();
 })();
