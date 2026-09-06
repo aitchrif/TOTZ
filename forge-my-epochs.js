@@ -1,7 +1,7 @@
 (() => {
   const RUNTIME=window.TOTZ_FORGE_CONFIG||{};
   const INDEX=RUNTIME.services?.epochIndex||'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index';
-  const TESTNET=RUNTIME.claimNetwork||{chainId:46630,rpc:'https://rpc.testnet.chain.robinhood.com',explorer:'https://explorer.testnet.chain.robinhood.com'};
+  const DEFAULT_NETWORK=RUNTIME.claimNetwork||{chainId:46630,rpc:'https://rpc.testnet.chain.robinhood.com',explorer:'https://explorer.testnet.chain.robinhood.com',name:'Robinhood Chain Testnet',environment:'testnet'};
   const ABI=[
     'function token() view returns (address)',
     'function sponsor() view returns (address)',
@@ -19,7 +19,18 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let wallet=null, epochs=[], filter='all', loading=false;
-  const provider=window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider():new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});
+
+  function networkForEpoch(e){
+    const chainId=Number(e?.claim_chain_id||0);
+    const resolved=window.ForgeRuntime?.resolveClaimNetwork?.(chainId);
+    if(resolved) return resolved;
+    if(chainId===Number(DEFAULT_NETWORK.chainId)) return DEFAULT_NETWORK;
+    return null;
+  }
+  function providerFor(network){
+    if(window.ForgeRuntime?.createReadProvider) return window.ForgeRuntime.createReadProvider(network);
+    return new ethers.JsonRpcProvider(network.rpc,network.chainId,{staticNetwork:true});
+  }
 
   function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1900);}
   function status(m,type=''){const e=$('loadStatus');e.textContent=m;e.className=`status show ${type}`;}
@@ -54,9 +65,11 @@
   }
 
   async function inspect(e){
-    if(Number(e.claim_chain_id)!==TESTNET.chainId) return {...e,view:{state:'attention',label:'UNSUPPORTED CHAIN',note:`Claim chain ${e.claim_chain_id} is not enabled in this dashboard yet.`,valid:false}};
-    if(!isAddr(e.claim_contract)) return {...e,view:{state:'attention',label:'INVALID CONTRACT',note:'Published claim contract address is invalid.',valid:false}};
+    const network=networkForEpoch(e);
+    if(!network) return {...e,view:{state:'attention',label:'UNSUPPORTED CHAIN',note:`Claim chain ${e.claim_chain_id} is not configured in this dashboard.`,valid:false}};
+    if(!isAddr(e.claim_contract)) return {...e,view:{state:'attention',label:'INVALID CONTRACT',note:'Published claim contract address is invalid.',valid:false,network}};
     try{
+      const provider=providerFor(network);
       const c=new ethers.Contract(e.claim_contract,ABI,provider);
       const [token,sponsor,root,total,deadline,totalClaimed,claimCount,balance]=await withRetry(()=>Promise.all([
         c.token(),c.sponsor(),c.merkleRoot(),c.totalAllocated(),c.deadline(),c.totalClaimed(),c.claimCount(),c.contractBalance()
@@ -67,16 +80,16 @@
       const fullyClaimed=claimedBI>=totalBI;
       const remainingObligation=totalBI>claimedBI?totalBI-claimedBI:0n;
       const solvent=balBI>=remainingObligation;
-      let state='live',label='LIVE',note='Epoch open · contract is solvent for remaining claims.';
+      let state='live',label='LIVE',note=`Epoch open · ${network.name} contract is solvent for remaining claims.`;
       if(!valid){state='attention';label='MISMATCH';note='Published metadata does not match the on-chain contract.';}
       else if(!ended && !solvent){state='attention';label='UNDERFUNDED';note='Contract balance is below the remaining claim obligation.';}
       else if(ended && fullyClaimed){state='closed';label='FULLY CLAIMED';note='Epoch closed · every allocated token was claimed.';}
       else if(ended && balBI===0n){state='closed';label='SETTLED';note='Epoch closed · no tokens remain in the claim contract.';}
       else if(ended && balBI>0n){state='recovery';label='RECOVERY READY';note='Deadline passed · unclaimed tokens can be recovered by the sponsor.';}
       const pct=totalBI>0n?Number((claimedBI*10000n)/totalBI)/100:0;
-      return {...e,view:{state,label,note,valid,token:String(token).toLowerCase(),sponsor:String(sponsor).toLowerCase(),root:String(root).toLowerCase(),total:totalBI,claimed:claimedBI,balance:balBI,claimCount:Number(claimCount),deadline:deadlineN,pct,solvent}};
+      return {...e,view:{state,label,note,valid,network,token:String(token).toLowerCase(),sponsor:String(sponsor).toLowerCase(),root:String(root).toLowerCase(),total:totalBI,claimed:claimedBI,balance:balBI,claimCount:Number(claimCount),deadline:deadlineN,pct,solvent}};
     }catch(err){
-      return {...e,view:{state:'attention',label:'RPC ERROR',note:err?.shortMessage||err?.message||'Could not read this claim contract.',valid:false}};
+      return {...e,view:{state:'attention',label:'RPC ERROR',note:err?.shortMessage||err?.message||'Could not read this claim contract.',valid:false,network}};
     }
   }
 
@@ -101,6 +114,7 @@
 
   function card(e){
     const v=e.view||{};
+    const network=v.network||networkForEpoch(e);
     const show=filter==='all'||v.state===filter||(filter==='attention'&&v.state==='attention');
     if(!show)return '';
     const rewardTotal=units(e.total_allocated_units,e.reward_decimals);
@@ -110,8 +124,10 @@
     const cls=v.state==='attention'?'epoch mismatch':'epoch';
     const tagCls=v.state==='attention'?'tag bad':`tag ${v.state||''}`;
     const published=e.published_at?date(e.published_at):'—';
+    const networkLabel=network?.name||`Chain ${e.claim_chain_id||'—'}`;
+    const explorer=network?.explorer&&isAddr(e.claim_contract)?`${network.explorer}/address/${encodeURIComponent(e.claim_contract)}`:'';
     return `<article class="${cls}" data-state="${esc(v.state||'attention')}">
-      <div class="epoch-top"><div class="epoch-title"><h3>${esc(e.source_collection||'FORGE Reward Epoch')}</h3><p>${esc(e.reward_symbol)} · source ${esc(e.source_chain||'on-chain')} snapshot${e.snapshot_block?` #${fmt(e.snapshot_block)}`:''} · published ${esc(published)}</p></div><span class="${tagCls}">${esc(v.label||'CHECKING')}</span></div>
+      <div class="epoch-top"><div class="epoch-title"><h3>${esc(e.source_collection||'FORGE Reward Epoch')}</h3><p>${esc(e.reward_symbol)} · ${esc(networkLabel)} · source ${esc(e.source_chain||'on-chain')} snapshot${e.snapshot_block?` #${fmt(e.snapshot_block)}`:''} · published ${esc(published)}</p></div><span class="${tagCls}">${esc(v.label||'CHECKING')}</span></div>
       <div class="epoch-grid">
         <div class="mini"><small>Reward pool</small><b>${esc(rewardTotal)} ${esc(e.reward_symbol)}</b></div>
         <div class="mini"><small>Total claimed</small><b>${esc(claimed)} ${esc(e.reward_symbol)}</b></div>
@@ -124,7 +140,7 @@
       <div class="epoch-note"><span>${esc(v.note||'Reading on-chain state…')}</span><span>${Number(v.pct||0).toFixed(2)}% of pool claimed</span></div>
       <div class="actions">
         <a class="btn dark" href="/forge-claim?slug=${encodeURIComponent(e.slug)}">OPEN CLAIM</a>
-        <a class="btn ghost" href="${TESTNET.explorer}/address/${encodeURIComponent(e.claim_contract)}" target="_blank" rel="noopener">CONTRACT ↗</a>
+        ${explorer?`<a class="btn ghost" href="${esc(explorer)}" target="_blank" rel="noopener">CONTRACT ↗</a>`:''}
         <button class="btn soft copy-link" data-url="${esc(claimUrl(e))}" type="button">COPY CLAIM LINK</button>
         ${v.state==='recovery'?`<a class="btn good" href="/forge-claim?slug=${encodeURIComponent(e.slug)}#sponsor">RECOVER FUNDS →</a>`:''}
       </div>
