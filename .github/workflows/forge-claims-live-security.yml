@@ -1,0 +1,29 @@
+name: FORGE Claims Live Security
+
+on:
+  push:
+    branches: [forge-v1]
+    paths:
+      - 'tests/forge-claims-live-probe.mjs'
+      - 'supabase/functions/forge-claims/**'
+      - '.github/workflows/forge-claims-live-security.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-security-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: forge-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Probe live FORGE claims service
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-claims-live-probe.mjs
