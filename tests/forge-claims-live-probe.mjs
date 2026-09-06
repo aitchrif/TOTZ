@@ -1,4 +1,7 @@
+import { Wallet, sha256, toUtf8Bytes } from 'ethers';
+
 const SERVICE = process.env.FORGE_CLAIMS_URL || 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
+const KNOWN_WRONG_RUNTIME = '0x8eebc59eef9a42ee3897227b2cfb03895cf46545';
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -23,6 +26,32 @@ async function expect(label, fn) {
     console.error(`FAIL ${label}`);
     throw error;
   }
+}
+
+function publicationMessageV2(body) {
+  const snapshotBlock = body.snapshotBlock == null ? '' : String(body.snapshotBlock);
+  const fingerprint = String(body.packageFingerprint || '');
+  return [
+    'TOTZ FORGE CLAIM PUBLISH V2',
+    `creator=${String(body.creatorWallet || '').toLowerCase()}`,
+    `slug=${String(body.slug || '').toLowerCase()}`,
+    `sourceChain=${String(body.sourceChain || '').toLowerCase()}`,
+    `sourceChainId=${Number(body.sourceChainId || 0)}`,
+    `sourceContract=${String(body.sourceContract || '').toLowerCase()}`,
+    `snapshotBlock=${snapshotBlock}`,
+    `rewardToken=${String(body.rewardToken || '').toLowerCase()}`,
+    `rewardSymbol=${String(body.rewardSymbol || '')}`,
+    `rewardDecimals=${Number(body.rewardDecimals)}`,
+    `merkleRoot=${String(body.merkleRoot || '').toLowerCase()}`,
+    `totalAllocatedUnits=${String(body.totalAllocatedUnits || '')}`,
+    `eligibleWallets=${Number(body.eligibleWallets || 0)}`,
+    `claimChainId=${Number(body.claimChainId || 0)}`,
+    `claimContract=${String(body.claimContract || '').toLowerCase()}`,
+    `deadline=${Number(body.deadline || 0)}`,
+    `packageFingerprint=${fingerprint}`,
+    `uploadTokenHash=${String(body.uploadTokenHash || '').toLowerCase()}`,
+    `issuedAt=${Number(body.issuedAt || 0)}`,
+  ].join('\n');
 }
 
 const creator = `0x${'11'.repeat(20)}`;
@@ -94,6 +123,39 @@ await expect('malformed sponsor signature is rejected', async () => {
     headers: { 'x-forge-upload-token': uploadToken },
   });
   assert(r.status === 403, `expected 403, got ${r.status}`);
+});
+
+await expect('V2 upload-token hash mismatch is rejected', async () => {
+  const r = await request('create', {
+    method: 'POST',
+    body: { ...base, uploadTokenHash: `0x${'00'.repeat(32)}` },
+    headers: { 'x-forge-upload-token': uploadToken },
+  });
+  assert(r.status === 403, `expected 403, got ${r.status}`);
+  assert(String(r.json?.error || '').toLowerCase().includes('upload token hash'), `unexpected error: ${r.json?.error}`);
+});
+
+await expect('signed request with non-FORGE runtime is rejected', async () => {
+  const signer = new Wallet(`0x${'01'.padStart(64, '0')}`);
+  const signedToken = `0x${'cd'.repeat(32)}`;
+  const body = {
+    ...base,
+    slug: `signed-runtime-probe-${Date.now().toString(36)}-abcdef`,
+    uploadToken: signedToken,
+    uploadTokenHash: sha256(toUtf8Bytes(signedToken)),
+    creatorWallet: signer.address.toLowerCase(),
+    rewardToken: KNOWN_WRONG_RUNTIME,
+    claimContract: KNOWN_WRONG_RUNTIME,
+    issuedAt: Math.floor(Date.now() / 1000),
+    deadline: Math.floor(Date.now() / 1000) + 3600,
+  };
+  body.authSignature = await signer.signMessage(publicationMessageV2(body));
+  const r = await request('create', {
+    method: 'POST', body,
+    headers: { 'x-forge-upload-token': signedToken },
+  });
+  assert(r.status === 409, `expected 409, got ${r.status}: ${r.json?.error || ''}`);
+  assert(String(r.json?.error || '').toLowerCase().includes('approved totz forge build'), `unexpected error: ${r.json?.error}`);
 });
 
 await expect('upload to unknown session is rejected', async () => {
