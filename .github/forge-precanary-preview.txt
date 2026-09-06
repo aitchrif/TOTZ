@@ -1,0 +1,2 @@
+Temporary Vercel preview trigger for the protected forge-v1 pre-Canary checkpoint.
+No production application code is changed by this file.
