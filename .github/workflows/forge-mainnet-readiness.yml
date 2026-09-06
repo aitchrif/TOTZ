@@ -21,6 +21,8 @@ on:
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
       - 'tests/forge-mainnet-canary-1-audit.mjs'
+      - 'tests/forge-pilot-2-package.mjs'
+      - 'tests/forge-pilot-2-arm-preview.mjs'
       - 'tests/forge-published-claim-continuity.mjs'
       - 'tests/forge-release-handshake.mjs'
       - 'tests/forge-canary-expiry-invariant.mjs'
@@ -52,6 +54,8 @@ jobs:
           node --check tests/forge-canary-prep.mjs
           node --check tests/forge-canary-arm-preview.mjs
           node --check tests/forge-mainnet-canary-1-audit.mjs
+          node --check tests/forge-pilot-2-package.mjs
+          node --check tests/forge-pilot-2-arm-preview.mjs
       - name: Verify atomic first-Canary arm stays preview-only
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
@@ -59,6 +63,13 @@ jobs:
           FORGE_CANARY_HOURS: '2'
           FORGE_CANARY_MAX_WALLETS: '1'
         run: node tests/forge-canary-arm-preview.mjs >/tmp/forge-canary-arm-preview.txt
+      - name: Verify Pilot #2 atomic arm stays preview-only
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          FORGE_PILOT_SPONSOR: '0x1111111111111111111111111111111111111111'
+          FORGE_PILOT_HOURS: '2'
+          FORGE_PILOT_MAX_WALLETS: '5'
+        run: node tests/forge-pilot-2-arm-preview.mjs >/tmp/forge-pilot-2-arm-preview.txt
       - name: Verify published claim continuity under launch lockdown
         run: node tests/forge-published-claim-continuity.mjs
       - name: Verify Mainnet server release handshake invariant
@@ -69,6 +80,11 @@ jobs:
         run: node tests/forge-canary-expiry-invariant.mjs
       - name: Install pinned read-only preflight dependency
         run: npm install --no-save ethers@6.15.0
+      - name: Verify deterministic five-wallet Pilot #2 package
+        env:
+          FORGE_PILOT_WALLETS: '0x1111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222,0x3333333333333333333333333333333333333333,0x4444444444444444444444444444444444444444,0x5555555555555555555555555555555555555555'
+          FORGE_PILOT_SNAPSHOT_BLOCK: '1'
+        run: node tests/forge-pilot-2-package.mjs >/tmp/forge-pilot-2-package.json
       - name: Verify first Mainnet Canary historical audit
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
