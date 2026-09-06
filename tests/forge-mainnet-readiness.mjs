@@ -72,6 +72,17 @@ async function checkDatabaseGateTracked() {
   pass('database tracks a default-locked staged release with sponsor allowlist and 10-wallet Canary cap');
 }
 
+async function checkEmergencyLockdown() {
+  const lockdown = (await text('supabase/sql/forge-mainnet-lockdown.sql')).toLowerCase();
+  assert(lockdown.includes("'mainnet_claims_enabled', false"), 'lockdown script does not force the master gate false');
+  assert(lockdown.includes("('mainnet_release_mode', 'locked'"), 'lockdown script does not restore locked release mode');
+  assert(lockdown.includes("('mainnet_canary_sponsor', ''"), 'lockdown script does not clear the Canary sponsor');
+  assert(lockdown.includes("('mainnet_canary_max_wallets', '10'"), 'lockdown script does not restore the 10-wallet Canary cap');
+  assert(!/mainnet_claims_enabled[^\n]{0,120}\btrue\b/.test(lockdown), 'lockdown script contains a path that could enable the mainnet master gate');
+  assert(!/mainnet_release_mode[^\n]{0,120}'(?:canary|public)'/.test(lockdown), 'lockdown script contains a path that could unlock staged mainnet mode');
+  pass('emergency lockdown script is idempotent and fail-closed only');
+}
+
 async function checkArtifact() {
   const artifact = JSON.parse(await text('artifacts/ForgeMerkleClaim.json'));
   assert(artifact.compiler === '0.8.24', `unexpected compiler ${artifact.compiler}`);
@@ -166,6 +177,7 @@ async function checkLiveMainnetKillSwitch() {
 await checkStaticReleaseConfig();
 await checkBackendReleaseConfig();
 await checkDatabaseGateTracked();
+await checkEmergencyLockdown();
 await checkArtifact();
 await rpcChainId('Robinhood Testnet', TESTNET);
 await rpcChainId('Robinhood Mainnet', MAINNET);
