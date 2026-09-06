@@ -10,6 +10,19 @@ type ClaimNetwork = {
   environment: "testnet" | "mainnet";
 };
 
+type ClaimWriteContext = {
+  creator?: string;
+  eligibleWallets?: number;
+};
+
+type MainnetReleasePolicy = {
+  enabled: boolean;
+  mode: "locked" | "canary" | "public";
+  canarySponsor: string;
+  canaryMaxWallets: number;
+};
+
+const MAINNET_RPC_URL = (Deno.env.get("FORGE_MAINNET_RPC_URL") || "").trim();
 const CLAIM_NETWORKS: Record<number, ClaimNetwork> = {
   46630: {
     chainId: 46630,
@@ -22,7 +35,7 @@ const CLAIM_NETWORKS: Record<number, ClaimNetwork> = {
     chainId: 4663,
     key: "robinhood",
     name: "Robinhood Chain",
-    rpc: Deno.env.get("FORGE_MAINNET_RPC_URL") || "https://rpc.mainnet.chain.robinhood.com",
+    rpc: MAINNET_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
     environment: "mainnet",
   },
 };
@@ -70,17 +83,40 @@ function validUnits(v:string){if(!/^\d{1,100}$/.test(v||""))return false;try{con
 function validSourcePair(key:string,id:number){return Object.prototype.hasOwnProperty.call(SOURCE_CHAINS,key)&&SOURCE_CHAINS[key]===id;}
 function claimNetwork(chainId:number){return CLAIM_NETWORKS[Number(chainId)]||null;}
 
-async function mainnetClaimsEnabled(supabase:any){
-  const {data,error}=await supabase.from("forge_release_flags").select("enabled").eq("key","mainnet_claims_enabled").maybeSingle();
-  if(error) throw new Error("Could not read the FORGE mainnet release gate.");
-  return data?.enabled===true;
+async function mainnetReleasePolicy(supabase:any):Promise<MainnetReleasePolicy>{
+  const {data:flag,error:flagError}=await supabase.from("forge_release_flags").select("enabled").eq("key","mainnet_claims_enabled").maybeSingle();
+  if(flagError) throw new Error("Could not read the FORGE mainnet master release gate.");
+  const {data:rows,error:configError}=await supabase.from("forge_release_config").select("key,value").in("key",["mainnet_release_mode","mainnet_canary_sponsor","mainnet_canary_max_wallets"]);
+  if(configError) throw new Error("Could not read the FORGE mainnet release policy.");
+  const values=new Map((rows||[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const modeRaw=clean(values.get("mainnet_release_mode")||"locked",16).toLowerCase();
+  const mode:MainnetReleasePolicy["mode"]=modeRaw==="canary"?"canary":modeRaw==="public"?"public":"locked";
+  const canarySponsor=clean(values.get("mainnet_canary_sponsor")||"",42).toLowerCase();
+  const maxRaw=Number(values.get("mainnet_canary_max_wallets")||0);
+  const canaryMaxWallets=Number.isInteger(maxRaw)&&maxRaw>=1&&maxRaw<=100?maxRaw:0;
+  return{enabled:flag?.enabled===true,mode,canarySponsor,canaryMaxWallets};
 }
 
-async function assertClaimWriteEnabled(supabase:any,chainId:number){
+async function assertClaimWriteEnabled(supabase:any,chainId:number,context:ClaimWriteContext={}){
   const network=claimNetwork(chainId);
   if(!network) throw new Error(`Unsupported claim chain ${chainId}.`);
-  if(network.environment==="mainnet" && !await mainnetClaimsEnabled(supabase)) {
+  if(network.environment!=="mainnet") return network;
+
+  const policy=await mainnetReleasePolicy(supabase);
+  if(!policy.enabled||policy.mode==="locked") {
     throw new Error("FORGE mainnet claims are locked by the production release gate.");
+  }
+  if(!MAINNET_RPC_URL) {
+    throw new Error("FORGE mainnet requires a dedicated production RPC before writes can be enabled.");
+  }
+  if(policy.mode==="canary") {
+    const creator=clean(context.creator,42).toLowerCase();
+    const eligible=Number(context.eligibleWallets);
+    if(!isAddr(policy.canarySponsor)) throw new Error("FORGE mainnet Canary sponsor is not configured.");
+    if(creator!==policy.canarySponsor) throw new Error("FORGE mainnet Canary is restricted to the configured sponsor wallet.");
+    if(!Number.isInteger(eligible)||eligible<1||eligible>policy.canaryMaxWallets) {
+      throw new Error(`FORGE mainnet Canary is limited to ${policy.canaryMaxWallets||0} eligible wallets.`);
+    }
   }
   return network;
 }
@@ -143,8 +179,8 @@ async function assertApprovedClaimRuntime(chainId:number,address:string){
 async function codeAt(chainId:number,address:string){const c=await rpc(chainId,'eth_getCode',[address,'latest']);return Boolean(c&&c!=='0x'&&c!=='0x0');}
 async function call(chainId:number,iface:Interface,address:string,fn:string,args:any[]=[]){const data=iface.encodeFunctionData(fn,args),result=await rpc(chainId,'eth_call',[{to:address,data},'latest']);return iface.decodeFunctionResult(fn,result)[0];}
 
-async function verifyOnChain(supabase:any,expected:{creator:string;rewardToken:string;rewardSymbol:string;rewardDecimals:number;merkleRoot:string;totalUnits:string;claimChainId:number;claimContract:string;deadlineUnix:number;},requireFunded=true){
-  await assertClaimWriteEnabled(supabase,expected.claimChainId);
+async function verifyOnChain(supabase:any,expected:{creator:string;rewardToken:string;rewardSymbol:string;rewardDecimals:number;merkleRoot:string;totalUnits:string;eligibleWallets:number;claimChainId:number;claimContract:string;deadlineUnix:number;},requireFunded=true){
+  await assertClaimWriteEnabled(supabase,expected.claimChainId,{creator:expected.creator,eligibleWallets:expected.eligibleWallets});
   const chainId=expected.claimChainId;
   const runtimeHash=await assertApprovedClaimRuntime(chainId,expected.claimContract);
   if(!await codeAt(chainId,expected.rewardToken))throw new Error('Reward token contract does not exist on the configured claim chain.');
@@ -235,7 +271,7 @@ Deno.serve(async(req:Request)=>{
       if(!Number.isInteger(eligible)||eligible<1||eligible>20000)return json({error:'Invalid eligible wallet count.'},400);
       if(!Number.isInteger(decimals)||decimals<0||decimals>36)return json({error:'Invalid token decimals.'},400);
       if(!Number.isInteger(claimChainId)||!claimNetwork(claimChainId))return json({error:'Unsupported claim chain.'},400);
-      try{await assertClaimWriteEnabled(supabase,claimChainId);}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
+      try{await assertClaimWriteEnabled(supabase,claimChainId,{creator,eligibleWallets:eligible});}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
       if(!Number.isFinite(deadlineUnix)||deadlineUnix<=now()+60)return json({error:'Deadline must be safely in the future.'},400);
       if(!Number.isInteger(issuedAt)||issuedAt<now()-300||issuedAt>now()+60)return json({error:'Publication authorization expired or has an invalid timestamp.'},403);
       const suppliedUploadHash=clean(body.uploadTokenHash,66).toLowerCase();
@@ -247,7 +283,7 @@ Deno.serve(async(req:Request)=>{
       try{recovered=verifyMessage(publicationMessageV2(body),signature).toLowerCase();}catch{return json({error:'Invalid sponsor signature.'},403);}
       if(recovered!==creator)return json({error:'Publication signature does not match the creator wallet.'},403);
       let chainCheck;
-      try{chainCheck=await verifyOnChain(supabase,{creator,rewardToken,rewardSymbol:clean(body.rewardSymbol,16),rewardDecimals:decimals,merkleRoot:root,totalUnits,claimChainId,claimContract,deadlineUnix},true);}catch(e){return json({error:`On-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
+      try{chainCheck=await verifyOnChain(supabase,{creator,rewardToken,rewardSymbol:clean(body.rewardSymbol,16),rewardDecimals:decimals,merkleRoot:root,totalUnits,eligibleWallets:eligible,claimChainId,claimContract,deadlineUnix},true);}catch(e){return json({error:`On-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
       const row={slug,creator_wallet:creator,status:'uploading',source_chain:sourceChain,source_chain_id:sourceChainId,source_contract:sourceContract,source_collection:clean(body.sourceCollection,100)||null,snapshot_block:snapshotBlock,reward_token:rewardToken,reward_symbol:clean(body.rewardSymbol,16),reward_decimals:decimals,merkle_root:root,total_allocated_units:totalUnits,eligible_wallets:eligible,claim_chain_id:claimChainId,claim_contract:claimContract,deadline:new Date(deadlineUnix*1000).toISOString(),package_fingerprint:clean(body.packageFingerprint,100)||null,upload_token_hash:await sha256(uploadToken),uploaded_entries:0};
       const {data,error}=await supabase.from('forge_claim_epochs').insert(row).select('id,slug').single();
       if(error){if(String(error.code)==='23505')return json({error:'Claim slug, Merkle root, or contract already exists.'},409);throw error;}
@@ -256,11 +292,11 @@ Deno.serve(async(req:Request)=>{
 
     if(route==='upload'){
       const slug=clean(body.slug,80).toLowerCase(),uploadToken=token(req,body);
-      const {data:epoch,error}=await supabase.from('forge_claim_epochs').select('id,status,upload_token_hash,eligible_wallets,merkle_root,claim_chain_id').eq('slug',slug).maybeSingle();
+      const {data:epoch,error}=await supabase.from('forge_claim_epochs').select('id,status,upload_token_hash,creator_wallet,eligible_wallets,merkle_root,claim_chain_id').eq('slug',slug).maybeSingle();
       if(error)throw error;
       if(!epoch)return json({error:'Claim not found.'},404);
       if(epoch.status!=='uploading')return json({error:'Claim package is already published.'},409);
-      try{await assertClaimWriteEnabled(supabase,Number(epoch.claim_chain_id));}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
+      try{await assertClaimWriteEnabled(supabase,Number(epoch.claim_chain_id),{creator:String(epoch.creator_wallet).toLowerCase(),eligibleWallets:Number(epoch.eligible_wallets)});}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
       if(!await tokenMatches(uploadToken,epoch.upload_token_hash))return json({error:'Invalid upload token.'},403);
       const entries=Array.isArray(body.entries)?body.entries:[];
       if(!entries.length||entries.length>250)return json({error:'Upload 1-250 entries per request.'},400);
@@ -279,7 +315,7 @@ Deno.serve(async(req:Request)=>{
       if(error)throw error;
       if(!epoch)return json({error:'Claim not found.'},404);
       if(epoch.status!=='uploading')return json({error:'Claim package is already published.'},409);
-      try{await assertClaimWriteEnabled(supabase,Number(epoch.claim_chain_id));}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
+      try{await assertClaimWriteEnabled(supabase,Number(epoch.claim_chain_id),{creator:String(epoch.creator_wallet).toLowerCase(),eligibleWallets:Number(epoch.eligible_wallets)});}catch(e){return json({error:e instanceof Error?e.message:'Claim network is locked.'},403);}
       if(!await tokenMatches(uploadToken,epoch.upload_token_hash))return json({error:'Invalid upload token.'},403);
       const entries=await loadAllEntries(supabase,epoch.id,epoch.eligible_wallets);
       if(entries.length!==epoch.eligible_wallets)return json({error:`Claim package incomplete (${entries.length}/${epoch.eligible_wallets}).`},409);
@@ -289,7 +325,7 @@ Deno.serve(async(req:Request)=>{
       const deadlineUnix=Math.floor(new Date(epoch.deadline).getTime()/1000);
       if(deadlineUnix<=now())return json({error:'Claim deadline has already passed.'},409);
       let chainCheck;
-      try{chainCheck=await verifyOnChain(supabase,{creator:String(epoch.creator_wallet).toLowerCase(),rewardToken:String(epoch.reward_token).toLowerCase(),rewardSymbol:String(epoch.reward_symbol),rewardDecimals:Number(epoch.reward_decimals),merkleRoot:String(epoch.merkle_root).toLowerCase(),totalUnits:String(epoch.total_allocated_units),claimChainId:Number(epoch.claim_chain_id),claimContract:String(epoch.claim_contract).toLowerCase(),deadlineUnix},true);}catch(e){return json({error:`Final on-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
+      try{chainCheck=await verifyOnChain(supabase,{creator:String(epoch.creator_wallet).toLowerCase(),rewardToken:String(epoch.reward_token).toLowerCase(),rewardSymbol:String(epoch.reward_symbol),rewardDecimals:Number(epoch.reward_decimals),merkleRoot:String(epoch.merkle_root).toLowerCase(),totalUnits:String(epoch.total_allocated_units),eligibleWallets:Number(epoch.eligible_wallets),claimChainId:Number(epoch.claim_chain_id),claimContract:String(epoch.claim_contract).toLowerCase(),deadlineUnix},true);}catch(e){return json({error:`Final on-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
       const {data:finalized,error:e}=await supabase.rpc('forge_finalize_claim_epoch',{p_epoch_id:epoch.id,p_expected_entries:entries.length,p_expected_total:total.toString()});
       if(e){console.error('finalize rpc',e);return json({error:'Claim package changed during finalization.'},409);}
       if(finalized!==true)return json({error:'Claim publication state changed before finalization.'},409);
