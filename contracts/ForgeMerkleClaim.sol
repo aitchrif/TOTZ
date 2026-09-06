@@ -8,6 +8,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 /// @title TOTZ FORGE Merkle Claim
 /// @notice Immutable single-epoch ERC20 claim contract.
 /// @dev Root, token, sponsor, allocation total and deadline cannot be changed after deployment.
+///      Intended for standard, non-rebasing ERC20 reward tokens.
 contract ForgeMerkleClaim {
     using SafeERC20 for IERC20;
 
@@ -25,9 +26,12 @@ contract ForgeMerkleClaim {
     event UnclaimedRecovered(address indexed sponsor, uint256 amount);
 
     error ZeroAddress();
+    error InvalidToken();
     error InvalidRoot();
     error InvalidAllocation();
     error InvalidDeadline();
+    error InvalidAmount();
+    error AllocationExceeded();
     error ClaimClosed();
     error AlreadyClaimed();
     error InvalidProof();
@@ -42,6 +46,7 @@ contract ForgeMerkleClaim {
         address sponsor_
     ) {
         if (address(token_) == address(0) || sponsor_ == address(0)) revert ZeroAddress();
+        if (address(token_).code.length == 0) revert InvalidToken();
         if (merkleRoot_ == bytes32(0)) revert InvalidRoot();
         if (totalAllocated_ == 0) revert InvalidAllocation();
         if (deadline_ <= block.timestamp) revert InvalidDeadline();
@@ -59,12 +64,16 @@ contract ForgeMerkleClaim {
     function claim(uint256 amount, bytes32[] calldata proof) external {
         if (block.timestamp > deadline) revert ClaimClosed();
         if (claimed[msg.sender]) revert AlreadyClaimed();
+        if (amount == 0) revert InvalidAmount();
+        if (amount > totalAllocated - totalClaimed) revert AllocationExceeded();
 
         // Matches FORGE_MERKLE_V1 leaf encoding:
         // keccak256(bytes.concat(keccak256(abi.encode(address,uint256))))
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, amount))));
         if (!MerkleProof.verifyCalldata(proof, merkleRoot, leaf)) revert InvalidProof();
 
+        // Effects before interaction: prevents a successful account from claiming twice
+        // even when interacting with an unusual ERC20 implementation.
         claimed[msg.sender] = true;
         totalClaimed += amount;
         claimCount += 1;
@@ -80,7 +89,7 @@ contract ForgeMerkleClaim {
 
     /// @notice True when the contract currently has enough tokens to cover every still-unclaimed allocation.
     function isFullyFunded() external view returns (bool) {
-        uint256 remaining = totalAllocated - totalClaimed;
+        uint256 remaining = totalClaimed >= totalAllocated ? 0 : totalAllocated - totalClaimed;
         return token.balanceOf(address(this)) >= remaining;
     }
 
@@ -91,7 +100,7 @@ contract ForgeMerkleClaim {
         if (block.timestamp <= deadline) revert ClaimStillOpen();
 
         uint256 amount = token.balanceOf(address(this));
-        token.safeTransfer(sponsor, amount);
+        if (amount != 0) token.safeTransfer(sponsor, amount);
         emit UnclaimedRecovered(sponsor, amount);
     }
 }
