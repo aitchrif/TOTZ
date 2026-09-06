@@ -6,6 +6,7 @@ on:
     paths:
       - 'tests/forge-claims-live-probe.mjs'
       - 'supabase/functions/forge-claims/**'
+      - 'supabase/migrations/**'
       - '.github/workflows/forge-claims-live-security.yml'
   workflow_dispatch:
 
