@@ -1,5 +1,6 @@
 (() => {
-  const TESTNET = {chainId:46630,name:'Robinhood Chain Testnet',rpc:'https://rpc.testnet.chain.robinhood.com'};
+  const RUNTIME = window.TOTZ_FORGE_CONFIG || {};
+  const TESTNET = RUNTIME.claimNetwork || {chainId:46630,name:'Robinhood Chain Testnet',rpc:'https://rpc.testnet.chain.robinhood.com'};
   const ERC20_ABI = [
     'function name() view returns (string)',
     'function symbol() view returns (string)',
@@ -14,6 +15,12 @@
   let tokenVerifyTimer = null;
   let reviewConfirmed = false;
   let deploymentStarted = false;
+
+  function readProvider() {
+    return window.ForgeRuntime?.createReadProvider
+      ? window.ForgeRuntime.createReadProvider()
+      : new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});
+  }
 
   function reviewStatus(message,type='warn') {
     const el = $('finalReviewStatus');
@@ -100,7 +107,7 @@
     setReviewCell('reviewEligible','ELIGIBLE WALLETS',packageData?.eligibleWallets ? Number(packageData.eligibleWallets).toLocaleString() : '—');
     setReviewCell('reviewPool','REWARD POOL',rewardPool);
     setReviewCell('reviewToken','REWARD TOKEN',tokenMeta ? `${tokenMeta.symbol} · ${short(rewardAddress)}` : (isAddress(rewardAddress)?short(rewardAddress):'—'));
-    setReviewCell('reviewRewardNetwork','REWARD NETWORK','Robinhood Testnet · 46630');
+    setReviewCell('reviewRewardNetwork','REWARD NETWORK',`${TESTNET.name} · ${TESTNET.chainId}`);
     setReviewCell('reviewSponsor','SPONSOR / RECOVERY',isAddress(sponsor)?short(sponsor):'—');
     setReviewCell('reviewDeadline','CLAIM DEADLINE',deadline ? new Date(deadline).toLocaleString() : '—');
     setReviewCell('reviewRoot','MERKLE ROOT',root,true);
@@ -133,11 +140,11 @@
       tokenStatus('Paste a valid ERC-20 reward token contract.','warn');
       return;
     }
-    tokenStatus('Reading reward token directly from Robinhood Chain Testnet…');
+    tokenStatus(`Reading reward token directly from ${TESTNET.name}…`);
     try {
-      const provider = new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId);
+      const provider = readProvider();
       const code = await provider.getCode(address);
-      if (!code || code === '0x') throw new Error('No contract code found at this address on Robinhood Chain Testnet.');
+      if (!code || code === '0x') throw new Error(`No contract code found at this address on ${TESTNET.name}.`);
       const c = new ethers.Contract(address,ERC20_ABI,provider);
       const [name,symbolRaw,decimalsRaw,walletAddr] = await Promise.all([
         c.name().catch(()=>''),c.symbol(),c.decimals(),connectedWallet()
