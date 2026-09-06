@@ -32,6 +32,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Install pinned read-only preflight dependency
+        run: npm install --no-save ethers@6.15.0
       - name: Run locked mainnet readiness preflight
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
