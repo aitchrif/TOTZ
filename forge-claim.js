@@ -15,9 +15,20 @@
   async function readOnChain(){
     if(!epoch)return;const provider=new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId);const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,provider);const [root,token,total,deadline,sponsor,totalClaimed,claimCount,balance,full]=await Promise.all([c.merkleRoot(),c.token(),c.totalAllocated(),c.deadline(),c.sponsor(),c.totalClaimed(),c.claimCount(),c.contractBalance(),c.isFullyFunded()]);
     const ok=String(root).toLowerCase()===String(epoch.merkle_root).toLowerCase()&&String(token).toLowerCase()===String(epoch.reward_token).toLowerCase()&&BigInt(total)===BigInt(epoch.total_allocated_units)&&Number(deadline)===Math.floor(new Date(epoch.deadline).getTime()/1000)&&String(sponsor).toLowerCase()===String(epoch.creator_wallet).toLowerCase();
-    chainState={provider,c,root,token,total:BigInt(total),deadline:Number(deadline),sponsor:String(sponsor).toLowerCase(),totalClaimed:BigInt(totalClaimed),claimCount:Number(claimCount),balance:BigInt(balance),full:Boolean(full),ok};
-    $('claimCount').textContent=fmt(claimCount);$('progress').style.width=`${Math.min(100,(Number(claimCount)/Math.max(1,Number(epoch.eligible_wallets)))*100)}%`;$('totalClaimed').textContent=`${formatUnits(totalClaimed,epoch.reward_decimals)} ${epoch.reward_symbol}`;$('remaining').textContent=`${formatUnits(balance,epoch.reward_decimals)} ${epoch.reward_symbol}`;$('funding').textContent=full?'FULLY FUNDED':'UNDERFUNDED';$('epochState').textContent=Date.now()/1000>Number(deadline)?'ENDED':'OPEN';$('statusTag').textContent=ok?'VERIFIED':'MISMATCH';$('statusTag').className=`tag ${ok?'good':'bad'}`;
-    if(!ok){status('loadStatus','On-chain contract parameters do not match the published claim metadata. Claiming is disabled.','error');$('claimBtn').disabled=true;return false;}status('loadStatus',`On-chain contract verified · ${full?'fully funded':'funding incomplete'}.`,full?'ok':'warn');return true;
+    const totalBI=BigInt(total), claimedBI=BigInt(totalClaimed), balanceBI=BigInt(balance), ended=Date.now()/1000>Number(deadline), fullyClaimed=claimedBI>=totalBI, settled=ended&&balanceBI===0n;
+    chainState={provider,c,root,token,total:totalBI,deadline:Number(deadline),sponsor:String(sponsor).toLowerCase(),totalClaimed:claimedBI,claimCount:Number(claimCount),balance:balanceBI,full:Boolean(full),ok,ended,fullyClaimed,settled};
+    let fundingLabel='UNDERFUNDED', epochLabel=ended?'ENDED':'OPEN', healthMessage='funding incomplete', healthType='warn';
+    if(!ended){
+      if(full){fundingLabel='SOLVENT ✓';healthMessage='solvent for all remaining claims';healthType='ok';}
+    }else if(fullyClaimed){
+      fundingLabel='FULLY CLAIMED ✓';epochLabel='CLOSED';healthMessage='epoch closed · all rewards claimed';healthType='ok';
+    }else if(settled){
+      fundingLabel='SETTLED ✓';epochLabel='CLOSED';healthMessage='epoch closed · unclaimed funds returned to sponsor';healthType='ok';
+    }else if(balanceBI>0n){
+      fundingLabel='RECOVERY READY';healthMessage='epoch ended · unclaimed funds ready for sponsor recovery';healthType='ok';
+    }
+    $('claimCount').textContent=fmt(claimCount);$('progress').style.width=`${Math.min(100,(Number(claimCount)/Math.max(1,Number(epoch.eligible_wallets)))*100)}%`;$('totalClaimed').textContent=`${formatUnits(totalClaimed,epoch.reward_decimals)} ${epoch.reward_symbol}`;$('remaining').textContent=`${formatUnits(balance,epoch.reward_decimals)} ${epoch.reward_symbol}`;$('funding').textContent=fundingLabel;$('epochState').textContent=epochLabel;$('statusTag').textContent=ok?'VERIFIED':'MISMATCH';$('statusTag').className=`tag ${ok?'good':'bad'}`;
+    if(!ok){status('loadStatus','On-chain contract parameters do not match the published claim metadata. Claiming is disabled.','error');$('claimBtn').disabled=true;return false;}status('loadStatus',`On-chain contract verified · ${healthMessage}.`,healthType);return true;
   }
   async function load(){
     const slug=new URLSearchParams(location.search).get('slug');if(!slug){status('loadStatus','Missing claim slug.','error');return;}
