@@ -92,6 +92,8 @@ await expect('public release status is fail-closed and non-sensitive', async () 
   assert(r.json?.mainnet?.masterEnabled === false, 'Mainnet master gate must remain false before Canary authorization');
   assert(r.json?.mainnet?.mode === 'locked', `expected locked mode, got ${r.json?.mainnet?.mode}`);
   assert(r.json?.mainnet?.canaryActive === false, 'Mainnet Canary must remain inactive before explicit authorization');
+  assert(!(r.json?.mainnet?.masterEnabled === false && r.json?.mainnet?.mode !== 'locked'), 'effective Mainnet mode must be locked whenever the master gate is off');
+  assert(!(r.json?.mainnet?.masterEnabled === false && r.json?.mainnet?.canaryActive !== false), 'Canary cannot be active while the master gate is off');
   assert(Number(r.json?.mainnet?.canaryMaxWallets) === 10, 'unexpected Mainnet Canary wallet cap');
   assert(typeof r.json?.mainnet?.rpcReady === 'boolean', 'status endpoint must expose only an RPC readiness boolean');
   assert(r.json?.mainnet?.sponsorAllowed === null, 'status without a wallet must not identify or authorize a sponsor');
@@ -212,4 +214,4 @@ await expect('publish to unknown session is rejected', async () => {
   assert(r.status === 404, `expected 404, got ${r.status}`);
 });
 
-console.log('FORGE live claims security probe passed.');
+console.log('FORGE live claims security probe passed against the current deployed service.');
