@@ -1,0 +1,54 @@
+name: FORGE Canary Preview Safety
+
+on:
+  push:
+    branches: ['canary/forge-mainnet-1']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary-preview-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Parse Mainnet-facing FORGE scripts
+        run: |
+          node --check forge-runtime-config.js
+          node --check forge-claim-launcher.js
+          node --check forge-claim.js
+          node --check forge-my-epochs.js
+      - name: Verify Canary client remains locked
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const s = fs.readFileSync('forge-runtime-config.js','utf8');
+          const assert = (c,m) => { if(!c) throw new Error(m); };
+          assert(s.includes("const environment = 'mainnet-canary';"), 'Canary environment marker missing');
+          assert(s.includes('const mainnetClaimsEnabled = false;'), 'Canary preview client gate must remain false');
+          assert(s.includes('const claimNetwork = networks.mainnet;'), 'Canary preview must target Robinhood mainnet');
+          assert(s.includes("chainId: 4663"), 'Robinhood mainnet chain ID missing');
+          console.log('PASS Canary preview targets chain 4663 while client launch stays locked');
+          NODE
+      - name: Verify live server stays locked with production RPC ready
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          CANARY_SPONSOR: '0xf3E2E7362F38daf68662ff9f963a20BD9602011f'
+        run: |
+          node <<'NODE'
+          const url = `${process.env.FORGE_CLAIMS_URL}?route=status&wallet=${encodeURIComponent(process.env.CANARY_SPONSOR)}`;
+          const r = await fetch(url, {cache:'no-store'});
+          const d = await r.json();
+          if (r.status !== 200) throw new Error(`status HTTP ${r.status}`);
+          if (d?.mainnet?.rpcReady !== true) throw new Error('production RPC is not ready');
+          if (d?.mainnet?.masterEnabled !== false) throw new Error('mainnet master gate is unexpectedly enabled');
+          if (d?.mainnet?.mode !== 'locked') throw new Error(`expected locked mode, got ${d?.mainnet?.mode}`);
+          if (d?.mainnet?.canaryActive !== false) throw new Error('Canary is unexpectedly active');
+          if (d?.mainnet?.sponsorAllowed !== false) throw new Error('sponsor must not be authorized while master gate is locked');
+          console.log('PASS production RPC ready; Mainnet master gate and Canary remain locked');
+          NODE
