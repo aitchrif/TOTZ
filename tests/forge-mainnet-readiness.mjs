@@ -1,9 +1,18 @@
 import { readFile } from 'node:fs/promises';
+import { Contract, JsonRpcProvider } from 'ethers';
 
 const CLAIMS_URL = process.env.FORGE_CLAIMS_URL || 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
 const EXPECTED_RUNTIME_HASH = '0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56';
 const TESTNET = { chainId: 46630, rpc: 'https://rpc.testnet.chain.robinhood.com' };
 const MAINNET = { chainId: 4663, rpc: process.env.FORGE_MAINNET_RPC_URL || 'https://rpc.mainnet.chain.robinhood.com' };
+const PUBLISHED_TESTNET_SLUG = process.env.FORGE_TESTNET_EPOCH_SLUG || 'forge-quick-test-mtpw6j67-28aadc';
+const CLAIM_VIEW_ABI = [
+  'function token() view returns (address)',
+  'function sponsor() view returns (address)',
+  'function merkleRoot() view returns (bytes32)',
+  'function totalAllocated() view returns (uint256)',
+  'function deadline() view returns (uint64)'
+];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -84,6 +93,30 @@ async function rpcChainId(label, network) {
   }
 }
 
+async function checkPublishedTestnetEpoch() {
+  const response = await fetch(`${CLAIMS_URL}?route=get&slug=${encodeURIComponent(PUBLISHED_TESTNET_SLUG)}`, { cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  assert(response.status === 200, `published Testnet epoch GET expected HTTP 200, got ${response.status}: ${data?.error || ''}`);
+  const epoch = data?.epoch;
+  assert(epoch, 'published Testnet epoch payload is missing');
+  assert(Number(epoch.claim_chain_id) === TESTNET.chainId, `published fixture is on chain ${epoch.claim_chain_id}, expected ${TESTNET.chainId}`);
+  assert(/^0x[a-fA-F0-9]{40}$/.test(String(epoch.claim_contract || '')), 'published fixture claim contract is invalid');
+
+  const provider = new JsonRpcProvider(TESTNET.rpc, TESTNET.chainId, { staticNetwork: true });
+  const code = await provider.getCode(epoch.claim_contract);
+  assert(code && code !== '0x', 'published Testnet claim contract has no code');
+  const contract = new Contract(epoch.claim_contract, CLAIM_VIEW_ABI, provider);
+  const [token, sponsor, root, total, deadline] = await Promise.all([
+    contract.token(), contract.sponsor(), contract.merkleRoot(), contract.totalAllocated(), contract.deadline()
+  ]);
+  assert(String(token).toLowerCase() === String(epoch.reward_token).toLowerCase(), 'published Testnet reward token does not match on-chain contract');
+  assert(String(sponsor).toLowerCase() === String(epoch.creator_wallet).toLowerCase(), 'published Testnet sponsor does not match on-chain contract');
+  assert(String(root).toLowerCase() === String(epoch.merkle_root).toLowerCase(), 'published Testnet Merkle root does not match on-chain contract');
+  assert(BigInt(total) === BigInt(epoch.total_allocated_units), 'published Testnet total allocation does not match on-chain contract');
+  assert(Number(deadline) === Math.floor(new Date(epoch.deadline).getTime() / 1000), 'published Testnet deadline does not match on-chain contract');
+  pass(`published Testnet epoch ${PUBLISHED_TESTNET_SLUG} matches its live on-chain claim contract`);
+}
+
 async function checkLiveMainnetKillSwitch() {
   const now = Math.floor(Date.now() / 1000);
   const uploadToken = `0x${'ab'.repeat(32)}`;
@@ -124,7 +157,8 @@ await checkDatabaseGateTracked();
 await checkArtifact();
 await rpcChainId('Robinhood Testnet', TESTNET);
 await rpcChainId('Robinhood Mainnet', MAINNET);
+await checkPublishedTestnetEpoch();
 await checkLiveMainnetKillSwitch();
 
 console.log('\nFORGE MAINNET READINESS: LOCKED PRE-CANARY CHECKS PASSED.');
-console.log('Mainnet remains disabled. A dedicated production RPC, branch protection, final Testnet E2E and explicit Canary authorization are still required before enabling writes.');
+console.log('Mainnet remains disabled. A dedicated production RPC, branch protection, final wallet-signed Testnet E2E and explicit Canary authorization are still required before enabling writes.');
