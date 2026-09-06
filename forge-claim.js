@@ -65,9 +65,9 @@
     return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider(network):new ethers.JsonRpcProvider(network.rpc,network.chainId,{staticNetwork:true});
   }
 
-  async function readOnChain(){
+  async function readOnChain(providerOverride=null){
     if(!epoch||!network)return false;
-    const provider=readProvider();
+    const provider=providerOverride||readProvider();
     const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,provider);
     const [root,token,total,deadline,sponsor,totalClaimed,claimCount,balance,full]=await Promise.all([c.merkleRoot(),c.token(),c.totalAllocated(),c.deadline(),c.sponsor(),c.totalClaimed(),c.claimCount(),c.contractBalance(),c.isFullyFunded()]);
     const ok=String(root).toLowerCase()===String(epoch.merkle_root).toLowerCase()&&String(token).toLowerCase()===String(epoch.reward_token).toLowerCase()&&BigInt(total)===BigInt(epoch.total_allocated_units)&&Number(deadline)===Math.floor(new Date(epoch.deadline).getTime()/1000)&&String(sponsor).toLowerCase()===String(epoch.creator_wallet).toLowerCase();
@@ -89,6 +89,16 @@
     if(!ok){status('loadStatus','On-chain contract parameters do not match the published claim metadata. Claiming is disabled.','error');$('claimBtn').disabled=true;return false;}
     status('loadStatus',`On-chain contract verified on ${network.name} · ${healthMessage}.`,healthType);
     return true;
+  }
+
+  async function refreshAfterTransaction(provider,predicate){
+    for(let attempt=0;attempt<5;attempt++){
+      await readOnChain(provider);
+      if(wallet)await checkWallet();
+      if(!predicate||predicate(chainState))return true;
+      await new Promise(r=>setTimeout(r,300*(attempt+1)));
+    }
+    return false;
   }
 
   async function load(){
@@ -154,13 +164,16 @@
       const addr=(await signer.getAddress()).toLowerCase();
       if(addr!==wallet){wallet=addr;await checkWallet();throw new Error('Wallet account changed. Recheck eligibility.');}
       const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,signer);
+      const claimUnits=BigInt(claimData.amount_units);
+      const beforeClaimed=chainState?.totalClaimed||0n;
+      const beforeCount=chainState?.claimCount||0;
       status('claimStatus',`Wallet approval required to claim ${formatUnits(claimData.amount_units,epoch.reward_decimals)} ${epoch.reward_symbol}…`);
-      const tx=await c.claim(BigInt(claimData.amount_units),claimData.proof);
+      const tx=await c.claim(claimUnits,claimData.proof);
       status('claimStatus','Transaction sent. Waiting for confirmation…');
       const rc=await tx.wait();
-      status('claimStatus',`Claim complete ✓ ${rc?.hash?short(rc.hash):''}`,'ok');
       $('claimBtn').textContent='CLAIMED ✓';$('claimBtn').disabled=true;
-      await readOnChain();await checkWallet();
+      const synced=await refreshAfterTransaction(provider,s=>Boolean(s)&&s.totalClaimed>=beforeClaimed+claimUnits&&s.claimCount>=beforeCount+1);
+      status('claimStatus',synced?`Claim complete ✓ ${rc?.hash?short(rc.hash):''}`:'Claim confirmed ✓ Read RPC is still catching up; use Refresh if live metrics lag.',synced?'ok':'warn');
     }catch(e){
       status('claimStatus',e?.shortMessage||e?.message||'Claim failed.','error');
       if(claimData&&interactionEnabled())$('claimBtn').disabled=false;
@@ -178,8 +191,8 @@
       status('sponsorStatus','Wallet approval required to recover tokens remaining after deadline…');
       const tx=await c.recoverUnclaimed();
       await tx.wait();
-      status('sponsorStatus','Unclaimed funds returned to sponsor wallet.','ok');
-      await readOnChain();
+      const synced=await refreshAfterTransaction(provider,s=>Boolean(s)&&s.balance===0n);
+      status('sponsorStatus',synced?'Unclaimed funds returned to sponsor wallet.':'Recovery confirmed. Read RPC is still catching up; use Refresh if live metrics lag.',synced?'ok':'warn');
     }catch(e){
       status('sponsorStatus',e?.shortMessage||e?.message||'Recovery failed.','error');
       if(interactionEnabled())$('recoverBtn').disabled=false;
