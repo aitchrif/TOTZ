@@ -22,6 +22,7 @@ Expected safe state before Canary:
 - `mainnet_release_mode = locked`
 - `mainnet_canary_sponsor = ''`
 - `mainnet_canary_max_wallets = 10`
+- `mainnet_canary_expires_at = ''`
 - frontend `mainnetClaimsEnabled = false`
 - frontend default claim network = Testnet 46630
 
@@ -36,6 +37,7 @@ Before touching release configuration:
   `0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56`
 - The known published Testnet fixture must still match its live on-chain contract.
 - Live mainnet claim creation must still be rejected while locked.
+- Canary expiry invariant must pass: default blank, valid Canary window no longer than 24 hours, expired Canary treated as locked.
 
 Do not continue after any red check.
 
@@ -85,6 +87,8 @@ Any failure returns the release to LOCKED.
 
 Choose one dedicated sponsor wallet for the first Mainnet Canary. It must be the wallet that deploys and signs the Canary claim.
 
+Choose a short expiry window for the Canary authorization. It MUST be in the future and MUST NOT be more than 24 hours from the time it is configured. A few hours is preferred for the first controlled release.
+
 Configure only the policy values first while the master gate remains `false`:
 
 ```sql
@@ -99,6 +103,10 @@ set value = '10', updated_at = now()
 where key = 'mainnet_canary_max_wallets';
 
 update public.forge_release_config
+set value = '<UTC_ISO_EXPIRY_WITHIN_24_HOURS>', updated_at = now()
+where key = 'mainnet_canary_expires_at';
+
+update public.forge_release_config
 set value = 'canary', updated_at = now()
 where key = 'mainnet_release_mode';
 
@@ -106,6 +114,8 @@ commit;
 ```
 
 At this point Mainnet must STILL be closed because `mainnet_claims_enabled` remains `false` and the client runtime remains locked.
+
+Before proceeding, `GET ?route=status` must report an effective locked state until the remaining gates are intentionally opened. The status endpoint must never expose the raw sponsor address, raw Canary expiry, or private RPC URL.
 
 ## Gate 6 — Canary release commit
 
@@ -124,7 +134,7 @@ After the commit, require all three CI checks to pass and verify the Vercel Prev
 
 ## Gate 7 — Open server master gate last
 
-Only after the Canary client preview is approved, branch protection is active, the dedicated RPC is configured, and final Testnet rehearsal is complete:
+Only after the Canary client preview is approved, branch protection is active, the dedicated RPC is configured, final Testnet rehearsal is complete, and the Canary expiry is still valid:
 
 ```sql
 update public.forge_release_flags
@@ -136,8 +146,11 @@ Because `mainnet_release_mode = canary`, the backend and Postgres trigger will s
 
 - any sponsor other than the configured Canary sponsor,
 - any epoch with more than 10 eligible wallets,
+- any Canary with missing, invalid, expired, or >24-hour authorization,
 - unsupported claim chains,
 - writes without the dedicated production mainnet RPC.
+
+If the Canary expiry passes during create/upload/publish, later write stages fail closed. Configure a fresh controlled window only after re-running the release checks.
 
 ## Canary constraints
 
@@ -148,7 +161,8 @@ The first Mainnet epoch should use:
 - a standard non-rebasing ERC-20,
 - no fee-on-transfer, reflection, tax, rebasing, or balance-mutating tokenomics,
 - a short but operationally comfortable claim window,
-- only wallets controlled/known for the Canary validation.
+- only wallets controlled/known for the Canary validation,
+- a Canary release authorization window of 24 hours maximum.
 
 Do not use a valuable large distribution for the first live test.
 
@@ -184,7 +198,8 @@ It safely and idempotently restores:
 - master gate = false,
 - release mode = locked,
 - Canary sponsor = blank,
-- Canary max wallets = 10.
+- Canary max wallets = 10,
+- Canary expiry = blank.
 
 Important: locking the app/backend stops new FORGE publication flows. It does not and cannot disable already-deployed immutable claim contracts. Existing on-chain claim contracts continue according to their code, funding, proofs and deadline.
 
@@ -222,6 +237,7 @@ Application rollback and blockchain rollback are different:
 - Never commit an Alchemy/API key.
 - Never enable the server master gate before the client Canary preview is approved.
 - Never set release mode directly from `locked` to `public` for first launch.
+- Never leave a Canary authorization without an expiry or with a window longer than 24 hours.
 - Never remove runtime attestation to make a deployment pass.
 - Never bypass Merkle total/proof verification.
 - Never use a test token helper on Mainnet.
