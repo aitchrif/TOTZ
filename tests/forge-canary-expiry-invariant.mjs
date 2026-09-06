@@ -48,9 +48,9 @@ async function checkLiveStatus() {
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'canaryExpiresAt'), 'release status leaks raw Canary expiry');
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'rpc'), 'release status leaks RPC endpoint');
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'rpcUrl'), 'release status leaks RPC URL');
-  pass('live release status remains master-locked and does not expose Canary expiry, sponsor, or RPC URL');
+  pass('live V13 release status remains master-locked and does not expose Canary expiry, sponsor, or RPC URL');
 }
 
 await checkTrackedExpiryPolicy();
 await checkLiveStatus();
-console.log('\nFORGE CANARY EXPIRY INVARIANT: PASSED.');
+console.log('\nFORGE CANARY EXPIRY + MASTER-GATE INVARIANT: PASSED.');
