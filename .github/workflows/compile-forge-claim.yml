@@ -7,22 +7,25 @@ on:
       - 'contracts/ForgeMerkleClaim.sol'
       - 'contracts/ForgeTestUSDG.sol'
       - 'tests/forge-claim.test.cjs'
+      - 'artifacts/ForgeMerkleClaim.json'
+      - 'artifacts/ForgeTestUSDG.json'
       - '.github/workflows/compile-forge-claim.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   compile-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: forge-v1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
       - name: Install pinned compiler and test dependencies
         run: |
           npm init -y >/dev/null 2>&1
@@ -84,14 +87,10 @@ jobs:
           NODE
       - name: Run claim contract behavior tests
         run: node tests/forge-claim.test.cjs
-      - name: Commit deterministic artifacts
+      - name: Verify committed artifacts are deterministic
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/ForgeMerkleClaim.json artifacts/ForgeTestUSDG.json
-          if git diff --cached --quiet; then
-            echo "Artifacts unchanged"
-          else
-            git commit -m "Update Forge contract artifacts [skip ci]"
-            git push origin HEAD:forge-v1
+          if ! git diff --exit-code -- artifacts/ForgeMerkleClaim.json artifacts/ForgeTestUSDG.json; then
+            echo "::error::Committed FORGE artifacts do not match the pinned compiler output. Regenerate and review them before merging."
+            exit 1
           fi
+          echo "Artifacts match the pinned compiler output."
