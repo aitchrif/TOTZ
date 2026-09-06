@@ -1,0 +1,44 @@
+name: FORGE Testnet Wallet E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-testnet-wallet-e2e
+  cancel-in-progress: false
+
+jobs:
+  wallet-signed-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: forge-v1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Require dedicated Testnet operator secret
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            echo "Use a dedicated Robinhood Testnet-only wallet. Never use a Mainnet treasury/private key."
+            exit 1
+          fi
+
+      - name: Install pinned E2E dependency
+        run: npm install --no-save ethers@6.15.0
+
+      - name: Run wallet-signed FORGE Testnet rehearsal
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-testnet-wallet-e2e.mjs
