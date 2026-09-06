@@ -64,6 +64,24 @@
   function makeSlug(){const base=(pkg?.source?.collection||'claim').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'claim';return `${base}-${Date.now().toString(36)}-${randomHex(3).slice(2)}`;}
   function readProvider(){return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider(CLAIM_NETWORK):new ethers.JsonRpcProvider(CLAIM_NETWORK.rpc,CLAIM_NETWORK.chainId,{staticNetwork:true});}
 
+  async function assertServerLaunchReady(sponsor){
+    if(CLAIM_NETWORK.environment!=='mainnet')return true;
+    if(!isAddress(sponsor))throw new Error('A valid sponsor wallet is required for the Mainnet release preflight.');
+    const params=new URLSearchParams({route:'status',wallet:sponsor.toLowerCase()});
+    const response=await fetch(`${CLAIM_SERVICE}?${params}`,{cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||`Could not verify the FORGE Mainnet release state (${response.status}).`);
+    const state=data?.mainnet||{};
+    if(state.masterEnabled!==true||!['canary','public'].includes(String(state.mode||'')))throw new Error('FORGE Mainnet server release gate is still locked. No transaction was sent.');
+    if(state.rpcReady!==true)throw new Error('FORGE Mainnet production RPC is not ready. No transaction was sent.');
+    if(state.mode==='canary'){
+      if(state.sponsorAllowed!==true)throw new Error('This wallet is not the configured FORGE Mainnet Canary sponsor. No transaction was sent.');
+      const max=Number(state.canaryMaxWallets||0),eligible=Number(pkg?.eligibleWallets||0);
+      if(!Number.isInteger(max)||max<1||!Number.isInteger(eligible)||eligible<1||eligible>max)throw new Error(`FORGE Mainnet Canary is limited to ${max||0} eligible wallets. No transaction was sent.`);
+    }
+    return true;
+  }
+
   function installHardWriteGuard(){
     if(writesEnabled())return;
     const ids=['deployBtn','fundBtn','publishBtn'];
@@ -187,8 +205,9 @@
     if(!verified)return;
     if(!writesEnabled()){status('deployStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
     const token=$('tokenInput').value.trim().toLowerCase(), sponsor=$('sponsorInput').value.trim().toLowerCase();updateDeployReady();if($('deployBtn').disabled)return;
-    $('deployBtn').disabled=true;status('deployStatus',`Checking token and preparing ${CLAIM_NETWORK.name} deployment…`);
+    $('deployBtn').disabled=true;status('deployStatus',`Checking server release gate before ${CLAIM_NETWORK.name} deployment…`);
     try{
+      await assertServerLaunchReady(sponsor);
       const provider=await ensureClaimNetwork();const signer=await provider.getSigner();const signerAddr=(await signer.getAddress()).toLowerCase();
       if(signerAddr!==sponsor)throw new Error('Sponsor wallet must match the connected signing wallet for this claim flow.');
       tokenMeta=await inspectToken(provider,token);
@@ -215,16 +234,20 @@
   async function fund(){
     if(!claimAddress||!pkg)return;
     if(!writesEnabled()){status('fundStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
-    $('fundBtn').disabled=true;status('fundStatus','Preparing exact ERC-20 transfer…');
-    try{const provider=await ensureClaimNetwork();const signer=await provider.getSigner();const token=$('tokenInput').value.trim().toLowerCase();const erc=new ethers.Contract(token,ERC20_ABI,signer);const owner=await signer.getAddress();const required=BigInt(pkg.reward.totalUnits);const claim=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const current=BigInt(await claim.contractBalance());const missing=required>current?required-current:0n;if(missing===0n){await refreshFunding(provider);return;}const balance=BigInt(await erc.balanceOf(owner));if(balance<missing)throw new Error(`Wallet balance is too low. Need ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`);status('fundStatus',`Wallet approval required to transfer ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}…`);const tx=await erc.transfer(claimAddress,missing);await tx.wait();await refreshFunding(provider);}catch(e){status('fundStatus',e?.shortMessage||e?.message||'Funding failed.','error');if(writesEnabled())$('fundBtn').disabled=false;}
+    $('fundBtn').disabled=true;status('fundStatus','Checking server release gate before transferring reward tokens…');
+    try{
+      await assertServerLaunchReady($('sponsorInput').value.trim().toLowerCase());
+      const provider=await ensureClaimNetwork();const signer=await provider.getSigner();const token=$('tokenInput').value.trim().toLowerCase();const erc=new ethers.Contract(token,ERC20_ABI,signer);const owner=await signer.getAddress();const required=BigInt(pkg.reward.totalUnits);const claim=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const current=BigInt(await claim.contractBalance());const missing=required>current?required-current:0n;if(missing===0n){await refreshFunding(provider);return;}const balance=BigInt(await erc.balanceOf(owner));if(balance<missing)throw new Error(`Wallet balance is too low. Need ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`);status('fundStatus',`Wallet approval required to transfer ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}…`);const tx=await erc.transfer(claimAddress,missing);await tx.wait();await refreshFunding(provider);
+    }catch(e){status('fundStatus',e?.shortMessage||e?.message||'Funding failed.','error');if(writesEnabled())$('fundBtn').disabled=false;}
   }
 
   async function api(route, body){const r=await fetch(`${CLAIM_SERVICE}?route=${encodeURIComponent(route)}`,{method:'POST',headers:{'Content-Type':'application/json','x-forge-upload-token':uploadToken||''},body:JSON.stringify(body),cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Publish service error (${r.status}).`);return d;}
   async function publish(){
     if(!claimAddress||!pkg)return;
     if(!writesEnabled()){status('publishStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
-    $('publishBtn').disabled=true;status('publishStatus','Re-checking contract funding before publishing…');
+    $('publishBtn').disabled=true;status('publishStatus','Checking server release gate before publication…');
     try{
+      await assertServerLaunchReady($('sponsorInput').value.trim().toLowerCase());
       if(!await refreshFunding())throw new Error('Claim contract is not fully funded.');
       const provider=await ensureClaimNetwork();
       const signer=await provider.getSigner();
