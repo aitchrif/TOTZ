@@ -14,6 +14,7 @@ on:
       - 'contracts/ForgeMerkleClaim.sol'
       - 'supabase/functions/forge-claims/**'
       - 'supabase/migrations/20260906154000_forge_mainnet_release_gate.sql'
+      - 'supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql'
       - 'tests/forge-mainnet-readiness.mjs'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
