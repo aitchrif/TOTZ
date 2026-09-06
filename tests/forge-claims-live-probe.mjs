@@ -109,6 +109,23 @@ await expect('source-chain spoof is rejected before signature verification', asy
   assert(String(r.json?.error || '').toLowerCase().includes('source chain'), `unexpected error: ${r.json?.error}`);
 });
 
+await expect('mainnet claim creation is locked by the release gate', async () => {
+  const body = {
+    ...base,
+    slug: `mainnet-lock-probe-${Date.now().toString(36)}-abcdef`,
+    sourceChain: 'robinhood',
+    sourceChainId: 4663,
+    snapshotBlock: 1,
+    claimChainId: 4663,
+  };
+  const r = await request('create', {
+    method: 'POST', body,
+    headers: { 'x-forge-upload-token': uploadToken },
+  });
+  assert(r.status === 403, `expected 403, got ${r.status}: ${r.json?.error || ''}`);
+  assert(String(r.json?.error || '').toLowerCase().includes('mainnet claims are locked'), `unexpected error: ${r.json?.error}`);
+});
+
 await expect('unsigned V2 publication is rejected', async () => {
   const r = await request('create', {
     method: 'POST', body: base,
