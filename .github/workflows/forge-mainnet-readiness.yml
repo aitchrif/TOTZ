@@ -1,0 +1,38 @@
+name: FORGE Mainnet Readiness
+
+on:
+  push:
+    branches: [forge-v1]
+    paths:
+      - 'forge-runtime-config.js'
+      - 'forge-claim.html'
+      - 'forge-claim.js'
+      - 'forge-claim-launcher.html'
+      - 'forge-claim-launcher.js'
+      - 'forge-my-epochs.js'
+      - 'artifacts/ForgeMerkleClaim.json'
+      - 'contracts/ForgeMerkleClaim.sol'
+      - 'supabase/functions/forge-claims/**'
+      - 'supabase/migrations/20260906154000_forge_mainnet_release_gate.sql'
+      - 'tests/forge-mainnet-readiness.mjs'
+      - '.github/workflows/forge-mainnet-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-pre-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: forge-v1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Run locked mainnet readiness preflight
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-mainnet-readiness.mjs
