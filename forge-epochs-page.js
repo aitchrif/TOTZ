@@ -162,6 +162,7 @@
       const rows=weighted.map(h=>{const product=poolUnits*h.weight;const units=product/totalWeight;const remainder=product%totalWeight;allocated+=units;return{...h,units,remainder};});
       let leftover=poolUnits-allocated;
       if(leftover>0n){const order=rows.map((r,i)=>({i,remainder:r.remainder})).sort((a,b)=>a.remainder===b.remainder?a.i-b.i:(a.remainder>b.remainder?-1:1)); for(let i=0;i<order.length&&leftover>0n;i++,leftover--)rows[order[i].i].units+=1n;}
+      if(rows.some(r=>r.units<=0n)) throw new Error(`Reward pool is too small for these rules: at least one of ${fmt(rows.length)} eligible wallets would receive 0 smallest token units. Increase the reward amount or reduce/skew the eligibility weighting.`);
       const canonical=[`chain=${snapshot.chain}`,`contract=${snapshot.contract}`,`block=${snapshot.snapshotBlock}`,`pool=${poolUnits}`,`decimals=${decimals}`,`symbol=${symbol}`,`min=${min}`,`mode=${mode}`,`cap=${cap}`,`exclude=${[...ex.valid].sort().join('|')}`,...rows.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(r=>`${r.address}:${r.balance}:${r.weight}:${r.units}`)].join('\n');
       const fingerprint=await hash(canonical);
       distribution={rows,poolUnits,decimals,symbol,min,mode,cap,exclusions:ex.valid,totalWeight,fingerprint,createdAt:new Date().toISOString(),source:snapshot};
