@@ -25,15 +25,15 @@
     })
   });
 
-  // Release-candidate safety: Testnet is the only launch network.
-  // Mainnet is defined now so the UI/backend can be migrated without changing
-  // chain constants later, but NEW deploy/fund/publish actions remain locked
-  // until an explicit production release flips the corresponding server +
-  // client gates. Already-published, verified claims remain interactable so a
-  // later launch lockdown never strands holders from an immutable contract.
-  const environment = 'testnet';
+  // Canary preview safety: point the UI at Robinhood mainnet so the exact
+  // production network path can be reviewed, while NEW deploy/fund/publish
+  // actions remain client-locked until the final Canary arm step. Test helpers
+  // are automatically hidden because the selected claim network is mainnet.
+  // Already-published, verified claims remain interactable so a later launch
+  // lockdown never strands holders from an immutable contract.
+  const environment = 'mainnet-canary';
   const mainnetClaimsEnabled = false;
-  const claimNetwork = networks.testnet;
+  const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
