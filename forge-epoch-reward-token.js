@@ -1,8 +1,10 @@
 (() => {
   const TESTNET = {
     chainId: 46630,
+    hex: '0xb626',
     name: 'Robinhood Chain Testnet',
-    rpc: 'https://rpc.testnet.chain.robinhood.com'
+    rpc: 'https://rpc.testnet.chain.robinhood.com',
+    explorer: 'https://explorer.testnet.chain.robinhood.com'
   };
   const ERC20_ABI = [
     'function name() view returns (string)',
@@ -17,9 +19,17 @@
   let tokenMeta = null;
   let detecting = false;
   let detectTimer = null;
+  let creatingTestToken = false;
 
   function setTokenStatus(message, type='warn') {
     const el = $('rewardTokenStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `status show ${type}`;
+  }
+
+  function setTestStatus(message, type='warn') {
+    const el = $('rewardTestTokenStatus');
     if (!el) return;
     el.textContent = message;
     el.className = `status show ${type}`;
@@ -181,6 +191,104 @@
     ensureDecimalOption(tokenMeta.decimals);
   }
 
+  function savedTestToken() {
+    const candidates = [];
+    try {
+      const six = localStorage.getItem(`forge_test_token_${TESTNET.chainId}_6`);
+      const two = localStorage.getItem(`forge_test_token_${TESTNET.chainId}_2`);
+      if (isAddress(six)) candidates.push(six.toLowerCase());
+      if (isAddress(two)) candidates.push(two.toLowerCase());
+      const latest = JSON.parse(localStorage.getItem('totz_forge_reward_token_v1') || '{}');
+      if (latest?.chainId === TESTNET.chainId && isAddress(latest.address) && String(latest.symbol || '').toLowerCase() === 'tusdg') candidates.unshift(String(latest.address).toLowerCase());
+    } catch {}
+    return candidates[0] || null;
+  }
+
+  function applyTokenAddress(address) {
+    const input = $('rewardTokenInput');
+    if (!input || !isAddress(address)) return;
+    input.value = address.toLowerCase();
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+    setTimeout(() => detectToken({quiet:true}), 120);
+  }
+
+  async function ensureTestnetSigner() {
+    if (!window.ethereum?.request) throw new Error('No EVM browser wallet detected.');
+    const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+    if (!accounts?.[0]) throw new Error('Connect a wallet first.');
+    try {
+      await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:TESTNET.hex}]});
+    } catch (e) {
+      if (e?.code === 4902 || String(e?.message || '').toLowerCase().includes('unrecognized')) {
+        await window.ethereum.request({method:'wallet_addEthereumChain',params:[{
+          chainId:TESTNET.hex,
+          chainName:TESTNET.name,
+          nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},
+          rpcUrls:[TESTNET.rpc],
+          blockExplorerUrls:[TESTNET.explorer]
+        }]});
+      } else throw e;
+    }
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const wallet = await signer.getAddress();
+    const gasBalance = await provider.getBalance(wallet);
+    if (gasBalance === 0n) throw new Error('This wallet has no Testnet ETH for gas. Use the Robinhood Testnet faucet first.');
+    return {provider,signer,wallet};
+  }
+
+  async function loadTestArtifact() {
+    const r = await fetch('/artifacts/ForgeTestUSDG.json',{cache:'no-store'});
+    if (!r.ok) throw new Error('Test-token artifact is not available. Refresh and retry.');
+    const a = await r.json();
+    if (!a?.abi || !/^0x[0-9a-f]+$/i.test(a?.bytecode || '')) throw new Error('Invalid test-token artifact.');
+    return a;
+  }
+
+  async function useSavedTestToken() {
+    const address = savedTestToken();
+    if (!address) {
+      setTestStatus('No saved tUSDG test token found in this browser yet. Create one with the button next to it.', 'warn');
+      return;
+    }
+    setTestStatus(`Loading your saved test token ${short(address)}…`);
+    applyTokenAddress(address);
+    setTimeout(() => setTestStatus(`Saved tUSDG loaded ✓ ${short(address)}. FORGE is verifying it on-chain.`, 'ok'), 180);
+  }
+
+  async function createTestToken() {
+    if (creatingTestToken) return;
+    creatingTestToken = true;
+    const btn = $('createEpochTestTokenBtn');
+    if (btn) {btn.disabled = true; btn.textContent = 'CREATING…';}
+    setTestStatus('Preparing a 100,000 tUSDG test token with 6 decimals. MetaMask will ask you to approve the Testnet deployment.');
+    try {
+      const {signer,wallet} = await ensureTestnetSigner();
+      const artifact = await loadTestArtifact();
+      const factory = new ethers.ContractFactory(artifact.abi,artifact.bytecode,signer);
+      const token = await factory.deploy(6);
+      await token.waitForDeployment();
+      const address = (await token.getAddress()).toLowerCase();
+      const [symbol,decimals,balance] = await Promise.all([token.symbol(),token.decimals(),token.balanceOf(wallet)]);
+      if (String(symbol) !== 'tUSDG' || Number(decimals) !== 6) throw new Error('Created test token failed metadata verification.');
+      try {localStorage.setItem(`forge_test_token_${TESTNET.chainId}_6`,address);} catch {}
+      applyTokenAddress(address);
+      setTestStatus(`Test token ready ✓ ${ethers.formatUnits(balance,6)} tUSDG minted to ${short(wallet)}. Contract filled in automatically.`, 'ok');
+      try {
+        await window.ethereum.request({method:'wallet_watchAsset',params:{type:'ERC20',options:{address,symbol:'tUSDG',decimals:6}}});
+      } catch {}
+      if (btn) btn.textContent = 'TEST TOKEN READY ✓';
+      const use = $('useSavedTestTokenBtn');
+      if (use) use.disabled = false;
+    } catch (e) {
+      setTestStatus(e?.shortMessage || e?.message || 'Could not create the test token.', 'error');
+      if (btn) btn.textContent = 'CREATE NEW TEST TOKEN';
+    } finally {
+      creatingTestToken = false;
+      if (btn && btn.textContent !== 'TEST TOKEN READY ✓') btn.disabled = false;
+    }
+  }
+
   function install() {
     const pool = $('pool');
     const symbol = $('symbol');
@@ -199,12 +307,13 @@
     if (poolLabel) poolLabel.textContent = 'Reward amount';
 
     const style = document.createElement('style');
-    style.textContent = `.token-address-row{display:grid;grid-template-columns:1fr auto;gap:8px}.token-address-row .btn{padding:10px 14px}.reward-token-meta{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:2px}.reward-token-meta[hidden]{display:none!important}.reward-token-meta>div{background:var(--mint);border-radius:13px;padding:9px;min-width:0}.reward-token-meta small{display:block;color:var(--soft);font-size:.52rem;font-weight:900}.reward-token-meta b{display:block;margin-top:3px;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reward-token-meta .token-balance-warning{grid-column:1/-1;background:#FFF0C9;color:#8A6410;font-weight:900;font-size:.65rem}.token-internal-field{display:none!important}.reward-token-step{margin-bottom:2px}.reward-token-step label{font-size:.61rem}@media(max-width:650px){.token-address-row{grid-template-columns:1fr}.reward-token-meta{grid-template-columns:1fr 1fr}}`;
+    style.textContent = `.token-address-row{display:grid;grid-template-columns:1fr auto;gap:8px}.token-address-row .btn{padding:10px 14px}.reward-token-meta{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:2px}.reward-token-meta[hidden]{display:none!important}.reward-token-meta>div{background:var(--mint);border-radius:13px;padding:9px;min-width:0}.reward-token-meta small{display:block;color:var(--soft);font-size:.52rem;font-weight:900}.reward-token-meta b{display:block;margin-top:3px;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reward-token-meta .token-balance-warning{grid-column:1/-1;background:#FFF0C9;color:#8A6410;font-weight:900;font-size:.65rem}.token-internal-field{display:none!important}.reward-token-step{margin-bottom:2px}.reward-token-step label{font-size:.61rem}.test-token-helper{grid-column:1/-1;border:1px dashed var(--sky2);border-radius:15px;padding:10px 11px;background:#F7FCFD}.test-token-helper-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.test-token-helper-head b{font-size:.68rem}.test-token-helper-head span{background:#F4E8FF;color:#603B82;padding:4px 7px;border-radius:999px;font-size:.5rem;font-weight:900}.test-token-helper p{margin:4px 0 0;color:var(--soft);font-size:.62rem;font-weight:800}.test-token-helper .actions{margin-top:8px}.test-token-helper .btn{padding:9px 12px;font-size:.72rem}.test-token-helper .status{margin-top:8px;font-size:.66rem}@media(max-width:650px){.token-address-row{grid-template-columns:1fr}.reward-token-meta{grid-template-columns:1fr 1fr}.test-token-helper-head{align-items:flex-start}}`;
     document.head.appendChild(style);
 
+    const saved = savedTestToken();
     const field = document.createElement('div');
     field.className = 'field full reward-token-step';
-    field.innerHTML = `<label>1 · Reward token contract · Robinhood Chain Testnet</label><div class="token-address-row"><input id="rewardTokenInput" placeholder="0x ERC-20 reward token…" spellcheck="false"><button id="verifyRewardTokenBtn" class="btn soft" type="button">VERIFY TOKEN</button></div><div id="rewardTokenStatus" class="status show warn">Select the reward token first. FORGE reads its symbol and decimals directly on-chain.</div><div id="rewardTokenMeta" class="reward-token-meta" hidden></div>`;
+    field.innerHTML = `<label>1 · Reward token contract · Robinhood Chain Testnet</label><div class="token-address-row"><input id="rewardTokenInput" placeholder="0x ERC-20 reward token…" spellcheck="false"><button id="verifyRewardTokenBtn" class="btn soft" type="button">VERIFY TOKEN</button></div><div id="rewardTokenStatus" class="status show warn">Select the reward token first. FORGE reads its symbol and decimals directly on-chain.</div><div class="test-token-helper"><div class="test-token-helper-head"><b>🧪 Don't have a reward token contract?</b><span>TESTNET ONLY</span></div><p>Use the tUSDG test token you already created, or make a fresh one here. No real funds are used.</p><div class="actions"><button id="useSavedTestTokenBtn" class="btn soft" type="button" ${saved?'':'disabled'}>${saved?'USE SAVED tUSDG':'NO SAVED TOKEN'}</button><button id="createEpochTestTokenBtn" class="btn good" type="button">CREATE NEW TEST TOKEN</button></div><div id="rewardTestTokenStatus" class="status show warn">${saved?`Saved test token found · ${short(saved)}.`:'No saved test token found in this browser yet.'}</div></div><div id="rewardTokenMeta" class="reward-token-meta" hidden></div>`;
     fields.insertBefore(field, fields.firstChild);
 
     if (poolLabel) poolLabel.textContent = '2 · Reward amount';
@@ -220,6 +329,8 @@
       clearTimeout(detectTimer);
       if (isAddress($('rewardTokenInput').value.trim())) detectTimer = setTimeout(() => detectToken({quiet:true}), 450);
     });
+    $('useSavedTestTokenBtn')?.addEventListener('click', useSavedTestToken);
+    $('createEpochTestTokenBtn')?.addEventListener('click', createTestToken);
     pool.addEventListener('input', renderMeta);
     $('buildBtn')?.addEventListener('click', guardBuild, true);
 
