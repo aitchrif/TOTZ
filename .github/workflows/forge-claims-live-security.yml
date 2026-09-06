@@ -4,6 +4,11 @@ on:
   push:
     branches: [forge-v1]
     paths:
+      - 'forge-runtime-config.js'
+      - 'forge-claim.js'
+      - 'forge-my-epochs.js'
+      - 'forge-claim-launcher.js'
+      - 'forge-epoch-reward-token.js'
       - 'tests/forge-claims-live-probe.mjs'
       - 'supabase/functions/forge-claims/**'
       - 'supabase/migrations/**'
@@ -24,6 +29,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Parse critical FORGE frontend scripts
+        run: |
+          node --check forge-runtime-config.js
+          node --check forge-claim.js
+          node --check forge-my-epochs.js
+          node --check forge-claim-launcher.js
+          node --check forge-epoch-reward-token.js
       - name: Install probe dependency
         run: npm install --no-save ethers@6.15.0
       - name: Probe live FORGE claims service
