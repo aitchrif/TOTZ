@@ -1,5 +1,6 @@
 (() => {
-  const TESTNET = {
+  const RUNTIME = window.TOTZ_FORGE_CONFIG || {};
+  const TESTNET = RUNTIME.claimNetwork || {
     chainId: 46630,
     hex: '0xb626',
     name: 'Robinhood Chain Testnet',
@@ -42,6 +43,10 @@
     if (!window.ethereum?.request) throw new Error('No EVM browser wallet detected.');
     const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
     if (!accounts?.[0]) throw new Error('Connect a wallet first.');
+    if (window.ForgeRuntime?.ensureClaimNetwork) {
+      await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false});
+      return new ethers.BrowserProvider(window.ethereum);
+    }
     try {
       await window.ethereum.request({method:'wallet_switchEthereumChain', params:[{chainId:TESTNET.hex}]});
     } catch (e) {
@@ -74,7 +79,7 @@
     deploying = true;
     const btn = $('createTestTokenBtn');
     if (btn) btn.disabled = true;
-    setStatus(`Preparing a fixed-supply tUSDG token with ${packageDecimals} decimals on Robinhood Chain Testnet…`);
+    setStatus(`Preparing a fixed-supply tUSDG token with ${packageDecimals} decimals on ${TESTNET.name}…`);
     try {
       const provider = await ensureTestnet();
       const signer = await provider.getSigner();
@@ -161,7 +166,7 @@
       const entries=assigned.slice().sort((a,b)=>a.address.localeCompare(b.address));const tree=makeMerkle(entries);const claims={};
       tree.claims.forEach(c=>{claims[c.address]={amountUnits:c.units.toString(),amount:ethers.formatUnits(c.units,decimals),leaf:c.leaf,proof:c.proof};});
       const totalUnits=entries.reduce((s,e)=>s+e.units,0n);const now=new Date().toISOString();const fingerprint=await digest('FORGE_QUICK_TEST_V1\n'+entries.map(e=>`${e.address}:${e.units}`).join('\n'));
-      const pkg={format:'TOTZ_FORGE_MERKLE_V1',leafEncoding:'keccak256(bytes.concat(keccak256(abi.encode(address,uint256))))',pairHashing:'sorted-keccak256',root:tree.root,network:{name:'Robinhood Chain Testnet',chainId:46630,key:'robinhood-testnet'},source:{contract:'0x0000000000000000000000000000000000000001',collection:'FORGE QUICK TEST',snapshotBlock:0,snapshotUTC:now},reward:{symbol:'tUSDG',decimals,totalUnits:totalUnits.toString(),total:ethers.formatUnits(totalUnits,decimals)},eligibleWallets:entries.length,distributionFingerprint:fingerprint,createdUTC:now,quickTest:true,claims};
+      const pkg={format:'TOTZ_FORGE_MERKLE_V1',leafEncoding:'keccak256(bytes.concat(keccak256(abi.encode(address,uint256))))',pairHashing:'sorted-keccak256',root:tree.root,network:{name:TESTNET.name,chainId:TESTNET.chainId,key:TESTNET.key||'robinhood-testnet'},source:{contract:'0x0000000000000000000000000000000000000001',collection:'FORGE QUICK TEST',snapshotBlock:0,snapshotUTC:now},reward:{symbol:'tUSDG',decimals,totalUnits:totalUnits.toString(),total:ethers.formatUnits(totalUnits,decimals)},eligibleWallets:entries.length,distributionFingerprint:fingerprint,createdUTC:now,quickTest:true,claims};
       const file=new File([JSON.stringify(pkg,null,2)],`forge-quick-test-${entries.length}-wallets.json`,{type:'application/json'});const dt=new DataTransfer();dt.items.add(file);const input=$('fileInput');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
       const deadline=$('deadlineInput');if(deadline){const d=new Date(Date.now()+10*60*1000);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());deadline.value=d.toISOString().slice(0,16);deadline.dispatchEvent(new Event('input',{bubbles:true}));}
       try{const saved=localStorage.getItem(`forge_test_token_${TESTNET.chainId}_${decimals}`);if(saved&&isAddress(saved)&&$('tokenInput')){$('tokenInput').value=saved;$('tokenInput').dispatchEvent(new Event('input',{bubbles:true}));}}catch(_){ }
@@ -197,7 +202,7 @@
     const note = document.createElement('div');
     note.id = 'testTokenStatus';
     note.className = 'status show warn';
-    note.textContent = 'CREATE TEST TOKEN deploys 100,000 fixed-supply tUSDG on Chain 46630 and automatically matches the decimals in the loaded package.';
+    note.textContent = `CREATE TEST TOKEN deploys 100,000 fixed-supply tUSDG on ${TESTNET.name} (Chain ${TESTNET.chainId}) and automatically matches the decimals in the loaded package.`;
     actions.parentElement.insertBefore(note, actions.nextSibling);
 
     const fileInput = $('fileInput');
