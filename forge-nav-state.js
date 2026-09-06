@@ -26,14 +26,14 @@
   function toolLinks(kind) {
     const selectors = {
       xray: '[data-forge-nav="xray"], .tool-nav a[href^="/forge"]',
-      epochs: '[data-forge-nav="epochs"], .tool-nav a[href^="/forge-epochs"]',
-      myEpochs: '[data-forge-nav="my-epochs"], .tool-nav a[href^="/forge-my-epochs"]'
+      epochs: '[data-forge-nav="epochs"], .tool-nav a[href^="/forge-epochs"], .tool-nav a[href^="/forge/epochs"]',
+      myEpochs: '[data-forge-nav="my-epochs"], .tool-nav a[href^="/forge-my-epochs"], .tool-nav a[href^="/forge/my-epochs"]'
     };
     return [...document.querySelectorAll(selectors[kind] || '')].filter((link) => {
       const href = link.getAttribute('href') || '';
       if (kind === 'xray') return /^\/forge(?:\?|$)/.test(href);
-      if (kind === 'epochs') return href.startsWith('/forge-epochs');
-      return href.startsWith('/forge-my-epochs');
+      if (kind === 'epochs') return href.startsWith('/forge-epochs') || href.startsWith('/forge/epochs');
+      return href.startsWith('/forge-my-epochs') || href.startsWith('/forge/my-epochs');
     });
   }
 
@@ -48,7 +48,7 @@
     card.style.borderStyle = 'solid';
     const copy = card.querySelector('span');
     if (copy) copy.textContent = 'Build exact holder reward allocations from a pinned snapshot. Live now.';
-    const open = () => { location.href = withContext('/forge-epochs'); };
+    const open = () => { location.href = withContext('/forge/epochs'); };
     card.addEventListener('click', open);
     card.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -106,8 +106,8 @@
     removeLegacyInjectedNav();
     normalizeToolNav();
     toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
-    toolLinks('epochs').forEach((link) => { link.href = withContext('/forge-epochs'); });
-    toolLinks('myEpochs').forEach((link) => { link.href = '/forge-my-epochs'; });
+    toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
+    toolLinks('myEpochs').forEach((link) => { link.href = '/forge/my-epochs'; });
     installEpochCard();
     syncing = false;
   }
