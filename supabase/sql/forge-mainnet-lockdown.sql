@@ -19,7 +19,8 @@ insert into public.forge_release_config (key, value, updated_at)
 values
   ('mainnet_release_mode', 'locked', now()),
   ('mainnet_canary_sponsor', '', now()),
-  ('mainnet_canary_max_wallets', '10', now())
+  ('mainnet_canary_max_wallets', '10', now()),
+  ('mainnet_canary_expires_at', '', now())
 on conflict (key) do update
 set value = excluded.value,
     updated_at = excluded.updated_at;
@@ -27,7 +28,8 @@ set value = excluded.value,
 commit;
 
 -- Expected final state:
--- mainnet_claims_enabled   = false
--- mainnet_release_mode     = locked
--- mainnet_canary_sponsor   = <blank>
--- mainnet_canary_max_wallets = 10
+-- mainnet_claims_enabled      = false
+-- mainnet_release_mode        = locked
+-- mainnet_canary_sponsor      = <blank>
+-- mainnet_canary_max_wallets  = 10
+-- mainnet_canary_expires_at   = <blank>
