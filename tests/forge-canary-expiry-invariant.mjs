@@ -26,12 +26,13 @@ async function checkTrackedExpiryPolicy() {
 
   assert(backend.includes('MAX_CANARY_WINDOW_MS = 24 * 60 * 60 * 1000'), 'backend Canary window is not capped at 24 hours');
   assert(backend.includes('mainnet_canary_expires_at'), 'backend does not load Canary expiry');
-  assert(backend.includes('policy.mode==="canary"&&!window.valid?"locked":policy.mode'), 'public release status does not fail closed when Canary expiry is invalid');
+  assert(backend.includes('!policy.enabled?"locked":policy.mode==="canary"&&!window.valid?"locked":policy.mode'), 'public release status does not make the master kill switch authoritative');
+  assert(backend.includes('canaryActive:policy.enabled&&effectiveMode==="canary"&&window.valid'), 'public release status can report Canary active while the master gate is off');
   assert(backend.includes('FORGE mainnet Canary authorization has expired.'), 'backend does not reject expired Canary authorization');
   assert(backend.includes('FORGE mainnet Canary authorization cannot exceed 24 hours.'), 'backend does not reject overlong Canary authorization');
 
   assert(lockdown.includes("('mainnet_canary_expires_at', '', now())"), 'emergency lockdown does not clear Canary expiry');
-  pass('tracked Canary expiry policy is fail-closed, <=24h, and cleared by emergency lockdown');
+  pass('tracked Canary expiry and effective-status policy are master-gated, fail-closed, <=24h, and cleared by emergency lockdown');
 }
 
 async function checkLiveStatus() {
@@ -47,7 +48,7 @@ async function checkLiveStatus() {
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'canaryExpiresAt'), 'release status leaks raw Canary expiry');
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'rpc'), 'release status leaks RPC endpoint');
   assert(!Object.prototype.hasOwnProperty.call(mainnet, 'rpcUrl'), 'release status leaks RPC URL');
-  pass('live V12 release status remains locked and does not expose Canary expiry, sponsor, or RPC URL');
+  pass('live release status remains master-locked and does not expose Canary expiry, sponsor, or RPC URL');
 }
 
 await checkTrackedExpiryPolicy();
