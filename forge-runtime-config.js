@@ -25,15 +25,12 @@
     })
   });
 
-  // First Mainnet Canary preview: point the UI at Robinhood mainnet and allow
-  // the NEW deploy/fund/publish controls to run their server-side release
-  // handshake. The live backend/DB release gate remains authoritative and can
-  // still reject every write until the atomic Canary arm transaction is applied.
-  // Test helpers remain hidden because the selected claim network is mainnet.
-  // Already-published, verified claims remain interactable so a later launch
-  // lockdown never strands holders from an immutable contract.
+  // Post-Canary safety state: keep the preview pointed at Robinhood Mainnet so
+  // the verified published claim remains reviewable, but lock every NEW
+  // deploy/fund/publish action client-side again. The live backend/DB gate is
+  // also locked independently. Published verified claims stay interactable.
   const environment = 'mainnet-canary';
-  const mainnetClaimsEnabled = true;
+  const mainnetClaimsEnabled = false;
   const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
