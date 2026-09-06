@@ -366,7 +366,7 @@ Deno.serve(async(req:Request)=>{
       const entries=await loadAllEntries(supabase,epoch.id,epoch.eligible_wallets);
       if(entries.length!==epoch.eligible_wallets)return json({error:`Claim package incomplete (${entries.length}/${epoch.eligible_wallets}).`},409);
       let total=0n;
-      try{for(const e of entries){const v=validateEntry(e,epoch.merkle_root);total+=BigInt(e.amount_units);if(total>MAX_UINT256)throw new Error('Allocation total exceeds uint256.');}}catch(e){return json({error:`Server-side Merkle verification failed: ${e instanceof Error?e.message:'invalid entry'}`},409);}
+      try{for(const e of entries){const v=validateEntry(e,epoch.merkle_root);total+=BigInt(v.amount);if(total>MAX_UINT256)throw new Error('Allocation total exceeds uint256.');}}catch(e){return json({error:`Server-side Merkle verification failed: ${e instanceof Error?e.message:'invalid entry'}`},409);}
       if(total!==BigInt(epoch.total_allocated_units))return json({error:'Server-side allocation total does not match the committed pool.'},409);
       const deadlineUnix=Math.floor(new Date(epoch.deadline).getTime()/1000);
       if(deadlineUnix<=now())return json({error:'Claim deadline has already passed.'},409);
