@@ -1,2 +1,3 @@
 TOTZ FORGE Mainnet Canary locked preview trigger — no runtime effect.
 Mainnet execution remains disabled until explicit release authorization.
+Retry after Vercel Ignored Build Step configuration.
