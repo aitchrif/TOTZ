@@ -34,6 +34,7 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           const solc = require('solc');
+          const { keccak256 } = require('ethers');
           const contractFiles = ['contracts/ForgeMerkleClaim.sol','contracts/ForgeTestUSDG.sol'];
           const sources = {};
           for (const file of contractFiles) sources[file] = {content: fs.readFileSync(file, 'utf8')};
@@ -42,7 +43,7 @@ jobs:
             sources,
             settings: {
               optimizer: {enabled: true, runs: 200},
-              outputSelection: {'*': {'*': ['abi','evm.bytecode.object','evm.deployedBytecode.object','metadata']}}
+              outputSelection: {'*': {'*': ['abi','evm.bytecode.object','evm.deployedBytecode.object','evm.deployedBytecode.immutableReferences','metadata']}}
             }
           };
           function findImports(importPath) {
@@ -56,15 +57,26 @@ jobs:
             console.error(errors.map(e => e.formattedMessage).join('\n'));
             process.exit(1);
           }
+          function normalizedRuntimeHash(deployedHex, immutableReferences) {
+            const bytes = Buffer.from(deployedHex, 'hex');
+            for (const ranges of Object.values(immutableReferences || {})) {
+              for (const {start, length} of ranges) bytes.fill(0, start, start + length);
+            }
+            return keccak256('0x' + bytes.toString('hex'));
+          }
           function writeArtifact(sourcePath, contractName) {
             const c = output.contracts[sourcePath][contractName];
+            const deployedBytecode = c.evm.deployedBytecode.object;
+            const immutableReferences = c.evm.deployedBytecode.immutableReferences || {};
             fs.writeFileSync(`artifacts/${contractName}.json`, JSON.stringify({
               contractName,
               compiler: '0.8.24',
               optimizer: {enabled: true, runs: 200},
               abi: c.abi,
               bytecode: '0x' + c.evm.bytecode.object,
-              deployedBytecode: '0x' + c.evm.deployedBytecode.object
+              deployedBytecode: '0x' + deployedBytecode,
+              immutableReferences,
+              normalizedRuntimeHash: normalizedRuntimeHash(deployedBytecode, immutableReferences)
             }));
           }
           writeArtifact('contracts/ForgeMerkleClaim.sol','ForgeMerkleClaim');
