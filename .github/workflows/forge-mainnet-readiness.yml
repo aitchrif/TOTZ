@@ -11,7 +11,9 @@ on:
       - 'forge-claim-launcher.js'
       - 'forge-my-epochs.js'
       - 'artifacts/ForgeMerkleClaim.json'
+      - 'artifacts/ForgeTestUSDG.json'
       - 'contracts/ForgeMerkleClaim.sol'
+      - 'contracts/ForgeTestUSDG.sol'
       - 'supabase/functions/forge-claims/**'
       - 'supabase/migrations/20260906154000_forge_mainnet_release_gate.sql'
       - 'supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql'
@@ -21,6 +23,8 @@ on:
       - 'tests/forge-published-claim-continuity.mjs'
       - 'tests/forge-release-handshake.mjs'
       - 'tests/forge-canary-expiry-invariant.mjs'
+      - 'tests/forge-testnet-wallet-e2e.mjs'
+      - '.github/workflows/forge-testnet-wallet-e2e.yml'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -38,6 +42,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Parse wallet-signed Testnet E2E runner
+        run: node --check tests/forge-testnet-wallet-e2e.mjs
       - name: Verify published claim continuity under launch lockdown
         run: node tests/forge-published-claim-continuity.mjs
       - name: Verify Mainnet server release handshake invariant
