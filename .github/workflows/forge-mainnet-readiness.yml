@@ -15,10 +15,12 @@ on:
       - 'supabase/functions/forge-claims/**'
       - 'supabase/migrations/20260906154000_forge_mainnet_release_gate.sql'
       - 'supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql'
+      - 'supabase/migrations/20260906163000_forge_mainnet_canary_expiry.sql'
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
       - 'tests/forge-published-claim-continuity.mjs'
       - 'tests/forge-release-handshake.mjs'
+      - 'tests/forge-canary-expiry-invariant.mjs'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -40,6 +42,10 @@ jobs:
         run: node tests/forge-published-claim-continuity.mjs
       - name: Verify Mainnet server release handshake invariant
         run: node tests/forge-release-handshake.mjs
+      - name: Verify Canary expiry invariant
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-canary-expiry-invariant.mjs
       - name: Install pinned read-only preflight dependency
         run: npm install --no-save ethers@6.15.0
       - name: Run locked mainnet readiness preflight
