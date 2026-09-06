@@ -11,6 +11,14 @@ const SOURCE_CHAINS: Record<string, number> = {
   ethereum: 1,
   "robinhood-testnet": 46630,
 };
+const APPROVED_CLAIM_RUNTIME_HASH = "0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56";
+const CLAIM_IMMUTABLE_RANGES = [
+  {start:522,length:32},{start:1020,length:32},{start:1288,length:32},{start:1422,length:32},{start:1618,length:32},{start:1864,length:32},
+  {start:376,length:32},{start:1129,length:32},{start:1456,length:32},{start:1495,length:32},
+  {start:255,length:32},{start:868,length:32},
+  {start:329,length:32},{start:719,length:32},{start:1740,length:32},{start:1787,length:32},
+  {start:186,length:32},{start:558,length:32},{start:1193,length:32},
+];
 const coder = AbiCoder.defaultAbiCoder();
 
 const claimIface = new Interface([
@@ -38,26 +46,21 @@ const json = (body: unknown, status=200) => new Response(JSON.stringify(body), {
 });
 const isAddr=(v:string)=>/^0x[a-fA-F0-9]{40}$/.test(v||"");
 const isB32=(v:string)=>/^0x[a-fA-F0-9]{64}$/.test(v||"");
+const isZeroAddr=(v:string)=>/^0x0{40}$/i.test(v||"");
 const clean=(v:unknown,n=120)=>String(v??"").trim().slice(0,n);
 const now=()=>Math.floor(Date.now()/1000);
 function token(req:Request, body:any){return clean(req.headers.get("x-forge-upload-token")||body?.uploadToken,300);}
 async function sha256(v:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("");}
-async function tokenMatches(clear:string, expected:string){
-  if(!clear||!expected)return false;
-  const actual=await sha256(clear);
-  if(actual.length!==expected.length)return false;
-  let diff=0;
-  for(let i=0;i<actual.length;i++) diff|=actual.charCodeAt(i)^expected.charCodeAt(i);
-  return diff===0;
-}
+function equalText(a:string,b:string){if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;}
+async function tokenMatches(clear:string, expected:string){if(!clear||!expected)return false;return equalText(await sha256(clear),expected);}
 function validUnits(v:string){if(!/^\d{1,100}$/.test(v||""))return false;try{const n=BigInt(v);return n>0n&&n<=MAX_UINT256;}catch{return false;}}
 function validSourcePair(key:string,id:number){return Object.prototype.hasOwnProperty.call(SOURCE_CHAINS,key)&&SOURCE_CHAINS[key]===id;}
 
-function publicationMessage(body:any){
+function publicationMessageV2(body:any){
   const snapshotBlock=body.snapshotBlock==null?'':String(body.snapshotBlock);
   const fingerprint=String(body.packageFingerprint||'');
   return [
-    'TOTZ FORGE CLAIM PUBLISH V1',
+    'TOTZ FORGE CLAIM PUBLISH V2',
     `creator=${String(body.creatorWallet||'').toLowerCase()}`,
     `slug=${String(body.slug||'').toLowerCase()}`,
     `sourceChain=${String(body.sourceChain||'').toLowerCase()}`,
@@ -74,6 +77,7 @@ function publicationMessage(body:any){
     `claimContract=${String(body.claimContract||'').toLowerCase()}`,
     `deadline=${Number(body.deadline||0)}`,
     `packageFingerprint=${fingerprint}`,
+    `uploadTokenHash=${String(body.uploadTokenHash||'').toLowerCase()}`,
     `issuedAt=${Number(body.issuedAt||0)}`
   ].join('\n');
 }
@@ -86,6 +90,22 @@ async function rpc(method:string,params:any[],timeoutMs=12000){
     const d=await r.json();if(d?.error)throw new Error(d.error.message||'RPC error');return d?.result;
   }finally{clearTimeout(t);}
 }
+function normalizedRuntimeHash(code:string){
+  const hex=String(code||'').replace(/^0x/,'');
+  if(!hex||hex.length%2)throw new Error('invalid runtime');
+  const bytes=new Uint8Array(hex.length/2);
+  for(let i=0;i<bytes.length;i++)bytes[i]=parseInt(hex.slice(i*2,i*2+2),16);
+  for(const {start,length} of CLAIM_IMMUTABLE_RANGES){if(start+length>bytes.length)throw new Error('runtime size mismatch');bytes.fill(0,start,start+length);}
+  return keccak256(bytes);
+}
+async function assertApprovedClaimRuntime(address:string){
+  const code=await rpc('eth_getCode',[address,'latest']);
+  if(!code||code==='0x'||code==='0x0')throw new Error('Claim contract does not exist on the configured claim chain.');
+  let actual='';
+  try{actual=normalizedRuntimeHash(code);}catch{throw new Error('Claim contract runtime is not an approved TOTZ FORGE build.');}
+  if(actual.toLowerCase()!==APPROVED_CLAIM_RUNTIME_HASH)throw new Error('Claim contract runtime is not an approved TOTZ FORGE build.');
+  return actual;
+}
 async function codeAt(address:string){const c=await rpc('eth_getCode',[address,'latest']);return Boolean(c&&c!=='0x'&&c!=='0x0');}
 async function call(iface:Interface,address:string,fn:string,args:any[]=[]){
   const data=iface.encodeFunctionData(fn,args);const result=await rpc('eth_call',[{to:address,data},'latest']);return iface.decodeFunctionResult(fn,result)[0];
@@ -93,7 +113,7 @@ async function call(iface:Interface,address:string,fn:string,args:any[]=[]){
 
 async function verifyOnChain(expected:{creator:string;rewardToken:string;rewardSymbol:string;rewardDecimals:number;merkleRoot:string;totalUnits:string;claimChainId:number;claimContract:string;deadlineUnix:number;}, requireFunded=true){
   if(expected.claimChainId!==CLAIM_CHAIN_ID)throw new Error(`Unsupported claim chain ${expected.claimChainId}.`);
-  if(!await codeAt(expected.claimContract))throw new Error('Claim contract does not exist on the configured claim chain.');
+  const runtimeHash=await assertApprovedClaimRuntime(expected.claimContract);
   if(!await codeAt(expected.rewardToken))throw new Error('Reward token contract does not exist on the configured claim chain.');
   const [sponsor,tokenAddr,root,total,deadline,full,balance,symbol,decimals]=await Promise.all([
     call(claimIface,expected.claimContract,'sponsor'),
@@ -115,7 +135,7 @@ async function verifyOnChain(expected:{creator:string;rewardToken:string;rewardS
   if(String(symbol)!==expected.rewardSymbol)throw new Error('Reward token symbol does not match the publication metadata.');
   if(requireFunded&&!Boolean(full))throw new Error('Claim contract is not fully funded.');
   if(requireFunded&&BigInt(balance)<BigInt(expected.totalUnits))throw new Error('Claim contract balance is below the committed allocation.');
-  return {sponsor:String(sponsor).toLowerCase(),funded:Boolean(full),balance:String(balance)};
+  return {sponsor:String(sponsor).toLowerCase(),funded:Boolean(full),balance:String(balance),runtimeHash};
 }
 
 function pairHash(a:string,b:string){const A=BigInt(a),B=BigInt(b);const x=A<=B?a:b,y=A<=B?b:a;return keccak256(`0x${x.slice(2)}${y.slice(2)}`);}
@@ -165,23 +185,28 @@ Deno.serve(async (req:Request) => {
       const creator=clean(body.creatorWallet,42).toLowerCase(),sourceContract=clean(body.sourceContract,42).toLowerCase(),rewardToken=clean(body.rewardToken,42).toLowerCase(),claimContract=clean(body.claimContract,42).toLowerCase(),root=clean(body.merkleRoot,66).toLowerCase();
       const sourceChain=clean(body.sourceChain,24).toLowerCase(),sourceChainId=Number(body.sourceChainId||0),snapshotBlock=body.snapshotBlock==null?null:Number(body.snapshotBlock);
       const totalUnits=clean(body.totalAllocatedUnits,100),eligible=Number(body.eligibleWallets),decimals=Number(body.rewardDecimals),claimChainId=Number(body.claimChainId),deadlineUnix=Number(body.deadline),issuedAt=Number(body.issuedAt),signature=clean(body.authSignature,200);
-      if(!isAddr(creator)||!isAddr(sourceContract)||!isAddr(rewardToken)||!isAddr(claimContract)||!isB32(root))return json({error:'Invalid address or Merkle root.'},400);
+      if(!isAddr(creator)||!isAddr(sourceContract)||!isAddr(rewardToken)||!isAddr(claimContract)||!isB32(root)||isZeroAddr(creator)||isZeroAddr(sourceContract)||isZeroAddr(rewardToken)||isZeroAddr(claimContract))return json({error:'Invalid address or Merkle root.'},400);
       if(!validSourcePair(sourceChain,sourceChainId))return json({error:'Invalid source chain key / chain ID pair.'},400);
       if(snapshotBlock!==null&&(!Number.isSafeInteger(snapshotBlock)||snapshotBlock<0))return json({error:'Invalid snapshot block.'},400);
+      if(sourceChain!=='robinhood-testnet'&&(!Number.isSafeInteger(snapshotBlock)||snapshotBlock<=0))return json({error:'A positive pinned snapshot block is required for mainnet source chains.'},400);
       if(!validUnits(totalUnits))return json({error:'Invalid allocation units.'},400);
       if(!Number.isInteger(eligible)||eligible<1||eligible>20000)return json({error:'Invalid eligible wallet count.'},400);
       if(!Number.isInteger(decimals)||decimals<0||decimals>36)return json({error:'Invalid token decimals.'},400);
       if(!Number.isInteger(claimChainId)||claimChainId!==CLAIM_CHAIN_ID)return json({error:'Unsupported claim chain.'},400);
       if(!Number.isFinite(deadlineUnix)||deadlineUnix<=now()+60)return json({error:'Deadline must be safely in the future.'},400);
-      if(!Number.isInteger(issuedAt)||issuedAt<now()-600||issuedAt>now()+60)return json({error:'Publication authorization expired or has an invalid timestamp.'},403);
+      if(!Number.isInteger(issuedAt)||issuedAt<now()-300||issuedAt>now()+60)return json({error:'Publication authorization expired or has an invalid timestamp.'},403);
+      const suppliedUploadHash=clean(body.uploadTokenHash,66).toLowerCase();
+      if(!isB32(suppliedUploadHash))return json({error:'V2 upload token hash is required.'},400);
+      const actualUploadHash=`0x${await sha256(uploadToken)}`;
+      if(!equalText(actualUploadHash,suppliedUploadHash))return json({error:'Upload token hash does not match the protected session token.'},403);
       if(!/^0x[a-fA-F0-9]{130}$/.test(signature))return json({error:'Sponsor signature is required.'},403);
-      let recovered='';try{recovered=verifyMessage(publicationMessage(body),signature).toLowerCase();}catch{return json({error:'Invalid sponsor signature.'},403);}
+      let recovered='';try{recovered=verifyMessage(publicationMessageV2(body),signature).toLowerCase();}catch{return json({error:'Invalid sponsor signature.'},403);}
       if(recovered!==creator)return json({error:'Publication signature does not match the creator wallet.'},403);
-      try{await verifyOnChain({creator,rewardToken,rewardSymbol:clean(body.rewardSymbol,16),rewardDecimals:decimals,merkleRoot:root,totalUnits,claimChainId,claimContract,deadlineUnix},true);}catch(e){return json({error:`On-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
+      let chainCheck;try{chainCheck=await verifyOnChain({creator,rewardToken,rewardSymbol:clean(body.rewardSymbol,16),rewardDecimals:decimals,merkleRoot:root,totalUnits,claimChainId,claimContract,deadlineUnix},true);}catch(e){return json({error:`On-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
       const row={slug,creator_wallet:creator,status:'uploading',source_chain:sourceChain,source_chain_id:sourceChainId,source_contract:sourceContract,source_collection:clean(body.sourceCollection,100)||null,snapshot_block:snapshotBlock,reward_token:rewardToken,reward_symbol:clean(body.rewardSymbol,16),reward_decimals:decimals,merkle_root:root,total_allocated_units:totalUnits,eligible_wallets:eligible,claim_chain_id:claimChainId,claim_contract:claimContract,deadline:new Date(deadlineUnix*1000).toISOString(),package_fingerprint:clean(body.packageFingerprint,100)||null,upload_token_hash:await sha256(uploadToken),uploaded_entries:0};
       const {data,error}=await supabase.from('forge_claim_epochs').insert(row).select('id,slug').single();
       if(error){if(String(error.code)==='23505')return json({error:'Claim slug, Merkle root, or contract already exists.'},409);throw error;}
-      return json({ok:true,...data,authorizedCreator:creator,onChainVerified:true});
+      return json({ok:true,...data,authorizedCreator:creator,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash,authVersion:'V2'});
     }
 
     if(route==='upload'){
@@ -205,9 +230,10 @@ Deno.serve(async (req:Request) => {
       let total=0n;try{for(const e of entries){const v=validateEntry(e,epoch.merkle_root);total+=BigInt(v.amount);if(total>MAX_UINT256)throw new Error('Allocation total exceeds uint256.');}}catch(e){return json({error:`Server-side Merkle verification failed: ${e instanceof Error?e.message:'invalid entry'}`},409);}
       if(total!==BigInt(epoch.total_allocated_units))return json({error:'Server-side allocation total does not match the committed pool.'},409);
       const deadlineUnix=Math.floor(new Date(epoch.deadline).getTime()/1000);if(deadlineUnix<=now())return json({error:'Claim deadline has already passed.'},409);
-      try{await verifyOnChain({creator:String(epoch.creator_wallet).toLowerCase(),rewardToken:String(epoch.reward_token).toLowerCase(),rewardSymbol:String(epoch.reward_symbol),rewardDecimals:Number(epoch.reward_decimals),merkleRoot:String(epoch.merkle_root).toLowerCase(),totalUnits:String(epoch.total_allocated_units),claimChainId:Number(epoch.claim_chain_id),claimContract:String(epoch.claim_contract).toLowerCase(),deadlineUnix},true);}catch(e){return json({error:`Final on-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
-      const {error:e}=await supabase.from('forge_claim_epochs').update({status:'published',published_at:new Date().toISOString(),uploaded_entries:entries.length}).eq('id',epoch.id).eq('status','uploading');if(e)throw e;
-      return json({ok:true,slug,entries:entries.length,totalAllocatedUnits:total.toString(),serverVerified:true,onChainVerified:true});
+      let chainCheck;try{chainCheck=await verifyOnChain({creator:String(epoch.creator_wallet).toLowerCase(),rewardToken:String(epoch.reward_token).toLowerCase(),rewardSymbol:String(epoch.reward_symbol),rewardDecimals:Number(epoch.reward_decimals),merkleRoot:String(epoch.merkle_root).toLowerCase(),totalUnits:String(epoch.total_allocated_units),claimChainId:Number(epoch.claim_chain_id),claimContract:String(epoch.claim_contract).toLowerCase(),deadlineUnix},true);}catch(e){return json({error:`Final on-chain publication check failed: ${e instanceof Error?e.message:'verification failed'}`},409);}
+      const {data:updated,error:e}=await supabase.from('forge_claim_epochs').update({status:'published',published_at:new Date().toISOString(),uploaded_entries:entries.length}).eq('id',epoch.id).eq('status','uploading').select('id').maybeSingle();if(e)throw e;
+      if(!updated)return json({error:'Claim publication state changed before finalization.'},409);
+      return json({ok:true,slug,entries:entries.length,totalAllocatedUnits:total.toString(),serverVerified:true,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash});
     }
 
     return json({error:'Unknown route.'},404);
