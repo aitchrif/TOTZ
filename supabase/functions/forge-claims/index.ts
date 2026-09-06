@@ -97,6 +97,21 @@ async function mainnetReleasePolicy(supabase:any):Promise<MainnetReleasePolicy>{
   return{enabled:flag?.enabled===true,mode,canarySponsor,canaryMaxWallets};
 }
 
+function publicReleaseStatus(policy:MainnetReleasePolicy,wallet:string){
+  const checkedWallet=isAddr(wallet)?wallet.toLowerCase():"";
+  const sponsorMatch=checkedWallet
+    ? (policy.mode==="public" ? true : policy.mode==="canary" ? checkedWallet===policy.canarySponsor : false)
+    : null;
+  return{
+    chainId:4663,
+    masterEnabled:policy.enabled,
+    mode:policy.mode,
+    rpcReady:Boolean(MAINNET_RPC_URL),
+    canaryMaxWallets:policy.canaryMaxWallets,
+    sponsorAllowed:sponsorMatch
+  };
+}
+
 async function assertClaimWriteEnabled(supabase:any,chainId:number,context:ClaimWriteContext={}){
   const network=claimNetwork(chainId);
   if(!network) throw new Error(`Unsupported claim chain ${chainId}.`);
@@ -237,6 +252,15 @@ Deno.serve(async(req:Request)=>{
   try{
     const url=new URL(req.url),route=(url.searchParams.get('route')||'').toLowerCase();
     const supabase=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
+
+    if(req.method==='GET'&&route==='status'){
+      const wallet=clean(url.searchParams.get('wallet'),42).toLowerCase();
+      const policy=await mainnetReleasePolicy(supabase);
+      return json({
+        testnet:{chainId:46630,launchEnabled:true},
+        mainnet:publicReleaseStatus(policy,wallet)
+      });
+    }
 
     if(req.method==='GET'&&route==='get'){
       const slug=clean(url.searchParams.get('slug'),80).toLowerCase();
