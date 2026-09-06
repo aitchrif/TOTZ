@@ -63,6 +63,7 @@ const uploadToken = `0x${'ab'.repeat(32)}`;
 const base = {
   slug: `security-probe-${Date.now().toString(36)}-abcdef`,
   uploadToken,
+  uploadTokenHash: sha256(toUtf8Bytes(uploadToken)),
   creatorWallet: creator,
   sourceChain: 'robinhood-testnet',
   sourceChainId: 46630,
@@ -108,7 +109,7 @@ await expect('source-chain spoof is rejected before signature verification', asy
   assert(String(r.json?.error || '').toLowerCase().includes('source chain'), `unexpected error: ${r.json?.error}`);
 });
 
-await expect('unsigned publication is rejected', async () => {
+await expect('unsigned V2 publication is rejected', async () => {
   const r = await request('create', {
     method: 'POST', body: base,
     headers: { 'x-forge-upload-token': uploadToken },
