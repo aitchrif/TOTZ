@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install probe dependency
+        run: npm install --no-save ethers@6.15.0
       - name: Probe live FORGE claims service
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
