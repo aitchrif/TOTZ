@@ -20,6 +20,7 @@ on:
       - 'supabase/migrations/20260906163000_forge_mainnet_canary_expiry.sql'
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
+      - 'tests/forge-mainnet-canary-1-audit.mjs'
       - 'tests/forge-published-claim-continuity.mjs'
       - 'tests/forge-release-handshake.mjs'
       - 'tests/forge-canary-expiry-invariant.mjs'
@@ -50,6 +51,7 @@ jobs:
           node --check tests/forge-testnet-wallet-e2e.mjs
           node --check tests/forge-canary-prep.mjs
           node --check tests/forge-canary-arm-preview.mjs
+          node --check tests/forge-mainnet-canary-1-audit.mjs
       - name: Verify atomic first-Canary arm stays preview-only
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
@@ -67,6 +69,10 @@ jobs:
         run: node tests/forge-canary-expiry-invariant.mjs
       - name: Install pinned read-only preflight dependency
         run: npm install --no-save ethers@6.15.0
+      - name: Verify first Mainnet Canary historical audit
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-mainnet-canary-1-audit.mjs
       - name: Run locked mainnet readiness preflight
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
