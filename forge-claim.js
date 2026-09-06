@@ -19,21 +19,16 @@
     if(window.ForgeRuntime?.resolveClaimNetwork)return window.ForgeRuntime.resolveClaimNetwork(Number(chainId));
     return Number(chainId)===Number(FALLBACK.chainId)?FALLBACK:null;
   }
-  function writesEnabled(){
+  function interactionEnabled(){
     if(!network)return false;
-    if(window.ForgeRuntime?.canExecuteClaims)return window.ForgeRuntime.canExecuteClaims(network);
-    return Number(network.chainId)===Number(FALLBACK.chainId);
+    if(window.ForgeRuntime?.canInteractWithPublishedClaim)return window.ForgeRuntime.canInteractWithPublishedClaim(network);
+    return Boolean(resolveNetwork(network.chainId));
   }
   function updateNetworkControls(){
     const b=$('switchBtn');
     if(!b||!network)return;
-    if(!writesEnabled()){
-      b.textContent=network.environment==='mainnet'?'MAINNET LOCKED':'NETWORK LOCKED';
-      b.disabled=true;
-    }else{
-      b.textContent=network.environment==='mainnet'?'SWITCH TO MAINNET':'SWITCH TO TESTNET';
-      b.disabled=false;
-    }
+    b.textContent=network.environment==='mainnet'?'SWITCH TO MAINNET':'SWITCH TO TESTNET';
+    b.disabled=!interactionEnabled();
   }
 
   async function ensureWallet(request=true){
@@ -45,11 +40,11 @@
   }
 
   async function switchClaimNetwork(){
-    if(!network)throw new Error('Claim network is not available.');
-    if(!writesEnabled())throw new Error(`${network.name} claim writes are locked in this FORGE release.`);
+    if(!network||!interactionEnabled())throw new Error('Claim network is not available.');
     await ensureWallet(true);
     if(window.ForgeRuntime?.ensureClaimNetwork){
-      await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false,network,requireExecution:true});
+      // Published epochs are independent from the new-launch release gate.
+      await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false,network,requireExecution:false});
       return;
     }
     try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:network.hex}]});}
@@ -92,8 +87,7 @@
     $('statusTag').textContent=ok?'VERIFIED':'MISMATCH';
     $('statusTag').className=`tag ${ok?'good':'bad'}`;
     if(!ok){status('loadStatus','On-chain contract parameters do not match the published claim metadata. Claiming is disabled.','error');$('claimBtn').disabled=true;return false;}
-    if(!writesEnabled())status('loadStatus',`On-chain contract verified on ${network.name}. Mainnet write actions are locked in this frontend release.`,'warn');
-    else status('loadStatus',`On-chain contract verified on ${network.name} · ${healthMessage}.`,healthType);
+    status('loadStatus',`On-chain contract verified on ${network.name} · ${healthMessage}.`,healthType);
     return true;
   }
 
@@ -117,7 +111,7 @@
       await readOnChain();
       await ensureWallet(false).catch(()=>null);
       if(wallet)await checkWallet();
-      else $('walletState').textContent=writesEnabled()?'Connect a wallet to check eligibility.':`${network.name} claim detected · write actions are currently locked.`;
+      else $('walletState').textContent='Connect a wallet to check eligibility.';
     }catch(e){
       status('loadStatus',e?.message||'Could not load claim.','error');
       $('statusTag').textContent='ERROR';$('statusTag').className='tag bad';
@@ -140,21 +134,20 @@
         $('amount').textContent=`${formatUnits(claimData.amount_units,epoch.reward_decimals)} ${epoch.reward_symbol}`;
         $('walletState').textContent=already?'Already claimed.':`Eligible wallet · ${short(wallet)}`;
         $('claimBtn').textContent=already?'CLAIMED ✓':'CLAIM';
-        $('claimBtn').disabled=Boolean(already)||!chainState?.ok||Date.now()/1000>chainState.deadline||!writesEnabled();
+        $('claimBtn').disabled=Boolean(already)||!chainState?.ok||Date.now()/1000>chainState.deadline||!interactionEnabled();
         updateNetworkControls();
       }
       const isSponsor=wallet===String(epoch.creator_wallet).toLowerCase();
       $('sponsorBox').classList.toggle('show',isSponsor);
-      if(isSponsor)$('recoverBtn').disabled=Date.now()/1000<=chainState.deadline||chainState.balance===0n||!writesEnabled();
+      if(isSponsor)$('recoverBtn').disabled=Date.now()/1000<=chainState.deadline||chainState.balance===0n||!interactionEnabled();
     }catch(e){status('claimStatus',e?.message||'Could not check wallet.','error');}
   }
 
   async function claim(){
-    if(!claimData||!epoch||!network)return;
+    if(!claimData||!epoch||!network||!interactionEnabled())return;
     $('claimBtn').disabled=true;
     status('claimStatus',`Switching to ${network.name}…`);
     try{
-      if(!writesEnabled())throw new Error(`${network.name} claim writes are locked in this FORGE release.`);
       await switchClaimNetwork();
       const provider=new ethers.BrowserProvider(window.ethereum);
       const signer=await provider.getSigner();
@@ -170,15 +163,14 @@
       await readOnChain();await checkWallet();
     }catch(e){
       status('claimStatus',e?.shortMessage||e?.message||'Claim failed.','error');
-      if(claimData&&writesEnabled())$('claimBtn').disabled=false;
+      if(claimData&&interactionEnabled())$('claimBtn').disabled=false;
     }
   }
 
   async function recover(){
-    if(!epoch||!wallet||!network)return;
+    if(!epoch||!wallet||!network||!interactionEnabled())return;
     $('recoverBtn').disabled=true;
     try{
-      if(!writesEnabled())throw new Error(`${network.name} sponsor writes are locked in this FORGE release.`);
       await switchClaimNetwork();
       const provider=new ethers.BrowserProvider(window.ethereum);
       const signer=await provider.getSigner();
@@ -190,7 +182,7 @@
       await readOnChain();
     }catch(e){
       status('sponsorStatus',e?.shortMessage||e?.message||'Recovery failed.','error');
-      if(writesEnabled())$('recoverBtn').disabled=false;
+      if(interactionEnabled())$('recoverBtn').disabled=false;
     }
   }
 
