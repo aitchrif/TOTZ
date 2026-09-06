@@ -20,6 +20,7 @@ type MainnetReleasePolicy = {
   mode: "locked" | "canary" | "public";
   canarySponsor: string;
   canaryMaxWallets: number;
+  canaryExpiresAt: string;
 };
 
 const MAINNET_RPC_URL = (Deno.env.get("FORGE_MAINNET_RPC_URL") || "").trim();
@@ -43,6 +44,7 @@ const CLAIM_NETWORKS: Record<number, ClaimNetwork> = {
 const MAX_UINT256 = (1n << 256n) - 1n;
 const SOURCE_CHAINS: Record<string, number> = { robinhood:4663, ink:57073, ethereum:1, "robinhood-testnet":46630 };
 const APPROVED_CLAIM_RUNTIME_HASH = "0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56";
+const MAX_CANARY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CLAIM_IMMUTABLE_RANGES = [
   {start:522,length:32},{start:1020,length:32},{start:1288,length:32},{start:1422,length:32},{start:1618,length:32},{start:1864,length:32},
   {start:376,length:32},{start:1129,length:32},{start:1456,length:32},{start:1495,length:32},{start:255,length:32},{start:868,length:32},
@@ -86,7 +88,7 @@ function claimNetwork(chainId:number){return CLAIM_NETWORKS[Number(chainId)]||nu
 async function mainnetReleasePolicy(supabase:any):Promise<MainnetReleasePolicy>{
   const {data:flag,error:flagError}=await supabase.from("forge_release_flags").select("enabled").eq("key","mainnet_claims_enabled").maybeSingle();
   if(flagError) throw new Error("Could not read the FORGE mainnet master release gate.");
-  const {data:rows,error:configError}=await supabase.from("forge_release_config").select("key,value").in("key",["mainnet_release_mode","mainnet_canary_sponsor","mainnet_canary_max_wallets"]);
+  const {data:rows,error:configError}=await supabase.from("forge_release_config").select("key,value").in("key",["mainnet_release_mode","mainnet_canary_sponsor","mainnet_canary_max_wallets","mainnet_canary_expires_at"]);
   if(configError) throw new Error("Could not read the FORGE mainnet release policy.");
   const values=new Map((rows||[]).map((row:any)=>[String(row.key),String(row.value??"")]));
   const modeRaw=clean(values.get("mainnet_release_mode")||"locked",16).toLowerCase();
@@ -94,19 +96,34 @@ async function mainnetReleasePolicy(supabase:any):Promise<MainnetReleasePolicy>{
   const canarySponsor=clean(values.get("mainnet_canary_sponsor")||"",42).toLowerCase();
   const maxRaw=Number(values.get("mainnet_canary_max_wallets")||0);
   const canaryMaxWallets=Number.isInteger(maxRaw)&&maxRaw>=1&&maxRaw<=100?maxRaw:0;
-  return{enabled:flag?.enabled===true,mode,canarySponsor,canaryMaxWallets};
+  const canaryExpiresAt=clean(values.get("mainnet_canary_expires_at")||"",80);
+  return{enabled:flag?.enabled===true,mode,canarySponsor,canaryMaxWallets,canaryExpiresAt};
+}
+
+function canaryWindow(policy:MainnetReleasePolicy){
+  const expiryMs=Date.parse(policy.canaryExpiresAt||"");
+  const remainingMs=expiryMs-Date.now();
+  return{
+    configured:Boolean(policy.canaryExpiresAt),
+    valid:Number.isFinite(expiryMs)&&remainingMs>0&&remainingMs<=MAX_CANARY_WINDOW_MS,
+    expiryMs,
+    remainingMs
+  };
 }
 
 function publicReleaseStatus(policy:MainnetReleasePolicy,wallet:string){
   const checkedWallet=isAddr(wallet)?wallet.toLowerCase():"";
+  const window=canaryWindow(policy);
+  const effectiveMode:MainnetReleasePolicy["mode"]=policy.mode==="canary"&&!window.valid?"locked":policy.mode;
   const sponsorMatch=checkedWallet
-    ? (policy.mode==="public" ? true : policy.mode==="canary" ? checkedWallet===policy.canarySponsor : false)
+    ? (effectiveMode==="public" ? true : effectiveMode==="canary" ? checkedWallet===policy.canarySponsor : false)
     : null;
   return{
     chainId:4663,
     masterEnabled:policy.enabled,
-    mode:policy.mode,
+    mode:effectiveMode,
     rpcReady:Boolean(MAINNET_RPC_URL),
+    canaryActive:policy.mode==="canary"&&window.valid,
     canaryMaxWallets:policy.canaryMaxWallets,
     sponsorAllowed:sponsorMatch
   };
@@ -127,6 +144,11 @@ async function assertClaimWriteEnabled(supabase:any,chainId:number,context:Claim
   if(policy.mode==="canary") {
     const creator=clean(context.creator,42).toLowerCase();
     const eligible=Number(context.eligibleWallets);
+    const window=canaryWindow(policy);
+    if(!window.configured) throw new Error("FORGE mainnet Canary expiry is not configured.");
+    if(!Number.isFinite(window.expiryMs)) throw new Error("FORGE mainnet Canary expiry is invalid.");
+    if(window.remainingMs<=0) throw new Error("FORGE mainnet Canary authorization has expired.");
+    if(window.remainingMs>MAX_CANARY_WINDOW_MS) throw new Error("FORGE mainnet Canary authorization cannot exceed 24 hours.");
     if(!isAddr(policy.canarySponsor)) throw new Error("FORGE mainnet Canary sponsor is not configured.");
     if(creator!==policy.canarySponsor) throw new Error("FORGE mainnet Canary is restricted to the configured sponsor wallet.");
     if(!Number.isInteger(eligible)||eligible<1||eligible>policy.canaryMaxWallets) {
