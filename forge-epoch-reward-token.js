@@ -1,5 +1,6 @@
 (() => {
-  const TESTNET = {
+  const RUNTIME = window.TOTZ_FORGE_CONFIG || {};
+  const TESTNET = RUNTIME.claimNetwork || {
     chainId: 46630,
     hex: '0xb626',
     name: 'Robinhood Chain Testnet',
@@ -20,6 +21,12 @@
   let detecting = false;
   let detectTimer = null;
   let creatingTestToken = false;
+
+  function readProvider() {
+    return window.ForgeRuntime?.createReadProvider
+      ? window.ForgeRuntime.createReadProvider()
+      : new ethers.JsonRpcProvider(TESTNET.rpc, TESTNET.chainId, { staticNetwork:true });
+  }
 
   function setTokenStatus(message, type='warn') {
     const el = $('rewardTokenStatus');
@@ -93,7 +100,7 @@
     const enough = tokenMeta.walletBalance == null || poolUnits == null ? null : tokenMeta.walletBalance >= poolUnits;
     const balanceText = tokenMeta.walletBalance == null ? 'Connect wallet to read balance' : `${ethers.formatUnits(tokenMeta.walletBalance, tokenMeta.decimals)} ${tokenMeta.symbol}`;
     box.hidden = false;
-    box.innerHTML = `<div><small>TOKEN</small><b>${tokenMeta.symbol}</b></div><div><small>DECIMALS</small><b>${tokenMeta.decimals}</b></div><div><small>REWARD NETWORK</small><b>Robinhood Testnet · 46630</b></div><div><small>WALLET BALANCE</small><b>${balanceText}</b></div>${enough === false ? '<div class="token-balance-warning">Wallet balance is below the current reward pool.</div>' : ''}`;
+    box.innerHTML = `<div><small>TOKEN</small><b>${tokenMeta.symbol}</b></div><div><small>DECIMALS</small><b>${tokenMeta.decimals}</b></div><div><small>REWARD NETWORK</small><b>${TESTNET.name} · ${TESTNET.chainId}</b></div><div><small>WALLET BALANCE</small><b>${balanceText}</b></div>${enough === false ? '<div class="token-balance-warning">Wallet balance is below the current reward pool.</div>' : ''}`;
   }
 
   async function connectedWallet() {
@@ -114,17 +121,17 @@
       updateLauncherLink();
       renderMeta();
       updateBuildGate();
-      if (!quiet) setTokenStatus('Paste a valid ERC-20 reward token contract on Robinhood Chain Testnet.', 'warn');
+      if (!quiet) setTokenStatus(`Paste a valid ERC-20 reward token contract on ${TESTNET.name}.`, 'warn');
       return;
     }
     detecting = true;
     const btn = $('verifyRewardTokenBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'CHECKING…'; }
-    setTokenStatus('Reading token metadata directly from Robinhood Chain Testnet…');
+    setTokenStatus(`Reading token metadata directly from ${TESTNET.name}…`);
     try {
-      const provider = new ethers.JsonRpcProvider(TESTNET.rpc, TESTNET.chainId);
+      const provider = readProvider();
       const code = await provider.getCode(address);
-      if (!code || code === '0x') throw new Error('No contract code found at this address on Robinhood Chain Testnet.');
+      if (!code || code === '0x') throw new Error(`No contract code found at this address on ${TESTNET.name}.`);
       const c = new ethers.Contract(address, ERC20_ABI, provider);
       const [name, symbolRaw, decimalsRaw, walletAddr] = await Promise.all([
         c.name().catch(() => ''),
@@ -216,18 +223,22 @@
     if (!window.ethereum?.request) throw new Error('No EVM browser wallet detected.');
     const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
     if (!accounts?.[0]) throw new Error('Connect a wallet first.');
-    try {
-      await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:TESTNET.hex}]});
-    } catch (e) {
-      if (e?.code === 4902 || String(e?.message || '').toLowerCase().includes('unrecognized')) {
-        await window.ethereum.request({method:'wallet_addEthereumChain',params:[{
-          chainId:TESTNET.hex,
-          chainName:TESTNET.name,
-          nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},
-          rpcUrls:[TESTNET.rpc],
-          blockExplorerUrls:[TESTNET.explorer]
-        }]});
-      } else throw e;
+    if (window.ForgeRuntime?.ensureClaimNetwork) {
+      await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false});
+    } else {
+      try {
+        await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:TESTNET.hex}]});
+      } catch (e) {
+        if (e?.code === 4902 || String(e?.message || '').toLowerCase().includes('unrecognized')) {
+          await window.ethereum.request({method:'wallet_addEthereumChain',params:[{
+            chainId:TESTNET.hex,
+            chainName:TESTNET.name,
+            nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},
+            rpcUrls:[TESTNET.rpc],
+            blockExplorerUrls:[TESTNET.explorer]
+          }]});
+        } else throw e;
+      }
     }
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
@@ -261,7 +272,7 @@
     creatingTestToken = true;
     const btn = $('createEpochTestTokenBtn');
     if (btn) {btn.disabled = true; btn.textContent = 'CREATING…';}
-    setTestStatus('Preparing a 100,000 tUSDG test token with 6 decimals. MetaMask will ask you to approve the Testnet deployment.');
+    setTestStatus(`Preparing a 100,000 tUSDG test token with 6 decimals on ${TESTNET.name}. MetaMask will ask you to approve the deployment.`);
     try {
       const {signer,wallet} = await ensureTestnetSigner();
       const artifact = await loadTestArtifact();
@@ -313,7 +324,7 @@
     const saved = savedTestToken();
     const field = document.createElement('div');
     field.className = 'field full reward-token-step';
-    field.innerHTML = `<label>1 · Reward token contract · Robinhood Chain Testnet</label><div class="token-address-row"><input id="rewardTokenInput" placeholder="0x ERC-20 reward token…" spellcheck="false"><button id="verifyRewardTokenBtn" class="btn soft" type="button">VERIFY TOKEN</button></div><div id="rewardTokenStatus" class="status show warn">Select the reward token first. FORGE reads its symbol and decimals directly on-chain.</div><div class="test-token-helper"><div class="test-token-helper-head"><b>🧪 Don't have a reward token contract?</b><span>TESTNET ONLY</span></div><p>Use the tUSDG test token you already created, or make a fresh one here. No real funds are used.</p><div class="actions"><button id="useSavedTestTokenBtn" class="btn soft" type="button" ${saved?'':'disabled'}>${saved?'USE SAVED tUSDG':'NO SAVED TOKEN'}</button><button id="createEpochTestTokenBtn" class="btn good" type="button">CREATE NEW TEST TOKEN</button></div><div id="rewardTestTokenStatus" class="status show warn">${saved?`Saved test token found · ${short(saved)}.`:'No saved test token found in this browser yet.'}</div></div><div id="rewardTokenMeta" class="reward-token-meta" hidden></div>`;
+    field.innerHTML = `<label>1 · Reward token contract · ${TESTNET.name}</label><div class="token-address-row"><input id="rewardTokenInput" placeholder="0x ERC-20 reward token…" spellcheck="false"><button id="verifyRewardTokenBtn" class="btn soft" type="button">VERIFY TOKEN</button></div><div id="rewardTokenStatus" class="status show warn">Select the reward token first. FORGE reads its symbol and decimals directly on-chain.</div><div class="test-token-helper"><div class="test-token-helper-head"><b>🧪 Don't have a reward token contract?</b><span>TESTNET ONLY</span></div><p>Use the tUSDG test token you already created, or make a fresh one here. No real funds are used.</p><div class="actions"><button id="useSavedTestTokenBtn" class="btn soft" type="button" ${saved?'':'disabled'}>${saved?'USE SAVED tUSDG':'NO SAVED TOKEN'}</button><button id="createEpochTestTokenBtn" class="btn good" type="button">CREATE NEW TEST TOKEN</button></div><div id="rewardTestTokenStatus" class="status show warn">${saved?`Saved test token found · ${short(saved)}.`:'No saved test token found in this browser yet.'}</div></div><div id="rewardTokenMeta" class="reward-token-meta" hidden></div>`;
     fields.insertBefore(field, fields.firstChild);
 
     if (poolLabel) poolLabel.textContent = '2 · Reward amount';
