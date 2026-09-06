@@ -58,6 +58,31 @@
   function makeSlug(){const base=(pkg?.source?.collection||'claim').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'claim';return `${base}-${Date.now().toString(36)}-${randomHex(3).slice(2)}`;}
   function readProvider(){return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider():new ethers.JsonRpcProvider(TESTNET.rpc,TESTNET.chainId,{staticNetwork:true});}
 
+  function publicationMessage(body){
+    const snapshotBlock=body.snapshotBlock==null?'':String(body.snapshotBlock);
+    const fingerprint=String(body.packageFingerprint||'');
+    return [
+      'TOTZ FORGE CLAIM PUBLISH V1',
+      `creator=${String(body.creatorWallet||'').toLowerCase()}`,
+      `slug=${String(body.slug||'').toLowerCase()}`,
+      `sourceChain=${String(body.sourceChain||'').toLowerCase()}`,
+      `sourceChainId=${Number(body.sourceChainId||0)}`,
+      `sourceContract=${String(body.sourceContract||'').toLowerCase()}`,
+      `snapshotBlock=${snapshotBlock}`,
+      `rewardToken=${String(body.rewardToken||'').toLowerCase()}`,
+      `rewardSymbol=${String(body.rewardSymbol||'')}`,
+      `rewardDecimals=${Number(body.rewardDecimals)}`,
+      `merkleRoot=${String(body.merkleRoot||'').toLowerCase()}`,
+      `totalAllocatedUnits=${String(body.totalAllocatedUnits||'')}`,
+      `eligibleWallets=${Number(body.eligibleWallets||0)}`,
+      `claimChainId=${Number(body.claimChainId||0)}`,
+      `claimContract=${String(body.claimContract||'').toLowerCase()}`,
+      `deadline=${Number(body.deadline||0)}`,
+      `packageFingerprint=${fingerprint}`,
+      `issuedAt=${Number(body.issuedAt||0)}`
+    ].join('\n');
+  }
+
   async function verifyPackage(data){
     verified=false;pkg=null;claimAddress=null;publishedSlug=null;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
     clearStatus('deployStatus');clearStatus('fundStatus');clearStatus('publishStatus');
@@ -76,7 +101,7 @@
       for(let i=0;i<entries.length;i++){
         const [raw,c]=entries[i];const addr=String(raw).toLowerCase();
         if(!isAddress(addr)||seen.has(addr)){if(seen.has(addr))dupes++;invalid++;continue;}seen.add(addr);
-        const units=String(c?.amountUnits||'');if(!/^\d+$/.test(units)){invalid++;continue;}
+        const units=String(c?.amountUnits||'');if(!/^\d+$/.test(units)||BigInt(units)<=0n){invalid++;continue;}
         const leaf=claimLeaf(addr,units);
         if(String(c?.leaf||'').toLowerCase()!==leaf.toLowerCase()){invalid++;continue;}
         const proof=Array.isArray(c?.proof)?c.proof:[];
@@ -88,7 +113,7 @@
       setCheck('Duplicate wallets',dupes===0,dupes?`${dupes} found`:'none');
       setCheck('Every leaf + proof',invalid===0,invalid?`${invalid} invalid`:`${fmt(entries.length)} verified`);
       setCheck('Exact pool total',total===expected,`${formatUnits(total,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`);
-      if(invalid||dupes||total!==expected)throw new Error('Package verification failed. Do not deploy it.');
+      if(invalid||dupes||total!==expected||expected<=0n)throw new Error('Package verification failed. Do not deploy it.');
       pkg=data;verified=true;
       $('sumCollection').textContent=data.source?.collection||'NFT Collection';$('sumEligible').textContent=fmt(entries.length);$('sumPool').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;$('sumSource').textContent=data.network?.name||`Chain ${data.network?.chainId||'—'}`;$('sumBlock').textContent=data.source?.snapshotBlock?`#${fmt(data.source.snapshotBlock)}`:'Pinned';$('sumRoot').textContent=`MERKLE ROOT · ${data.root}`;$('summary').classList.add('show');
       $('fundRequired').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;
@@ -139,7 +164,7 @@
   async function refreshFunding(existingProvider=null){
     if(!claimAddress||!pkg)return;
     try{
-      const provider=existingProvider||readProvider();const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full,totalClaimed]=await Promise.all([c.contractBalance(),c.isFullyFunded(),c.totalClaimed()]);const required=BigInt(pkg.reward.totalUnits);const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full);$('publishBtn').disabled=!full;$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
+      const provider=existingProvider||readProvider();const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full]=await Promise.all([c.contractBalance(),c.isFullyFunded()]);const required=BigInt(pkg.reward.totalUnits);const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full);$('publishBtn').disabled=!full;$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
       return Boolean(full);
     }catch(e){status('fundStatus',e?.message||'Could not read contract funding.','error');return false;}
   }
@@ -153,13 +178,32 @@
   async function publish(){
     if(!claimAddress||!pkg)return;$('publishBtn').disabled=true;status('publishStatus','Re-checking contract funding before publishing…');
     try{
-      if(!await refreshFunding())throw new Error('Claim contract is not fully funded.');await ensureWallet(false);if(!wallet)throw new Error('Connect the sponsor wallet first.');
+      if(!await refreshFunding())throw new Error('Claim contract is not fully funded.');
+      const provider=await ensureTestnet();
+      const signer=await provider.getSigner();
+      wallet=(await signer.getAddress()).toLowerCase();
+      const sponsor=$('sponsorInput').value.trim().toLowerCase();
+      if(wallet!==sponsor)throw new Error('Connected wallet must match the claim sponsor before publication.');
       const slug=makeSlug();uploadToken=randomHex(32);
-      await api('create',{slug,uploadToken,creatorWallet:wallet,sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),sourceContract:pkg.source?.contract,sourceCollection:pkg.source?.collection,snapshotBlock:pkg.source?.snapshotBlock||null,rewardToken:$('tokenInput').value.trim().toLowerCase(),rewardSymbol:tokenMeta?.symbol||pkg.reward.symbol,rewardDecimals:Number(pkg.reward.decimals),merkleRoot:pkg.root,totalAllocatedUnits:String(pkg.reward.totalUnits),eligibleWallets:Number(pkg.eligibleWallets),claimChainId:TESTNET.chainId,claimContract:claimAddress,deadline:deadlineUnix,packageFingerprint:pkg.distributionFingerprint||null});
+      const createBody={
+        slug,uploadToken,creatorWallet:wallet,
+        sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
+        sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
+        snapshotBlock:pkg.source?.snapshotBlock??null,
+        rewardToken:$('tokenInput').value.trim().toLowerCase(),rewardSymbol:tokenMeta?.symbol||pkg.reward.symbol,
+        rewardDecimals:Number(pkg.reward.decimals),merkleRoot:pkg.root,totalAllocatedUnits:String(pkg.reward.totalUnits),
+        eligibleWallets:Number(pkg.eligibleWallets),claimChainId:TESTNET.chainId,claimContract:claimAddress,
+        deadline:deadlineUnix,packageFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
+      };
+      status('publishStatus','Sponsor signature required to authorize this exact FORGE publication. No gas is used for this signature.','warn');
+      createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
+      status('publishStatus','Authorization verified locally. Creating the protected upload session…');
+      await api('create',createBody);
       const entries=Object.entries(pkg.claims).map(([wallet,c])=>({wallet:wallet.toLowerCase(),amountUnits:String(c.amountUnits),leaf:c.leaf,proof:c.proof}));
       for(let i=0;i<entries.length;i+=200){status('publishStatus',`Uploading verified proofs… ${Math.min(i+200,entries.length)}/${entries.length}`);await api('upload',{slug,uploadToken,entries:entries.slice(i,i+200)});}
-      await api('publish',{slug,uploadToken});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} proofs. The holder claim page is live.`,'ok');uploadToken=null;
-    }catch(e){status('publishStatus',e?.message||'Could not publish claim.','error');$('publishBtn').disabled=false;}
+      status('publishStatus','Server is re-checking the exact allocation total and live claim contract…');
+      await api('publish',{slug,uploadToken});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
+    }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');$('publishBtn').disabled=false;}
   }
 
   $('fileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)readFile(f);});$('connectBtn').addEventListener('click',async()=>{try{await ensureWallet(true);const chain=await currentChain();if(chain===TESTNET.chainId)toast(`Wallet connected on ${TESTNET.name}`);else toast('Wallet connected · switch to testnet before deployment');updateDeployReady();}catch(e){toast(e?.message||'Wallet connection failed');}});$('switchBtn').addEventListener('click',async()=>{try{await ensureTestnet();toast(`${TESTNET.name} ready`);}catch(e){status('deployStatus',e?.message||'Could not switch network.','error');}});['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));$('deployBtn').addEventListener('click',deploy);$('fundBtn').addEventListener('click',fund);$('refreshFundBtn').addEventListener('click',()=>refreshFunding());$('publishBtn').addEventListener('click',publish);$('copyLinkBtn').addEventListener('click',async()=>{const u=$('claimLink').textContent;if(u){await navigator.clipboard.writeText(u);toast('Claim link copied');}});
