@@ -5,9 +5,14 @@ on:
     branches: [forge-v1]
     paths:
       - 'forge-runtime-config.js'
+      - 'forge-claim.html'
       - 'forge-claim.js'
-      - 'forge-my-epochs.js'
+      - 'forge-claim-launcher.html'
       - 'forge-claim-launcher.js'
+      - 'forge-my-epochs.html'
+      - 'forge-my-epochs.js'
+      - 'forge-epochs.html'
+      - 'forge-epochs-page.js'
       - 'forge-epoch-reward-token.js'
       - 'tests/forge-claims-live-probe.mjs'
       - 'supabase/functions/forge-claims/**'
@@ -35,6 +40,7 @@ jobs:
           node --check forge-claim.js
           node --check forge-my-epochs.js
           node --check forge-claim-launcher.js
+          node --check forge-epochs-page.js
           node --check forge-epoch-reward-token.js
       - name: Install probe dependency
         run: npm install --no-save ethers@6.15.0
