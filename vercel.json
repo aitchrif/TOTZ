@@ -3,6 +3,7 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/forge/epochs", "destination": "/forge-epochs" },
+    { "source": "/forge/my-epochs", "destination": "/forge-my-epochs" },
     { "source": "/forge/claim-launcher", "destination": "/forge-claim-launcher" },
     { "source": "/forge/claim", "destination": "/forge-claim" },
     { "source": "/discord-link/start", "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=oauth-start" },
@@ -21,10 +22,15 @@
     {"source":"/forge/epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/forge-epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/forge-epochs.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge/my-epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
+    {"source":"/forge-my-epochs","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
+    {"source":"/forge-my-epochs.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
     {"source":"/forge-claim-launcher","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
-    {"source":"/forge-claim","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-claim","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"},{"key":"X-Robots-Tag","value":"noindex, nofollow"}]},
     {"source":"/forge.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/forge-epochs-page.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-epoch-reward-token.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/forge-my-epochs.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/forge-claim-launcher.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/forge-claim.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}
   ]
