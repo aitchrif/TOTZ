@@ -19,7 +19,7 @@
       chainId: 4663,
       hex: '0x1237',
       name: 'Robinhood Chain',
-      rpc: 'https://rpc.robinhoodchain.com',
+      rpc: 'https://rpc.mainnet.chain.robinhood.com',
       explorer: 'https://robinhoodchain.blockscout.com',
       nativeCurrency
     })
