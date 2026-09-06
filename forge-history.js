@@ -1,6 +1,6 @@
 (() => {
   const scripts = [
-    { src: '/forge-tools-nav.js?v=1', attr: 'forgeToolsNav' },
+    { src: '/forge-nav-state.js?v=1', attr: 'forgeNavState' },
     { src: '/forge-history-core.js?v=2', attr: 'forgeHistoryCore' },
     { src: '/forge-access.js?v=2', attr: 'forgeAccessGate' },
     { src: '/forge-performance.js?v=1', attr: 'forgePerformance' }
