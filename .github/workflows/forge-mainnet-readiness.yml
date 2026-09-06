@@ -17,6 +17,7 @@ on:
       - 'supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql'
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
+      - 'tests/forge-published-claim-continuity.mjs'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -34,6 +35,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Verify published claim continuity under launch lockdown
+        run: node tests/forge-published-claim-continuity.mjs
       - name: Install pinned read-only preflight dependency
         run: npm install --no-save ethers@6.15.0
       - name: Run locked mainnet readiness preflight
