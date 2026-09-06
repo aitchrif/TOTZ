@@ -1,0 +1,228 @@
+# TOTZ FORGE — Robinhood Mainnet Release Runbook
+
+This is the operator procedure for moving FORGE claim writes from Robinhood Chain Testnet (46630) to Robinhood Chain Mainnet (4663).
+
+## Non-negotiable rule
+
+Mainnet must remain fail-closed until every preflight is green. Never jump directly from `locked` to `public`.
+
+FORGE has three independent write gates:
+
+1. Client runtime gate: `mainnetClaimsEnabled`
+2. Edge Function gate: master flag + staged release policy + dedicated mainnet RPC
+3. Postgres trigger: master flag + staged release policy
+
+A release is valid only when all three intentionally agree.
+
+## Current default state
+
+Expected safe state before Canary:
+
+- `mainnet_claims_enabled = false`
+- `mainnet_release_mode = locked`
+- `mainnet_canary_sponsor = ''`
+- `mainnet_canary_max_wallets = 10`
+- frontend `mainnetClaimsEnabled = false`
+- frontend default claim network = Testnet 46630
+
+## Gate 1 — Code and CI
+
+Before touching release configuration:
+
+- `Compile and Test Forge Contracts` must be green.
+- `FORGE Claims Live Security` must be green.
+- `FORGE Mainnet Readiness` must be green.
+- `artifacts/ForgeMerkleClaim.json` must still report compiler `0.8.24`, optimizer enabled with 200 runs, and normalized runtime hash:
+  `0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56`
+- The known published Testnet fixture must still match its live on-chain contract.
+- Live mainnet claim creation must still be rejected while locked.
+
+Do not continue after any red check.
+
+## Gate 2 — Repository protection
+
+Before Mainnet writes:
+
+Protect `forge-v1` in GitHub and require these checks:
+
+- `Compile and Test Forge Contracts`
+- `FORGE Claims Live Security`
+- `FORGE Mainnet Readiness`
+
+Also disable force pushes and branch deletion. Prefer pull-request-only changes once Canary work starts.
+
+## Gate 3 — Dedicated production RPC
+
+Configure `FORGE_MAINNET_RPC_URL` as a Supabase Edge Function secret using a dedicated Robinhood Chain Mainnet provider endpoint.
+
+Requirements:
+
+- Secret stays server-side.
+- Never commit the API key or endpoint credentials to GitHub.
+- Verify `eth_chainId` returns decimal `4663` / hex `0x1237`.
+- Keep Robinhood public RPC only as a non-secret fallback/read endpoint; production writes must fail if `FORGE_MAINNET_RPC_URL` is absent.
+
+## Gate 4 — Final wallet-signed Testnet rehearsal
+
+Run the complete production-shaped flow on Testnet with the final code:
+
+1. EPOCHS creates the snapshot and Merkle package.
+2. Launcher verifies every allocation/proof.
+3. Sponsor deploys the immutable claim contract.
+4. FORGE verifies runtime + immutable constructor values.
+5. Sponsor funds the exact ERC-20 pool.
+6. Sponsor signs V2 publication authorization.
+7. Proofs upload and epoch publishes.
+8. Eligible wallet claims successfully.
+9. Same wallet cannot claim twice.
+10. A non-eligible wallet cannot claim.
+11. After deadline, sponsor recovers unclaimed funds.
+12. Published metadata still matches the live contract.
+
+Any failure returns the release to LOCKED.
+
+## Gate 5 — Prepare Canary policy while still locked
+
+Choose one dedicated sponsor wallet for the first Mainnet Canary. It must be the wallet that deploys and signs the Canary claim.
+
+Configure only the policy values first while the master gate remains `false`:
+
+```sql
+begin;
+
+update public.forge_release_config
+set value = lower('<CANARY_SPONSOR_ADDRESS>'), updated_at = now()
+where key = 'mainnet_canary_sponsor';
+
+update public.forge_release_config
+set value = '10', updated_at = now()
+where key = 'mainnet_canary_max_wallets';
+
+update public.forge_release_config
+set value = 'canary', updated_at = now()
+where key = 'mainnet_release_mode';
+
+commit;
+```
+
+At this point Mainnet must STILL be closed because `mainnet_claims_enabled` remains `false` and the client runtime remains locked.
+
+## Gate 6 — Canary release commit
+
+Create a dedicated, reviewable Canary commit. Do not edit unrelated FORGE files.
+
+The client change should intentionally:
+
+- set environment/claim network to Robinhood Mainnet 4663 for the Canary surface,
+- set `mainnetClaimsEnabled = true`,
+- keep Testnet helper UI disabled,
+- preserve network-aware read paths,
+- display explicit MAINNET / REAL ASSETS warnings,
+- preserve all review confirmations.
+
+After the commit, require all three CI checks to pass and verify the Vercel Preview is READY before touching the server master gate.
+
+## Gate 7 — Open server master gate last
+
+Only after the Canary client preview is approved, branch protection is active, the dedicated RPC is configured, and final Testnet rehearsal is complete:
+
+```sql
+update public.forge_release_flags
+set enabled = true, updated_at = now()
+where key = 'mainnet_claims_enabled';
+```
+
+Because `mainnet_release_mode = canary`, the backend and Postgres trigger will still reject:
+
+- any sponsor other than the configured Canary sponsor,
+- any epoch with more than 10 eligible wallets,
+- unsupported claim chains,
+- writes without the dedicated production mainnet RPC.
+
+## Canary constraints
+
+The first Mainnet epoch should use:
+
+- 5–10 eligible wallets maximum,
+- a deliberately small reward pool,
+- a standard non-rebasing ERC-20,
+- no fee-on-transfer, reflection, tax, rebasing, or balance-mutating tokenomics,
+- a short but operationally comfortable claim window,
+- only wallets controlled/known for the Canary validation.
+
+Do not use a valuable large distribution for the first live test.
+
+## Canary validation
+
+After deployment/funding/publication, verify all of the following independently:
+
+- chain ID = 4663,
+- contract runtime normalized hash matches the approved artifact,
+- sponsor matches configured Canary sponsor,
+- reward token address/symbol/decimals match the package,
+- Merkle root matches,
+- total allocation matches,
+- deadline matches,
+- contract is fully funded,
+- public claim GET returns the correct epoch,
+- one eligible wallet can claim,
+- double claim is rejected,
+- non-eligible wallet is rejected,
+- `MY EPOCHS` reports correct live state,
+- Blockscout links point to Robinhood Chain Mainnet.
+
+If any check fails, execute lockdown immediately.
+
+## Emergency lockdown
+
+Preferred emergency action: run:
+
+`supabase/sql/forge-mainnet-lockdown.sql`
+
+It safely and idempotently restores:
+
+- master gate = false,
+- release mode = locked,
+- Canary sponsor = blank,
+- Canary max wallets = 10.
+
+Important: locking the app/backend stops new FORGE publication flows. It does not and cannot disable already-deployed immutable claim contracts. Existing on-chain claim contracts continue according to their code, funding, proofs and deadline.
+
+## Canary → Public promotion
+
+Do not promote immediately after one successful claim. First complete the Canary validation and review contract funding/claim behavior.
+
+When the Canary is considered stable:
+
+1. Keep the master gate enabled only during the controlled promotion window.
+2. Change `mainnet_release_mode` from `canary` to `public`.
+3. Keep runtime/backend/DB chain checks and runtime attestation unchanged.
+4. Run readiness/security checks again.
+5. Use a second modest pilot epoch before a large public distribution.
+
+Promotion command, only after explicit release approval:
+
+```sql
+update public.forge_release_config
+set value = 'public', updated_at = now()
+where key = 'mainnet_release_mode';
+```
+
+## Rollback principle
+
+Application rollback and blockchain rollback are different:
+
+- Frontend/backend rollback: disable gates and deploy the last known-good client/server build.
+- Database rollback: use the lockdown SQL.
+- On-chain contracts: immutable; cannot be rolled back. Never fund/deploy until all pre-deployment values are verified.
+
+## Never do these
+
+- Never paste a seed phrase/private key into FORGE, GitHub, Supabase, Vercel, logs, or support chats.
+- Never commit an Alchemy/API key.
+- Never enable the server master gate before the client Canary preview is approved.
+- Never set release mode directly from `locked` to `public` for first launch.
+- Never remove runtime attestation to make a deployment pass.
+- Never bypass Merkle total/proof verification.
+- Never use a test token helper on Mainnet.
+- Never continue after a red CI/readiness result.
