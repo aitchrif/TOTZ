@@ -1,0 +1,24 @@
+name: FORGE Gasless Relay Status Probe
+
+on:
+  push:
+    branches:
+      - ops/forge-gasless-owner-7094
+    paths:
+      - '.github/workflows/forge-gasless-status-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read Testnet relay status
+        run: |
+          set -euo pipefail
+          url='https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-relay?route=status&chainId=46630'
+          body="$(curl -fsS "$url")"
+          echo "$body"
