@@ -39,6 +39,8 @@ The signature does **not** authorize an arbitrary recipient. `claimFor` has no r
 
 `tests/forge-claim-v2.test.cjs` compiles the V2 contract with the pinned toolchain and exercises the authorization path locally on chain ID `46630` without broadcasting any transaction to Robinhood Testnet or Mainnet.
 
+`tests/forge-gasless-v2-static.mjs` adds a fail-closed source-level gate for recipient integrity, nonce consumption, V1 immutability, and Mainnet lockdown.
+
 The dedicated workflow `.github/workflows/forge-gasless-v2-poc.yml` also fails if the V1 claim contract or Mainnet launch runtime config is changed by the PoC branch.
 
 ## Sponsorship boundary
