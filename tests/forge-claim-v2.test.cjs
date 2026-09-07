@@ -251,21 +251,32 @@ async function signAuthorization(wallet, chainId, verifyingContract, value) {
   )).wait();
   assert.equal((await token.balanceOf(bobAddress)) - bobBeforeRetry, 777n, 'same authorization can succeed after proof correction');
 
-  // 8) Sponsor recovery boundary remains unchanged from V1.
+  // 8) Sponsor recovery boundary remains unchanged from V1. Compute the exact time jump from
+  // raw RPC state so BrowserProvider block caching cannot make the deadline assertion flaky.
   const recoveryEpoch = await deployEpoch([{ address: outsiderAddress, amount: 333n }], 120);
+  assert.equal((await recoveryEpoch.claim.sponsor()).toLowerCase(), sponsorAddress.toLowerCase(), 'recovery sponsor must match deployer');
+  assert.equal(await recoveryEpoch.claim.contractBalance(), 333n, 'recovery epoch starts with exact unclaimed balance');
   await expectRevert(
-    async () => (await recoveryEpoch.claim.recoverUnclaimed()).wait(),
+    async () => (await recoveryEpoch.claim.connect(sponsor).recoverUnclaimed()).wait(),
     'sponsor cannot recover while claim window is open',
   );
-  await provider.send('evm_increaseTime', [180]);
-  await provider.send('evm_mine', []);
+  const recoveryDeadline = Number(await recoveryEpoch.claim.deadline());
+  const rawBefore = await eip1193.request({ method: 'eth_getBlockByNumber', params: ['latest', false] });
+  const beforeTimestamp = Number(BigInt(rawBefore.timestamp));
+  const jumpSeconds = Math.max(1, recoveryDeadline - beforeTimestamp + 5);
+  await eip1193.request({ method: 'evm_increaseTime', params: [jumpSeconds] });
+  await eip1193.request({ method: 'evm_mine', params: [] });
+  const rawAfter = await eip1193.request({ method: 'eth_getBlockByNumber', params: ['latest', false] });
+  const afterTimestamp = Number(BigInt(rawAfter.timestamp));
+  assert(afterTimestamp > recoveryDeadline, `recovery clock must be past deadline (${afterTimestamp} <= ${recoveryDeadline})`);
   await expectRevert(
     async () => (await recoveryEpoch.claim.connect(relayer).recoverUnclaimed()).wait(),
     'non-sponsor cannot recover expired pool',
   );
   const sponsorBeforeRecovery = await token.balanceOf(sponsorAddress);
-  await (await recoveryEpoch.claim.recoverUnclaimed()).wait();
+  await (await recoveryEpoch.claim.connect(sponsor).recoverUnclaimed({ gasLimit: 150_000n })).wait();
   assert.equal((await token.balanceOf(sponsorAddress)) - sponsorBeforeRecovery, 333n, 'sponsor recovers exact unclaimed balance');
+  assert.equal(await recoveryEpoch.claim.contractBalance(), 0n, 'recovery empties the expired claim contract');
 
   console.log('FORGE Merkle Claim V2 EIP-712 / relay security tests passed');
 })().catch((error) => {
