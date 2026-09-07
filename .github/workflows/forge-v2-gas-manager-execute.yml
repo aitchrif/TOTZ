@@ -1,11 +1,7 @@
 name: FORGE V2 Gas Manager Execute
 
 on:
-  push:
-    branches: [live/forge-v2-gas-manager-1]
-    paths:
-      - 'tests/forge-v2-gas-manager-execute.mjs'
-      - '.github/workflows/forge-v2-gas-manager-execute.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +16,8 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: live/forge-v2-gas-manager-1
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
