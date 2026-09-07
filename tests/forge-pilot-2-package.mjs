@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { AbiCoder, concat, getAddress, keccak256 } from 'ethers';
 
+const SERVICE = process.env.FORGE_CLAIMS_URL || 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
 const RAW_WALLETS = String(process.env.FORGE_PILOT_WALLETS || '');
 const SNAPSHOT_BLOCK = Number(process.env.FORGE_PILOT_SNAPSHOT_BLOCK || 0);
 const OUTPUT = String(process.env.FORGE_PILOT_OUTPUT || '').trim();
@@ -69,9 +70,23 @@ function parseWallets() {
   return wallets.sort();
 }
 
+async function assertLockedReleaseState() {
+  const response = await fetch(`${SERVICE}?route=status`, { cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  assert(response.status === 200, `FORGE release status failed (${response.status}).`);
+  const mainnet = data?.mainnet || {};
+  assert(Number(mainnet.chainId) === 4663, 'Release status is not Robinhood Mainnet.');
+  assert(mainnet.masterEnabled === false, 'Mainnet master gate must be OFF while generating Pilot #2 package.');
+  assert(mainnet.mode === 'locked', `Pilot #2 package generation requires locked mode, got ${mainnet.mode || 'unknown'}.`);
+  assert(mainnet.canaryActive === false, 'A Mainnet release authorization is already active.');
+  assert(mainnet.rpcReady === true, 'Dedicated production RPC is not ready.');
+}
+
 async function main() {
   assert(Number.isSafeInteger(SNAPSHOT_BLOCK) && SNAPSHOT_BLOCK > 0, 'FORGE_PILOT_SNAPSHOT_BLOCK must be a positive pinned Robinhood Mainnet block.');
   const wallets = parseWallets();
+  await assertLockedReleaseState();
+
   const entries = wallets.map(address => ({ address, units: UNITS_PER_WALLET }));
   const tree = makeMerkle(entries);
 
