@@ -25,13 +25,11 @@
     })
   });
 
-  // Pilot #3 armed client preview: point reads/UI at Robinhood Mainnet and allow
-  // NEW launch controls in this isolated preview only. The server/DB release gate
-  // remains authoritative and stays locked independently until the final atomic
-  // twelve-wallet arm. Test helpers remain disabled on Mainnet. Already-published
-  // verified claims remain interactable regardless of later launch lockdowns.
+  // Pilot #3 is complete. Keep Robinhood Mainnet reads and already-published
+  // claim interactions available, but lock all NEW Mainnet launch controls.
+  // The server/DB release gate remains authoritative and is locked separately.
   const environment = 'mainnet-pilot';
-  const mainnetClaimsEnabled = true;
+  const mainnetClaimsEnabled = false;
   const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
