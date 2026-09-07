@@ -1,0 +1,49 @@
+name: FORGE V2 Gas Manager Sign
+
+on:
+  push:
+    branches: [live/forge-v2-gas-manager-1]
+    paths:
+      - 'tests/forge-v2-gas-manager-sign.mjs'
+      - 'tests/fixtures/forge-v2-gas-manager-live-1.json'
+      - '.github/workflows/forge-v2-gas-manager-sign.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sign-sponsored-userop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Require dedicated Testnet operator secret
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            exit 1
+          fi
+
+      - name: Install pinned signer dependency
+        run: npm install --no-save ethers@6.15.0
+
+      - name: Sign Gas Manager-approved UserOperation
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
+        run: node tests/forge-v2-gas-manager-sign.mjs
+
+      - name: Preserve signed UserOperation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-v2-gas-manager-signed-userop
+          path: forge-v2-gas-manager-signed-userop.json
+          if-no-files-found: ignore
+          retention-days: 7
