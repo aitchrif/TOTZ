@@ -67,6 +67,8 @@ jobs:
           node --check forge-claim-launcher.js
           node --check forge-epochs-page.js
           node --check forge-epoch-reward-token.js
+      - name: Verify holder gas and chain UX regression
+        run: node tests/forge-claim-gas-ux.mjs
       - name: Install probe dependency
         run: npm install --no-save ethers@6.15.0
       - name: Probe live FORGE claims service
