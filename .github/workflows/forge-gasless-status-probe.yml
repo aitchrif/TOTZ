@@ -16,9 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Read Testnet relay status
+      - name: Read safe Edge Function environment health
         run: |
           set -euo pipefail
-          url='https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-relay?route=status&chainId=46630'
-          body="$(curl -fsS "$url")"
-          echo "$body"
+          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-health'
+          echo
+      - name: Read Testnet relay status including failure body
+        run: |
+          set -euo pipefail
+          curl -sS -w '\nHTTP_STATUS=%{http_code}\n' 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-relay?route=status&chainId=46630'
