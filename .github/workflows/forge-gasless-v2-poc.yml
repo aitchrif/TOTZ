@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Verify V2 static safety invariants
+        run: node tests/forge-gasless-v2-static.mjs
       - name: Install pinned local test dependencies
         run: |
           npm init -y >/dev/null 2>&1
