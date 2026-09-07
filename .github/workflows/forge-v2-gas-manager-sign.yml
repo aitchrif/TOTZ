@@ -1,12 +1,7 @@
 name: FORGE V2 Gas Manager Sign
 
 on:
-  push:
-    branches: [live/forge-v2-gas-manager-1]
-    paths:
-      - 'tests/forge-v2-gas-manager-sign.mjs'
-      - 'tests/fixtures/forge-v2-gas-manager-live-1.json'
-      - '.github/workflows/forge-v2-gas-manager-sign.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +12,8 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: live/forge-v2-gas-manager-1
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
