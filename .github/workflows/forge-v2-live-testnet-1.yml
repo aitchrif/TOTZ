@@ -1,8 +1,7 @@
 name: FORGE V2 Live Testnet 1
 
 on:
-  push:
-    branches: [live/forge-v2-testnet-1]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +16,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: live/forge-v2-testnet-1
 
       - uses: actions/setup-node@v5
         with:
