@@ -7,20 +7,16 @@ const { ethers } = require('ethers');
 
 function compile() {
   const sources = {
-    'contracts/ForgeMerkleClaimV2.sol': {
-      content: fs.readFileSync('contracts/ForgeMerkleClaimV2.sol', 'utf8')
-    },
-    'contracts/ForgeTestUSDG.sol': {
-      content: fs.readFileSync('contracts/ForgeTestUSDG.sol', 'utf8')
-    }
+    'contracts/ForgeMerkleClaimV2.sol': { content: fs.readFileSync('contracts/ForgeMerkleClaimV2.sol', 'utf8') },
+    'contracts/ForgeTestUSDG.sol': { content: fs.readFileSync('contracts/ForgeTestUSDG.sol', 'utf8') },
   };
   const input = {
     language: 'Solidity',
     sources,
     settings: {
       optimizer: { enabled: true, runs: 200 },
-      outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } }
-    }
+      outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } },
+    },
   };
   function findImports(importPath) {
     try {
@@ -38,7 +34,7 @@ function compile() {
   }
   return {
     claim: artifact('contracts/ForgeMerkleClaimV2.sol', 'ForgeMerkleClaimV2'),
-    token: artifact('contracts/ForgeTestUSDG.sol', 'ForgeTestUSDG')
+    token: artifact('contracts/ForgeTestUSDG.sol', 'ForgeTestUSDG'),
   };
 }
 
@@ -91,19 +87,14 @@ const TYPES = {
     { name: 'account', type: 'address' },
     { name: 'amount', type: 'uint256' },
     { name: 'nonce', type: 'uint256' },
-    { name: 'authorizationDeadline', type: 'uint256' }
-  ]
+    { name: 'authorizationDeadline', type: 'uint256' },
+  ],
 };
 function domain(chainId, verifyingContract) {
-  return {
-    name: 'TOTZ FORGE Claim',
-    version: '2',
-    chainId,
-    verifyingContract
-  };
+  return { name: 'TOTZ FORGE Claim', version: '2', chainId, verifyingContract };
 }
-async function signAuthorization(signer, chainId, verifyingContract, value) {
-  return signer.signTypedData(domain(chainId, verifyingContract), TYPES, value);
+async function signAuthorization(wallet, chainId, verifyingContract, value) {
+  return wallet.signTypedData(domain(chainId, verifyingContract), TYPES, value);
 }
 
 (async () => {
@@ -111,7 +102,7 @@ async function signAuthorization(signer, chainId, verifyingContract, value) {
   const eip1193 = ganache.provider({
     logging: { quiet: true },
     wallet: { totalAccounts: 8, defaultBalance: 1000 },
-    chain: { hardfork: 'shanghai', chainId: 46630 }
+    chain: { hardfork: 'shanghai', chainId: 46630 },
   });
   const provider = new ethers.BrowserProvider(eip1193);
   const sponsor = await provider.getSigner(0);
@@ -127,6 +118,14 @@ async function signAuthorization(signer, chainId, verifyingContract, value) {
   const outsiderAddress = await outsider.getAddress();
   const chainId = Number((await provider.getNetwork()).chainId);
   assert.equal(chainId, 46630, 'test harness must exercise Robinhood Testnet chain ID');
+
+  // Use Ganache's deterministic private key only for local EIP-712 signing. This avoids
+  // eth_signTypedData_v4 provider-format differences and never exposes or uses a live key.
+  const initialAccounts = eip1193.getInitialAccounts();
+  const bobFixture = initialAccounts[bobAddress.toLowerCase()];
+  assert(bobFixture && bobFixture.secretKey, 'local Bob signing fixture is missing');
+  const bobSigningWallet = new ethers.Wallet(bobFixture.secretKey);
+  assert.equal(bobSigningWallet.address.toLowerCase(), bobAddress.toLowerCase(), 'local signing key must match Bob');
 
   const tokenFactory = new ethers.ContractFactory(artifacts.token.abi, artifacts.token.bytecode, sponsor);
   const token = await tokenFactory.deploy(6);
@@ -144,35 +143,25 @@ async function signAuthorization(signer, chainId, verifyingContract, value) {
     return { claim, tree, total };
   }
 
-  // 1) V1-compatible direct claim remains available and advances the relay nonce.
+  // 1) V1-compatible direct claim remains available and invalidates old relay authorizations.
   const directEpoch = await deployEpoch([{ address: aliceAddress, amount: 1_000n }]);
   assert.equal(await directEpoch.claim.authorizationNonces(aliceAddress), 0n, 'direct claimant starts at nonce zero');
   const aliceBefore = await token.balanceOf(aliceAddress);
   await (await directEpoch.claim.connect(alice).claim(1_000n, [])).wait();
   assert.equal((await token.balanceOf(aliceAddress)) - aliceBefore, 1_000n, 'direct claim pays exact allocation');
-  assert.equal(await directEpoch.claim.authorizationNonces(aliceAddress), 1n, 'direct claim invalidates old relay authorizations');
+  assert.equal(await directEpoch.claim.authorizationNonces(aliceAddress), 1n, 'direct claim advances authorization nonce');
 
-  // 2) Holder signs EIP-712 authorization; an unrelated relayer submits it and receives nothing.
+  // 2) Bob signs EIP-712 offline; an unrelated relayer submits it and receives no reward tokens.
   const relayEpoch = await deployEpoch([
     { address: bobAddress, amount: 2_000n },
-    { address: outsiderAddress, amount: 500n }
+    { address: outsiderAddress, amount: 500n },
   ]);
   const relayAddress = await relayEpoch.claim.getAddress();
   const authDeadline = now + 1800;
-  const authorization = {
-    account: bobAddress,
-    amount: 2_000n,
-    nonce: 0n,
-    authorizationDeadline: authDeadline
-  };
-  const signature = await signAuthorization(bob, chainId, relayAddress, authorization);
+  const authorization = { account: bobAddress, amount: 2_000n, nonce: 0n, authorizationDeadline: authDeadline };
+  const signature = await signAuthorization(bobSigningWallet, chainId, relayAddress, authorization);
   const offchainDigest = ethers.TypedDataEncoder.hash(domain(chainId, relayAddress), TYPES, authorization);
-  const onchainDigest = await relayEpoch.claim.claimAuthorizationDigest(
-    bobAddress,
-    2_000n,
-    0n,
-    authDeadline
-  );
+  const onchainDigest = await relayEpoch.claim.claimAuthorizationDigest(bobAddress, 2_000n, 0n, authDeadline);
   assert.equal(onchainDigest, offchainDigest, 'on-chain and wallet EIP-712 digests must match exactly');
 
   const bobBefore = await token.balanceOf(bobAddress);
@@ -183,152 +172,96 @@ async function signAuthorization(signer, chainId, verifyingContract, value) {
     relayEpoch.tree.proofs[0],
     0n,
     authDeadline,
-    signature
+    signature,
   )).wait();
   assert.equal((await token.balanceOf(bobAddress)) - bobBefore, 2_000n, 'relayed claim pays holder exactly');
   assert.equal((await token.balanceOf(relayerAddress)) - relayerBefore, 0n, 'relayer cannot receive holder rewards');
   assert.equal(await relayEpoch.claim.authorizationNonces(bobAddress), 1n, 'successful relay consumes nonce');
   assert.equal(await relayEpoch.claim.claimed(bobAddress), true, 'relayed holder is marked claimed');
 
-  // 3) Exact replay of a consumed authorization must fail.
+  // 3) Exact replay of a consumed authorization is rejected.
   await expectRevert(
-    async () => {
-      await (await relayEpoch.claim.connect(relayer).claimFor(
-        bobAddress,
-        2_000n,
-        relayEpoch.tree.proofs[0],
-        0n,
-        authDeadline,
-        signature
-      )).wait();
-    },
-    'consumed EIP-712 authorization must not replay'
+    async () => (await relayEpoch.claim.connect(relayer).claimFor(
+      bobAddress, 2_000n, relayEpoch.tree.proofs[0], 0n, authDeadline, signature,
+    )).wait(),
+    'consumed EIP-712 authorization must not replay',
   );
 
-  // 4) A relayer cannot redirect a valid holder signature to itself or any other account.
+  // 4) A relayer cannot redirect a valid holder signature to another account.
   const redirectEpoch = await deployEpoch([{ address: bobAddress, amount: 777n }]);
   const redirectAddress = await redirectEpoch.claim.getAddress();
-  const redirectAuthorization = {
-    account: bobAddress,
-    amount: 777n,
-    nonce: 0n,
-    authorizationDeadline: authDeadline
-  };
-  const redirectSignature = await signAuthorization(bob, chainId, redirectAddress, redirectAuthorization);
+  const redirectAuthorization = { account: bobAddress, amount: 777n, nonce: 0n, authorizationDeadline: authDeadline };
+  const redirectSignature = await signAuthorization(bobSigningWallet, chainId, redirectAddress, redirectAuthorization);
   const outsiderBefore = await token.balanceOf(outsiderAddress);
   await expectRevert(
-    async () => {
-      await (await redirectEpoch.claim.connect(relayer).claimFor(
-        outsiderAddress,
-        777n,
-        [],
-        0n,
-        authDeadline,
-        redirectSignature
-      )).wait();
-    },
-    'relayer must not redirect holder authorization to a different account'
+    async () => (await redirectEpoch.claim.connect(relayer).claimFor(
+      outsiderAddress, 777n, [], 0n, authDeadline, redirectSignature,
+    )).wait(),
+    'relayer must not redirect holder authorization to a different account',
   );
   assert.equal(await token.balanceOf(outsiderAddress), outsiderBefore, 'redirect target receives no reward');
   assert.equal(await redirectEpoch.claim.contractBalance(), 777n, 'failed redirect leaves reward pool untouched');
   assert.equal(await redirectEpoch.claim.authorizationNonces(bobAddress), 0n, 'failed redirect does not consume holder nonce');
 
-  // 5) Domain separation blocks cross-contract replay even when root, holder and amount match.
+  // 5) Domain separation blocks cross-contract replay when root, holder, amount and proof are identical.
+  const domainA = await deployEpoch([{ address: bobAddress, amount: 888n }]);
+  const domainB = await deployEpoch([{ address: bobAddress, amount: 888n }]);
+  const domainAAddress = await domainA.claim.getAddress();
+  const domainAuthorization = { account: bobAddress, amount: 888n, nonce: 0n, authorizationDeadline: authDeadline };
+  const domainASignature = await signAuthorization(bobSigningWallet, chainId, domainAAddress, domainAuthorization);
   await expectRevert(
-    async () => {
-      await (await redirectEpoch.claim.connect(relayer).claimFor(
-        bobAddress,
-        2_000n,
-        [],
-        0n,
-        authDeadline,
-        signature
-      )).wait();
-    },
-    'signature from another claim contract must not validate here'
+    async () => (await domainB.claim.connect(relayer).claimFor(
+      bobAddress, 888n, [], 0n, authDeadline, domainASignature,
+    )).wait(),
+    'signature from another claim contract must not validate here',
   );
+  assert.equal(await domainB.claim.authorizationNonces(bobAddress), 0n, 'cross-contract replay must not consume nonce');
 
-  // 6) Wrong nonce and expired authorizations fail before any reward or nonce mutation.
-  const wrongNonceAuthorization = {
-    account: bobAddress,
-    amount: 777n,
-    nonce: 1n,
-    authorizationDeadline: authDeadline
-  };
-  const wrongNonceSignature = await signAuthorization(bob, chainId, redirectAddress, wrongNonceAuthorization);
+  // 6) Wrong nonce and expired authorizations fail without mutating reward state.
+  const wrongNonceAuthorization = { account: bobAddress, amount: 777n, nonce: 1n, authorizationDeadline: authDeadline };
+  const wrongNonceSignature = await signAuthorization(bobSigningWallet, chainId, redirectAddress, wrongNonceAuthorization);
   await expectRevert(
-    async () => {
-      await (await redirectEpoch.claim.connect(relayer).claimFor(
-        bobAddress,
-        777n,
-        [],
-        1n,
-        authDeadline,
-        wrongNonceSignature
-      )).wait();
-    },
-    'future nonce must be rejected'
+    async () => (await redirectEpoch.claim.connect(relayer).claimFor(
+      bobAddress, 777n, [], 1n, authDeadline, wrongNonceSignature,
+    )).wait(),
+    'future nonce must be rejected',
   );
   const expiredDeadline = now - 1;
-  const expiredAuthorization = {
-    account: bobAddress,
-    amount: 777n,
-    nonce: 0n,
-    authorizationDeadline: expiredDeadline
-  };
-  const expiredSignature = await signAuthorization(bob, chainId, redirectAddress, expiredAuthorization);
+  const expiredAuthorization = { account: bobAddress, amount: 777n, nonce: 0n, authorizationDeadline: expiredDeadline };
+  const expiredSignature = await signAuthorization(bobSigningWallet, chainId, redirectAddress, expiredAuthorization);
   await expectRevert(
-    async () => {
-      await (await redirectEpoch.claim.connect(relayer).claimFor(
-        bobAddress,
-        777n,
-        [],
-        0n,
-        expiredDeadline,
-        expiredSignature
-      )).wait();
-    },
-    'expired holder authorization must be rejected'
+    async () => (await redirectEpoch.claim.connect(relayer).claimFor(
+      bobAddress, 777n, [], 0n, expiredDeadline, expiredSignature,
+    )).wait(),
+    'expired holder authorization must be rejected',
   );
   assert.equal(await redirectEpoch.claim.authorizationNonces(bobAddress), 0n, 'failed auth checks cannot consume nonce');
 
-  // 7) A valid signature with a bad Merkle proof reverts atomically and can still be retried correctly.
+  // 7) A valid signature with a bad Merkle proof reverts atomically and remains retryable.
   await expectRevert(
-    async () => {
-      await (await redirectEpoch.claim.connect(relayer).claimFor(
-        bobAddress,
-        777n,
-        [ethers.ZeroHash],
-        0n,
-        authDeadline,
-        redirectSignature
-      )).wait();
-    },
-    'bad proof must revert even with a valid holder signature'
+    async () => (await redirectEpoch.claim.connect(relayer).claimFor(
+      bobAddress, 777n, [ethers.ZeroHash], 0n, authDeadline, redirectSignature,
+    )).wait(),
+    'bad proof must revert even with a valid holder signature',
   );
   assert.equal(await redirectEpoch.claim.authorizationNonces(bobAddress), 0n, 'bad proof must not burn authorization nonce');
   const bobBeforeRetry = await token.balanceOf(bobAddress);
   await (await redirectEpoch.claim.connect(relayer).claimFor(
-    bobAddress,
-    777n,
-    [],
-    0n,
-    authDeadline,
-    redirectSignature
+    bobAddress, 777n, [], 0n, authDeadline, redirectSignature,
   )).wait();
   assert.equal((await token.balanceOf(bobAddress)) - bobBeforeRetry, 777n, 'same authorization can succeed after proof correction');
 
-  // 8) Sponsor recovery boundary is unchanged from V1.
+  // 8) Sponsor recovery boundary remains unchanged from V1.
   const recoveryEpoch = await deployEpoch([{ address: outsiderAddress, amount: 333n }], 120);
   await expectRevert(
-    async () => { await (await recoveryEpoch.claim.recoverUnclaimed()).wait(); },
-    'sponsor cannot recover while claim window is open'
+    async () => (await recoveryEpoch.claim.recoverUnclaimed()).wait(),
+    'sponsor cannot recover while claim window is open',
   );
   await provider.send('evm_increaseTime', [180]);
   await provider.send('evm_mine', []);
   await expectRevert(
-    async () => { await (await recoveryEpoch.claim.connect(relayer).recoverUnclaimed()).wait(); },
-    'non-sponsor cannot recover expired pool'
+    async () => (await recoveryEpoch.claim.connect(relayer).recoverUnclaimed()).wait(),
+    'non-sponsor cannot recover expired pool',
   );
   const sponsorBeforeRecovery = await token.balanceOf(sponsorAddress);
   await (await recoveryEpoch.claim.recoverUnclaimed()).wait();
