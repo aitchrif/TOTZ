@@ -24,6 +24,8 @@ on:
       - 'tests/forge-mainnet-pilot-2-audit.mjs'
       - 'tests/forge-pilot-2-package.mjs'
       - 'tests/forge-pilot-2-arm-preview.mjs'
+      - 'tests/forge-pilot-3-package.mjs'
+      - 'tests/forge-pilot-3-arm-preview.mjs'
       - 'tests/forge-published-claim-continuity.mjs'
       - 'tests/forge-release-handshake.mjs'
       - 'tests/forge-canary-expiry-invariant.mjs'
@@ -58,6 +60,8 @@ jobs:
           node --check tests/forge-mainnet-pilot-2-audit.mjs
           node --check tests/forge-pilot-2-package.mjs
           node --check tests/forge-pilot-2-arm-preview.mjs
+          node --check tests/forge-pilot-3-package.mjs
+          node --check tests/forge-pilot-3-arm-preview.mjs
       - name: Verify atomic first-Canary arm stays preview-only
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
@@ -72,6 +76,13 @@ jobs:
           FORGE_PILOT_HOURS: '2'
           FORGE_PILOT_MAX_WALLETS: '5'
         run: node tests/forge-pilot-2-arm-preview.mjs >/tmp/forge-pilot-2-arm-preview.txt
+      - name: Verify Pilot #3 atomic arm stays preview-only
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+          FORGE_PILOT3_SPONSOR: '0x1111111111111111111111111111111111111111'
+          FORGE_PILOT3_HOURS: '2'
+          FORGE_PILOT3_MAX_WALLETS: '12'
+        run: node tests/forge-pilot-3-arm-preview.mjs >/tmp/forge-pilot-3-arm-preview.txt
       - name: Verify published claim continuity under launch lockdown
         run: node tests/forge-published-claim-continuity.mjs
       - name: Verify Mainnet server release handshake invariant
@@ -87,6 +98,11 @@ jobs:
           FORGE_PILOT_WALLETS: '0x1111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222,0x3333333333333333333333333333333333333333,0x4444444444444444444444444444444444444444,0x5555555555555555555555555555555555555555'
           FORGE_PILOT_SNAPSHOT_BLOCK: '1'
         run: node tests/forge-pilot-2-package.mjs >/tmp/forge-pilot-2-package.json
+      - name: Verify deterministic twelve-wallet Pilot #3 package
+        env:
+          FORGE_PILOT3_WALLETS: '0x1111111111111111111111111111111111111111,0x2222222222222222222222222222222222222222,0x3333333333333333333333333333333333333333,0x4444444444444444444444444444444444444444,0x5555555555555555555555555555555555555555,0x6666666666666666666666666666666666666666,0x7777777777777777777777777777777777777777,0x8888888888888888888888888888888888888888,0x9999999999999999999999999999999999999999,0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,0xcccccccccccccccccccccccccccccccccccccccc'
+          FORGE_PILOT3_SNAPSHOT_BLOCK: '1'
+        run: node tests/forge-pilot-3-package.mjs >/tmp/forge-pilot-3-package.json
       - name: Verify first Mainnet Canary historical audit
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
