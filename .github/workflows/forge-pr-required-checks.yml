@@ -67,6 +67,8 @@ jobs:
           node --check forge-claim-launcher.js
           node --check forge-epochs-page.js
           node --check forge-epoch-reward-token.js
+      - name: Verify holder gas and chain UX regression
+        run: node tests/forge-claim-gas-ux.mjs
       - name: Install probe dependency
         run: npm install --no-save ethers@6.15.0
       - name: Probe live FORGE claims service
@@ -89,6 +91,7 @@ jobs:
           node --check tests/forge-canary-arm-preview.mjs
           node --check tests/forge-mainnet-canary-1-audit.mjs
           node --check tests/forge-mainnet-pilot-2-audit.mjs
+          node --check tests/forge-mainnet-pilot-3-audit.mjs
           node --check tests/forge-pilot-2-package.mjs
           node --check tests/forge-pilot-2-arm-preview.mjs
           node --check tests/forge-pilot-3-package.mjs
@@ -142,6 +145,10 @@ jobs:
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
         run: node tests/forge-mainnet-pilot-2-audit.mjs
+      - name: Verify twelve-wallet Mainnet Pilot #3 historical audit
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-mainnet-pilot-3-audit.mjs
       - name: Run locked mainnet readiness preflight
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
