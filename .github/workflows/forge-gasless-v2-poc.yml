@@ -1,0 +1,36 @@
+name: FORGE Gasless V2 Testnet PoC
+
+on:
+  pull_request:
+    branches: [forge-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eip712-relay-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pinned local test dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0 ganache@7.9.2
+      - name: Run V2 EIP-712 relay security suite
+        run: node tests/forge-claim-v2.test.cjs
+      - name: Verify V1 and Mainnet launch controls were not modified
+        run: |
+          git diff --exit-code origin/forge-v1...HEAD -- contracts/ForgeMerkleClaim.sol forge-runtime-config.js
+          if ! grep -q 'const mainnetClaimsEnabled = false;' forge-runtime-config.js; then
+            echo '::error::Gasless V2 PoC must not unlock Mainnet launches.'
+            exit 1
+          fi
+          if ! grep -q 'const claimNetwork = networks.testnet;' forge-runtime-config.js; then
+            echo '::error::Gasless V2 PoC must keep Testnet as the default launch network.'
+            exit 1
+          fi
