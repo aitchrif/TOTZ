@@ -1,0 +1,20 @@
+name: FORGE Gasless Relay Live Smoke
+
+on:
+  push:
+    branches: [live/forge-gasless-relay-smoke-1]
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-relay-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Probe deployed gasless relay without enabling sponsorship
+        run: node tests/forge-gasless-relay-live-smoke.mjs
