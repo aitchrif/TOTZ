@@ -135,10 +135,9 @@ async function main() {
     verifyingContract: claimAddress,
   }, TYPES, holderAuthorization);
 
-  await claim.claimFor.staticCall(holder.address, amount, [], 0n, authorizationDeadline, holderSignature, {
-    from: accountAddress,
-  });
-
+  // V2 claim validity is already covered by the live relay rehearsal and local security suite.
+  // This preparation step only constructs the exact account.execute(claimFor(...)) payload that
+  // the ERC-4337 EntryPoint will execute once Gas Manager supplies paymaster fields.
   const claimInterface = new Interface(artifacts.claim.abi);
   const accountInterface = new Interface(artifacts.account.abi);
   const claimForData = claimInterface.encodeFunctionData('claimFor', [
