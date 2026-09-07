@@ -5,6 +5,8 @@ import {
   ContractFactory,
   JsonRpcProvider,
   Wallet,
+  formatEther,
+  formatUnits,
   getAddress,
   hexlify,
   keccak256,
@@ -226,9 +228,27 @@ async function main() {
   assert(Number(publicGet.json?.epoch?.uploaded_entries) === 2, 'Public epoch entry count mismatch');
   pass('Published epoch is publicly readable');
 
+  // Holder UX pre-sign checks: the same live claim must have an estimable gas cost
+  // and the signing wallet must be on the expected chain with enough native gas.
+  const liveNetwork = await provider.getNetwork();
+  assert(Number(liveNetwork.chainId) === CHAIN_ID, `Pre-sign chain guard expected ${CHAIN_ID}, got ${liveNetwork.chainId}`);
+  const claimGas = BigInt(await claim.claim.estimateGas(amountOperator, proofOperator));
+  assert(claimGas > 0n, 'Eligible claim gas estimate is zero');
+  const feeData = await provider.getFeeData();
+  const gasPrice = BigInt(feeData.gasPrice ?? feeData.maxFeePerGas ?? 0n);
+  assert(gasPrice > 0n, 'Testnet RPC returned no usable gas price');
+  const estimatedFee = claimGas * gasPrice;
+  const preClaimGasBalance = await provider.getBalance(operator.address);
+  assert(preClaimGasBalance > estimatedFee, `Operator gas balance ${formatEther(preClaimGasBalance)} ETH is below estimated claim fee ${formatEther(estimatedFee)} ETH`);
+  pass(`Pre-sign gas QA: ${claimGas} gas × ${formatUnits(gasPrice, 9)} gwei ≈ ${formatEther(estimatedFee)} ETH`);
+
+  await claim.claim.staticCall(amountOperator, proofOperator);
+  pass('Eligible claim simulates successfully before signing');
+
   const operatorBeforeClaim = BigInt(await token.balanceOf(operator.address));
   const claimTx = await claim.claim(amountOperator, proofOperator);
-  await claimTx.wait();
+  const claimReceipt = await claimTx.wait();
+  assert(Number(claimReceipt?.status ?? 0) === 1, 'Eligible claim transaction did not finish with status 1');
   const operatorAfterClaim = BigInt(await token.balanceOf(operator.address));
   assert(operatorAfterClaim - operatorBeforeClaim === amountOperator, 'Eligible wallet token delta does not match allocation');
   assert(await claim.claimed(operator.address), 'Eligible wallet is not marked claimed');
@@ -236,7 +256,15 @@ async function main() {
   assert(BigInt(await claim.claimCount()) === 1n, 'claimCount mismatch after claim');
   pass('Eligible wallet claimed exact allocation');
 
-  await expectRevert('double claim', () => claim.claim.staticCall(amountOperator, proofOperator));
+  // Simulate a fresh page/RPC read after wallet UI interruption or reload. The contract,
+  // not local pending state, is authoritative and must keep the Claim button fail-closed.
+  const reloadedClaim = new Contract(claimAddress, claimArtifact.abi, provider);
+  assert(await reloadedClaim.claimed(operator.address), 'Fresh on-chain reload did not preserve claimed=true');
+  assert(BigInt(await reloadedClaim.totalClaimed()) === amountOperator, 'Fresh on-chain reload lost totalClaimed state');
+  assert(BigInt(await reloadedClaim.claimCount()) === 1n, 'Fresh on-chain reload lost claimCount state');
+  pass('Reload/on-chain reconciliation sees the completed claim immediately');
+
+  await expectRevert('double claim', () => reloadedClaim.claim.staticCall(amountOperator, proofOperator, { from: operator.address }));
   const nonEligibleClaim = new Contract(claimAddress, claimArtifact.abi, nonEligible);
   await expectRevert('non-eligible claim', () => nonEligibleClaim.claim.staticCall(1n, []));
 
@@ -245,7 +273,8 @@ async function main() {
   });
   assert(publicWalletGet.response.status === 200, 'Published wallet proof GET failed');
   assert(String(publicWalletGet.json?.claim?.amount_units || '') === amountOperator.toString(), 'Published wallet allocation mismatch');
-  pass('Published wallet proof remains retrievable after claim');
+  assert(Array.isArray(publicWalletGet.json?.claim?.proof), 'Published wallet proof is malformed after claim');
+  pass('Published wallet proof remains retrievable after claim/reload');
 
   await waitPastDeadline(provider, deadline);
   const balanceBeforeRecovery = BigInt(await claim.contractBalance());
@@ -269,10 +298,12 @@ async function main() {
     `- Token deploy tx: \`${tokenDeploy?.hash || 'n/a'}\``,
     `- Claim deploy tx: \`${claimDeploy?.hash || 'n/a'}\``,
     `- Funding tx: \`${fundTx.hash}\``,
+    `- Claim gas estimate: \`${claimGas}\``,
+    `- Estimated claim fee at pre-sign gas price: \`${formatEther(estimatedFee)} ETH\``,
     `- Claim tx: \`${claimTx.hash}\``,
     `- Recovery tx: \`${recoverTx.hash}\``,
     '',
-    'Verified: deploy → exact fund → V2 signed create → Merkle upload → publish → eligible claim → double-claim reject → non-eligible reject → deadline recovery.',
+    'Verified: deploy → exact fund → V2 signed create → Merkle upload → publish → live gas estimate → eligible simulation → eligible claim → reload/on-chain reconcile → double-claim reject → non-eligible reject → deadline recovery.',
     '',
   ].join('\n');
   console.log(`\n${summary}`);
