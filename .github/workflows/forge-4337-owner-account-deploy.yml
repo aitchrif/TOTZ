@@ -1,0 +1,45 @@
+name: FORGE 4337 New Owner Account Deploy
+
+on:
+  push:
+    branches:
+      - ops/forge-gasless-owner-7094
+    paths:
+      - '.github/workflows/forge-4337-owner-account-deploy.yml'
+      - 'contracts/Forge4337TestAccount.sol'
+      - 'tests/forge-4337-owner-account-deploy.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-4337-owner-account-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-testnet-account:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ops/forge-gasless-owner-7094
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Require dedicated Testnet deploy operator secret
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            exit 1
+          fi
+      - name: Install pinned dependencies
+        run: npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+      - name: Deploy new-owner ERC-4337 Testnet account
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
+        run: node tests/forge-4337-owner-account-deploy.mjs
