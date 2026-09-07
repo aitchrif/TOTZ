@@ -4,10 +4,12 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const [html, claim, runtime] = await Promise.all([
+const [html, claim, runtime, gaslessDoc, v1Contract] = await Promise.all([
   readFile('forge-claim.html', 'utf8'),
   readFile('forge-claim.js', 'utf8'),
   readFile('forge-runtime-config.js', 'utf8'),
+  readFile('docs/forge-gasless-feasibility.md', 'utf8'),
+  readFile('contracts/ForgeMerkleClaim.sol', 'utf8'),
 ]);
 
 // Gas transparency before a holder signs.
@@ -37,8 +39,16 @@ assert(html.includes('@media(max-width:700px)'), 'Narrow-screen claim layout reg
 assert(html.includes('.actions .btn{width:100%}'), 'Mobile claim actions do not expand to a full-width tap target.');
 assert(html.includes('.stats{grid-template-columns:1fr 1fr}'), 'Mobile claim stats do not collapse to two columns.');
 
+// Gasless work is a separate V2 protocol experiment, never an invisible V1 retrofit.
+assert(gaslessDoc.includes('signed claim-for'), 'Gasless design must preserve holder authorization with a signed claim-for path.');
+assert(gaslessDoc.includes('EIP-712'), 'Gasless design must require typed holder authorization.');
+assert(gaslessDoc.includes('relayer cannot redirect rewards'), 'Gasless design is missing the recipient-integrity Testnet gate.');
+assert(gaslessDoc.includes('Do not retrofit or redeploy the completed Pilot #3 contract'), 'Pilot #3 immutability boundary is missing.');
+assert(gaslessDoc.includes('do not create a Mainnet Gas Manager policy'), 'Mainnet sponsorship must remain explicitly out of scope during feasibility.');
+assert(!v1Contract.includes('claimFor('), 'V1 contract was modified with an unreviewed gasless claim path. Build V2 separately.');
+
 // Holder hardening must never unlock new Mainnet launches.
 assert(runtime.includes('const mainnetClaimsEnabled = false;'), 'Gas UX hardening must not unlock Mainnet launches.');
 assert(runtime.includes('const claimNetwork = networks.testnet;'), 'Gas UX hardening must not change the default launch network.');
 
-console.log('FORGE CLAIM GAS / CHAIN / RELOAD / MOBILE UX REGRESSION: PASSED');
+console.log('FORGE CLAIM GAS / CHAIN / RELOAD / MOBILE / GASLESS-BOUNDARY UX REGRESSION: PASSED');
