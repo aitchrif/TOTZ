@@ -8,11 +8,13 @@
   const $=id=>document.getElementById(id);
   const short=a=>a?`${a.slice(0,6)}…${a.slice(-4)}`:'—';
   const fmt=n=>Number(n||0).toLocaleString();
+  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   let epoch=null,wallet=null,claimData=null,chainState=null,network=null;
 
-  function status(id,m,type=''){const e=$(id);e.textContent=m;e.className=`status show ${type}`;}
-  function clearStatus(id){const e=$(id);e.textContent='';e.className='status';}
+  function status(id,m,type=''){const e=$(id);if(!e)return;e.textContent=m;e.className=`status show ${type}`;}
+  function clearStatus(id){const e=$(id);if(!e)return;e.textContent='';e.className='status';}
   function formatUnits(v,d){try{return ethers.formatUnits(BigInt(v),d);}catch{return String(v)}}
+  function formatEth(v){try{const n=Number(ethers.formatEther(BigInt(v)));if(!Number.isFinite(n))return ethers.formatEther(BigInt(v));return n<0.001?n.toFixed(6):n.toFixed(5).replace(/0+$/,'').replace(/\.$/,'');}catch{return String(v)}}
   async function getJson(url){const r=await fetch(url,{cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Request failed (${r.status})`);return d;}
 
   function resolveNetwork(chainId){
@@ -39,12 +41,21 @@
     return wallet;
   }
 
+  async function assertWalletNetwork(){
+    if(!window.ethereum?.request||!network)throw new Error('Wallet network is unavailable.');
+    const activeHex=await window.ethereum.request({method:'eth_chainId'});
+    const active=Number.parseInt(String(activeHex),16);
+    if(active!==Number(network.chainId))throw new Error(`Wallet is on chain ${active}. Switch to ${network.name} (${network.chainId}) before signing.`);
+    return active;
+  }
+
   async function switchClaimNetwork(){
     if(!network||!interactionEnabled())throw new Error('Claim network is not available.');
     await ensureWallet(true);
     if(window.ForgeRuntime?.ensureClaimNetwork){
       // Published epochs are independent from the new-launch release gate.
       await window.ForgeRuntime.ensureClaimNetwork({requestAccounts:false,network,requireExecution:false});
+      await assertWalletNetwork();
       return;
     }
     try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:network.hex}]});}
@@ -53,6 +64,7 @@
         await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:network.hex,chainName:network.name,nativeCurrency:network.nativeCurrency||{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[network.rpc],blockExplorerUrls:[network.explorer]}]});
       }else throw e;
     }
+    await assertWalletNetwork();
   }
 
   async function api(walletAddr=null){
@@ -91,14 +103,66 @@
     return true;
   }
 
+  async function estimateClaimGas(){
+    clearStatus('gasStatus');
+    if(!epoch||!network||!wallet||!claimData||!chainState?.ok||chainState.ended||!interactionEnabled())return null;
+    try{
+      const provider=chainState?.provider||readProvider();
+      const iface=new ethers.Interface(CLAIM_ABI);
+      const data=iface.encodeFunctionData('claim',[BigInt(claimData.amount_units),claimData.proof]);
+      const [gasLimit,feeData,balance]=await Promise.all([
+        provider.estimateGas({from:wallet,to:epoch.claim_contract,data}),
+        provider.getFeeData(),
+        provider.getBalance(wallet),
+      ]);
+      const gasPrice=feeData?.maxFeePerGas??feeData?.gasPrice??null;
+      if(gasPrice===null){
+        status('gasStatus',`Live claim estimate: ~${fmt(gasLimit)} gas. Your wallet will show the final network fee before signing.`,'ok');
+        return {gasLimit,balance,gasPrice:null,estimatedWei:null};
+      }
+      const estimatedWei=BigInt(gasLimit)*BigInt(gasPrice);
+      const gwei=Number(ethers.formatUnits(gasPrice,'gwei'));
+      let type='ok';
+      let note='Wallet quote can differ slightly.';
+      if(BigInt(balance)<estimatedWei){type='error';note='This wallet does not currently have enough native ETH for the estimate.';}
+      else if(BigInt(balance)<estimatedWei*2n){type='warn';note='Native ETH margin is low; keep extra gas before signing.';}
+      else if(BigInt(gasPrice)>=1_000_000_000n){type='warn';note='Network gas is elevated right now; waiting can reduce the fee.';}
+      status('gasStatus',`Estimated network fee: ~${formatEth(estimatedWei)} ETH · ${fmt(gasLimit)} gas · ${Number.isFinite(gwei)?gwei.toFixed(3):'—'} gwei. ${note}`,type);
+      return {gasLimit,balance,gasPrice,estimatedWei};
+    }catch(e){
+      status('gasStatus','Live gas estimate is temporarily unavailable. Your wallet will still show the exact fee before you approve the claim.','warn');
+      return null;
+    }
+  }
+
   async function refreshAfterTransaction(provider,predicate){
     for(let attempt=0;attempt<5;attempt++){
       await readOnChain(provider);
       if(wallet)await checkWallet();
       if(!predicate||predicate(chainState))return true;
-      await new Promise(r=>setTimeout(r,300*(attempt+1)));
+      await sleep(300*(attempt+1));
     }
     return false;
+  }
+
+  async function waitForClaimConfirmation(txHash,addr,timeoutMs=90000){
+    const provider=readProvider();
+    const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,provider);
+    const started=Date.now();
+    while(Date.now()-started<timeoutMs){
+      try{
+        const receipt=await provider.getTransactionReceipt(txHash);
+        if(receipt){
+          if(Number(receipt.status)===0)throw new Error('Claim transaction reverted on-chain.');
+          return {hash:txHash,receipt,stateConfirmed:true};
+        }
+      }catch(e){
+        if(String(e?.message||'').includes('reverted on-chain'))throw e;
+      }
+      try{if(await c.claimed(addr))return {hash:txHash,receipt:null,stateConfirmed:true};}catch(_){ }
+      await sleep(1000);
+    }
+    return {hash:txHash,receipt:null,stateConfirmed:false,pending:true};
   }
 
   async function load(){
@@ -131,6 +195,7 @@
   async function checkWallet(){
     if(!epoch||!wallet||!network)return;
     clearStatus('claimStatus');
+    clearStatus('gasStatus');
     try{
       const d=await api(wallet);claimData=d.claim;
       if(!claimData){
@@ -146,6 +211,7 @@
         $('claimBtn').textContent=already?'CLAIMED ✓':'CLAIM';
         $('claimBtn').disabled=Boolean(already)||!chainState?.ok||Date.now()/1000>chainState.deadline||!interactionEnabled();
         updateNetworkControls();
+        if(!already&&!$('claimBtn').disabled)await estimateClaimGas();
       }
       const isSponsor=wallet===String(epoch.creator_wallet).toLowerCase();
       $('sponsorBox').classList.toggle('show',isSponsor);
@@ -160,6 +226,8 @@
     try{
       await switchClaimNetwork();
       const provider=new ethers.BrowserProvider(window.ethereum);
+      const active=await provider.getNetwork();
+      if(Number(active.chainId)!==Number(network.chainId))throw new Error(`Wallet chain mismatch. Expected ${network.name} (${network.chainId}), got ${active.chainId}.`);
       const signer=await provider.getSigner();
       const addr=(await signer.getAddress()).toLowerCase();
       if(addr!==wallet){wallet=addr;await checkWallet();throw new Error('Wallet account changed. Recheck eligibility.');}
@@ -167,14 +235,30 @@
       const claimUnits=BigInt(claimData.amount_units);
       const beforeClaimed=chainState?.totalClaimed||0n;
       const beforeCount=chainState?.claimCount||0;
-      status('claimStatus',`Wallet approval required to claim ${formatUnits(claimData.amount_units,epoch.reward_decimals)} ${epoch.reward_symbol}…`);
+      await estimateClaimGas();
+      status('claimStatus',`Wallet approval required to claim ${formatUnits(claimData.amount_units,epoch.reward_decimals)} ${epoch.reward_symbol} on ${network.name} · chain ${network.chainId}…`);
       const tx=await c.claim(claimUnits,claimData.proof);
-      status('claimStatus','Transaction sent. Waiting for confirmation…');
-      const rc=await tx.wait();
+      status('claimStatus',`Transaction submitted ${short(tx.hash)}. Waiting for on-chain confirmation…`);
+      const confirmation=await waitForClaimConfirmation(tx.hash,addr);
+      if(confirmation.pending){
+        status('claimStatus',`Transaction submitted ${short(tx.hash)} but confirmation is taking longer than expected. Do not resubmit; use Refresh/reload to recheck on-chain state.`,'warn');
+        return;
+      }
       $('claimBtn').textContent='CLAIMED ✓';$('claimBtn').disabled=true;
-      const synced=await refreshAfterTransaction(provider,s=>Boolean(s)&&s.totalClaimed>=beforeClaimed+claimUnits&&s.claimCount>=beforeCount+1);
-      status('claimStatus',synced?`Claim complete ✓ ${rc?.hash?short(rc.hash):''}`:'Claim confirmed ✓ Read RPC is still catching up; use Refresh if live metrics lag.',synced?'ok':'warn');
+      clearStatus('gasStatus');
+      const synced=await refreshAfterTransaction(readProvider(),s=>Boolean(s)&&s.totalClaimed>=beforeClaimed+claimUnits&&s.claimCount>=beforeCount+1);
+      status('claimStatus',synced?`Claim complete ✓ ${short(tx.hash)}`:'Claim confirmed on-chain ✓ Read RPC is still catching up; reload if live metrics lag.',synced?'ok':'warn');
     }catch(e){
+      let already=false;
+      try{
+        if(wallet&&epoch){const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,readProvider());already=Boolean(await c.claimed(wallet));}
+      }catch(_){ }
+      if(already){
+        $('claimBtn').textContent='CLAIMED ✓';$('claimBtn').disabled=true;clearStatus('gasStatus');
+        await readOnChain().catch(()=>null);
+        status('claimStatus','Claim is confirmed on-chain even though the wallet UI reported an interruption. No resubmission is needed.','ok');
+        return;
+      }
       status('claimStatus',e?.shortMessage||e?.message||'Claim failed.','error');
       if(claimData&&interactionEnabled())$('claimBtn').disabled=false;
     }
@@ -186,12 +270,15 @@
     try{
       await switchClaimNetwork();
       const provider=new ethers.BrowserProvider(window.ethereum);
+      const active=await provider.getNetwork();
+      if(Number(active.chainId)!==Number(network.chainId))throw new Error(`Wallet chain mismatch. Expected ${network.name} (${network.chainId}), got ${active.chainId}.`);
       const signer=await provider.getSigner();
       const c=new ethers.Contract(epoch.claim_contract,CLAIM_ABI,signer);
       status('sponsorStatus','Wallet approval required to recover tokens remaining after deadline…');
       const tx=await c.recoverUnclaimed();
-      await tx.wait();
-      const synced=await refreshAfterTransaction(provider,s=>Boolean(s)&&s.balance===0n);
+      const receipt=await tx.wait();
+      if(receipt&&Number(receipt.status)===0)throw new Error('Recovery transaction reverted on-chain.');
+      const synced=await refreshAfterTransaction(readProvider(),s=>Boolean(s)&&s.balance===0n);
       status('sponsorStatus',synced?'Unclaimed funds returned to sponsor wallet.':'Recovery confirmed. Read RPC is still catching up; use Refresh if live metrics lag.',synced?'ok':'warn');
     }catch(e){
       status('sponsorStatus',e?.shortMessage||e?.message||'Recovery failed.','error');
@@ -200,10 +287,13 @@
   }
 
   $('connectBtn').addEventListener('click',async()=>{try{await ensureWallet(true);await checkWallet();}catch(e){status('claimStatus',e?.message||'Wallet connection failed.','error');}});
-  $('switchBtn').addEventListener('click',()=>switchClaimNetwork().then(()=>status('claimStatus',`${network.name} ready.`,'ok')).catch(e=>status('claimStatus',e?.message||'Network switch failed.','error')));
+  $('switchBtn').addEventListener('click',()=>switchClaimNetwork().then(async()=>{status('claimStatus',`${network.name} · chain ${network.chainId} ready.`,'ok');if(wallet&&claimData)await estimateClaimGas();}).catch(e=>status('claimStatus',e?.message||'Network switch failed.','error')));
   $('claimBtn').addEventListener('click',claim);
   $('recoverBtn').addEventListener('click',recover);
   $('refreshBtn').addEventListener('click',async()=>{await readOnChain();if(wallet)await checkWallet();});
-  if(window.ethereum?.on)window.ethereum.on('accountsChanged',async a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet)await checkWallet();else{$('claimBtn').disabled=true;$('sponsorBox').classList.remove('show');}});
+  if(window.ethereum?.on){
+    window.ethereum.on('accountsChanged',async a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet)await checkWallet();else{$('claimBtn').disabled=true;clearStatus('gasStatus');$('sponsorBox').classList.remove('show');}});
+    window.ethereum.on('chainChanged',async()=>{updateNetworkControls();if(wallet&&claimData)await estimateClaimGas();});
+  }
   load();
 })();
