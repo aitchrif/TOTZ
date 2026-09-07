@@ -1,0 +1,52 @@
+name: FORGE V2 Gas Manager Execute
+
+on:
+  push:
+    branches: [live/forge-v2-gas-manager-1]
+    paths:
+      - 'tests/forge-v2-gas-manager-execute.mjs'
+      - '.github/workflows/forge-v2-gas-manager-execute.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-v2-gas-manager-execute
+  cancel-in-progress: false
+
+jobs:
+  sponsored-v2-claim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Require dedicated Testnet operator secret
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            exit 1
+          fi
+
+      - name: Install pinned executor dependency
+        run: npm install --no-save ethers@6.15.0
+
+      - name: Simulate and execute one sponsored V2 UserOperation
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
+        run: node tests/forge-v2-gas-manager-execute.mjs
+
+      - name: Preserve sponsored execution audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-v2-gas-manager-live-result
+          path: forge-v2-gas-manager-live-result.json
+          if-no-files-found: ignore
+          retention-days: 30
