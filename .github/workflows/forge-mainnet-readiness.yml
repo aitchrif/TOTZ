@@ -23,6 +23,7 @@ on:
       - 'tests/forge-mainnet-canary-1-audit.mjs'
       - 'tests/forge-mainnet-pilot-2-audit.mjs'
       - 'tests/forge-mainnet-pilot-3-audit.mjs'
+      - 'tests/forge-claim-gas-ux.mjs'
       - 'tests/forge-pilot-2-package.mjs'
       - 'tests/forge-pilot-2-arm-preview.mjs'
       - 'tests/forge-pilot-3-package.mjs'
@@ -60,10 +61,13 @@ jobs:
           node --check tests/forge-mainnet-canary-1-audit.mjs
           node --check tests/forge-mainnet-pilot-2-audit.mjs
           node --check tests/forge-mainnet-pilot-3-audit.mjs
+          node --check tests/forge-claim-gas-ux.mjs
           node --check tests/forge-pilot-2-package.mjs
           node --check tests/forge-pilot-2-arm-preview.mjs
           node --check tests/forge-pilot-3-package.mjs
           node --check tests/forge-pilot-3-arm-preview.mjs
+      - name: Verify holder gas and chain UX regression
+        run: node tests/forge-claim-gas-ux.mjs
       - name: Verify atomic first-Canary arm stays preview-only
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
