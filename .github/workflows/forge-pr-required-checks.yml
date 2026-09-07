@@ -122,6 +122,7 @@ jobs:
           node --check tests/forge-canary-prep.mjs
           node --check tests/forge-canary-arm-preview.mjs
           node --check tests/forge-mainnet-canary-1-audit.mjs
+          node --check tests/forge-mainnet-pilot-2-audit.mjs
           node --check tests/forge-pilot-2-package.mjs
           node --check tests/forge-pilot-2-arm-preview.mjs
       - name: Verify atomic first-Canary arm stays preview-only
@@ -157,6 +158,10 @@ jobs:
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
         run: node tests/forge-mainnet-canary-1-audit.mjs
+      - name: Verify five-wallet Mainnet Pilot #2 historical audit
+        env:
+          FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
+        run: node tests/forge-mainnet-pilot-2-audit.mjs
       - name: Run locked mainnet readiness preflight
         env:
           FORGE_CLAIMS_URL: https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims
