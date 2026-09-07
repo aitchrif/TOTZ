@@ -25,15 +25,14 @@
     })
   });
 
-  // Release-candidate safety: Testnet is the only launch network.
-  // Mainnet is defined now so the UI/backend can be migrated without changing
-  // chain constants later, but NEW deploy/fund/publish actions remain locked
-  // until an explicit production release flips the corresponding server +
-  // client gates. Already-published, verified claims remain interactable so a
-  // later launch lockdown never strands holders from an immutable contract.
-  const environment = 'testnet';
-  const mainnetClaimsEnabled = false;
-  const claimNetwork = networks.testnet;
+  // Pilot #3 armed client preview: point reads/UI at Robinhood Mainnet and allow
+  // NEW launch controls in this isolated preview only. The server/DB release gate
+  // remains authoritative and stays locked independently until the final atomic
+  // twelve-wallet arm. Test helpers remain disabled on Mainnet. Already-published
+  // verified claims remain interactable regardless of later launch lockdowns.
+  const environment = 'mainnet-pilot';
+  const mainnetClaimsEnabled = true;
+  const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
