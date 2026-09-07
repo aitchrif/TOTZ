@@ -33,7 +33,7 @@ async function readLockedReleaseState() {
 
 async function main() {
   assert(/^0x[a-f0-9]{40}$/.test(SPONSOR), 'FORGE_PILOT_SPONSOR must be a valid lowercase 0x address.');
-  assert(Number.isFinite(HOURS) && HOURS > 0 && HOURS <= 2, 'Pilot #2 authorization must be >0 and <=2 hours.');
+  assert(Number.isInteger(HOURS) && (HOURS === 1 || HOURS === 2), 'Pilot #2 authorization must be exactly 1 or 2 hours.');
   assert(Number.isInteger(MAX_WALLETS) && MAX_WALLETS === 5, 'FORGE Pilot #2 is locked to exactly 5 eligible wallets.');
 
   await readLockedReleaseState();
