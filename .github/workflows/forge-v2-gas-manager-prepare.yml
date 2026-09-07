@@ -1,0 +1,49 @@
+name: FORGE V2 Gas Manager Prepare
+
+on:
+  push:
+    branches: [live/forge-v2-gas-manager-1]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-v2-gas-manager-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare-sponsored-userop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Require dedicated Testnet operator secret
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            exit 1
+          fi
+
+      - name: Install pinned preparation dependencies
+        run: npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+
+      - name: Deploy unfunded ERC-4337 relayer and funded V2 claim fixture
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
+        run: node tests/forge-v2-gas-manager-prepare.mjs
+
+      - name: Preserve Gas Manager preparation fixture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-v2-gas-manager-prep
+          path: forge-v2-gas-manager-prep.json
+          if-no-files-found: ignore
+          retention-days: 7
