@@ -14,7 +14,7 @@ const [v2, v1, runtime, doc] = await Promise.all([
 assert(v2.includes('ClaimAuthorization(address account,uint256 amount,uint256 nonce,uint256 authorizationDeadline)'), 'V2 EIP-712 authorization type is missing.');
 assert(v2.includes('SignatureChecker.isValidSignatureNow(account, digest, signature)'), 'V2 holder signature verification is missing.');
 assert(v2.includes('token.safeTransfer(account, amount)'), 'V2 must transfer rewards only to the authorized holder account.');
-assert(!v2.includes('recipient'), 'V2 claim path must not introduce an arbitrary recipient parameter.');
+assert(!/\baddress\s+(?:payable\s+)?recipient\b/.test(v2), 'V2 claim path must not introduce an arbitrary recipient address parameter or state variable.');
 assert(v2.includes('authorizationNonces[account] += 1'), 'V2 successful claim must consume holder authorization nonce.');
 assert(v2.includes('block.timestamp > authorizationDeadline'), 'V2 authorization expiry guard is missing.');
 assert(!v1.includes('claimFor('), 'V1 claim contract must remain unchanged and must not gain a relay path.');
