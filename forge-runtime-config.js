@@ -25,15 +25,14 @@
     })
   });
 
-  // Release-candidate safety: Testnet is the only launch network.
-  // Mainnet is defined now so the UI/backend can be migrated without changing
-  // chain constants later, but NEW deploy/fund/publish actions remain locked
-  // until an explicit production release flips the corresponding server +
-  // client gates. Already-published, verified claims remain interactable so a
-  // later launch lockdown never strands holders from an immutable contract.
-  const environment = 'testnet';
+  // Pilot #2 preview: point reads/UI at Robinhood Mainnet while keeping every
+  // NEW deploy/fund/publish action client-locked. The server/DB release gate is
+  // authoritative and remains locked independently. Test helpers are disabled
+  // because the selected claim network is Mainnet. Already-published verified
+  // claims remain interactable even while new launches are locked.
+  const environment = 'mainnet-pilot';
   const mainnetClaimsEnabled = false;
-  const claimNetwork = networks.testnet;
+  const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
@@ -56,8 +55,6 @@
     return null;
   }
 
-  // Backwards-compatible name used by launcher/review code. This is a LAUNCH
-  // permission, not permission to interact with an already-published epoch.
   function canExecuteClaims(network = claimNetwork) {
     const resolved = resolveClaimNetwork(network);
     if (!resolved) return false;
@@ -66,9 +63,6 @@
   }
 
   function canInteractWithPublishedClaim(network = claimNetwork) {
-    // Publication already passed FORGE server verification, runtime attestation,
-    // DB release policy and immutable metadata checks. A later launch kill switch
-    // must not prevent holders/sponsor from using that verified on-chain contract.
     return Boolean(resolveClaimNetwork(network));
   }
 
@@ -146,8 +140,6 @@
 
   function installLockedClaimUiGuard() {
     if (canExecuteClaims(claimNetwork)) return;
-    // Scope this guard to NEW epoch launch controls only. Never include claimBtn
-    // or recoverBtn: published verified epochs must survive a later launch lock.
     const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';
     const message = `${claimNetwork.name} new claim launches are locked until the FORGE mainnet release gate is enabled.`;
     const lock = () => {
