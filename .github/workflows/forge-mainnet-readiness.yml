@@ -28,6 +28,7 @@ on:
       - 'tests/forge-mainnet-pilot-2-audit.mjs'
       - 'tests/forge-mainnet-pilot-3-audit.mjs'
       - 'tests/forge-claim-gas-ux.mjs'
+      - 'tests/forge-claim-launcher-v2-regression.mjs'
       - 'tests/forge-claim-v2.test.cjs'
       - 'tests/forge-gasless-v2-static.mjs'
       - 'tests/forge-gasless-hardening-static.mjs'
@@ -45,6 +46,7 @@ on:
       - '.github/workflows/forge-testnet-wallet-e2e.yml'
       - '.github/workflows/forge-canary-prepare.yml'
       - '.github/workflows/forge-gasless-v2-poc.yml'
+      - '.github/workflows/forge-v1-v2-launcher-regression.yml'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -71,6 +73,7 @@ jobs:
           node --check tests/forge-mainnet-pilot-2-audit.mjs
           node --check tests/forge-mainnet-pilot-3-audit.mjs
           node --check tests/forge-claim-gas-ux.mjs
+          node --check tests/forge-claim-launcher-v2-regression.mjs
           node --check tests/forge-gasless-v2-static.mjs
           node --check tests/forge-gasless-hardening-static.mjs
           node --check tests/forge-gasless-testnet-gas-guard.mjs
@@ -78,10 +81,11 @@ jobs:
           node --check tests/forge-pilot-2-arm-preview.mjs
           node --check tests/forge-pilot-3-package.mjs
           node --check tests/forge-pilot-3-arm-preview.mjs
-      - name: Verify Gasless V2 static safety and relay hardening invariants
+      - name: Verify Gasless V2 static safety, launcher and relay hardening invariants
         run: |
           node tests/forge-gasless-v2-static.mjs
           node tests/forge-gasless-hardening-static.mjs
+          node tests/forge-claim-launcher-v2-regression.mjs
           node tests/forge-gasless-testnet-gas-guard.mjs
       - name: Verify holder gas and chain UX regression
         run: node tests/forge-claim-gas-ux.mjs
