@@ -6,7 +6,7 @@ import { AbiCoder, ContractFactory, JsonRpcProvider, Wallet, getAddress, keccak2
 const CHAIN_ID = 46630;
 const RPC = process.env.FORGE_TESTNET_RPC_URL || 'https://rpc.testnet.chain.robinhood.com';
 const PRIVATE_KEY = String(process.env.FORGE_TESTNET_OPERATOR_PRIVATE_KEY || '').trim();
-const HOLDER = getAddress('0x7094A480062683B8391c1887fe7d277C0Ee23ED4');
+const HOLDER = getAddress('0xA82E9D1F4Ab84B14c8e9F0058054F32fF89F0aF0');
 const AMOUNT = 1n; // 0.01 tUSDG with 2 decimals
 
 function assert(condition, message) {
