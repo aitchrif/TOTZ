@@ -1,0 +1,58 @@
+name: FORGE 4337 Mainnet Artifact Build
+
+on:
+  push:
+    branches: [hardening/forge-gasless-mainnet-readiness]
+    paths:
+      - '.github/workflows/forge-4337-mainnet-artifact-build.yml'
+      - 'contracts/Forge4337ClaimAccount.sol'
+
+permissions:
+  contents: write
+
+jobs:
+  build-account-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: hardening/forge-gasless-mainnet-readiness
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pinned compiler dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+      - name: Build deterministic Forge4337ClaimAccount artifact
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const solc=require('solc');
+          const {keccak256}=require('ethers');
+          const sourcePath='contracts/Forge4337ClaimAccount.sol';
+          const input={language:'Solidity',sources:{[sourcePath]:{content:fs.readFileSync(sourcePath,'utf8')}},settings:{optimizer:{enabled:true,runs:200},outputSelection:{'*':{'*':['abi','evm.bytecode.object','evm.deployedBytecode.object','evm.deployedBytecode.immutableReferences','metadata']}}}};
+          function findImports(importPath){const p=path.resolve('node_modules',importPath);try{return{contents:fs.readFileSync(p,'utf8')}}catch{return{error:`Import not found: ${importPath}`}}}
+          const out=JSON.parse(solc.compile(JSON.stringify(input),{import:findImports}));
+          const errors=(out.errors||[]).filter(e=>e.severity==='error');
+          if(errors.length){console.error(errors.map(e=>e.formattedMessage).join('\n'));process.exit(1)}
+          const c=out.contracts[sourcePath].Forge4337ClaimAccount;
+          const deployed=c.evm.deployedBytecode.object;
+          const immutableReferences=c.evm.deployedBytecode.immutableReferences||{};
+          const bytes=Buffer.from(deployed,'hex');
+          for(const ranges of Object.values(immutableReferences)){for(const {start,length} of ranges)bytes.fill(0,start,start+length)}
+          const artifact={contractName:'Forge4337ClaimAccount',compiler:'0.8.24',optimizer:{enabled:true,runs:200},abi:c.abi,bytecode:'0x'+c.evm.bytecode.object,deployedBytecode:'0x'+deployed,immutableReferences,normalizedRuntimeHash:keccak256('0x'+bytes.toString('hex'))};
+          fs.writeFileSync('artifacts/Forge4337ClaimAccount.json',JSON.stringify(artifact));
+          console.log(`Forge4337ClaimAccount normalizedRuntimeHash=${artifact.normalizedRuntimeHash}`);
+          NODE
+      - name: Commit deterministic artifact
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '4189824+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/Forge4337ClaimAccount.json
+          git diff --cached --exit-code && { echo 'No artifact change'; exit 0; } || true
+          git commit -m 'build: pin Forge4337ClaimAccount artifact'
+          git push origin HEAD:hardening/forge-gasless-mainnet-readiness
