@@ -25,35 +25,33 @@
     })
   });
 
-  // Production baseline invariants intentionally remain locked in forge-v1.
-  // This isolated Canary branch activates an explicit, reviewable Mainnet
-  // preview without changing the safe defaults that regression tests pin.
+  // Release-candidate safety: Testnet is the only launch network.
+  // Mainnet is defined now so the UI/backend can be migrated without changing
+  // chain constants later, but NEW deploy/fund/publish actions remain locked
+  // until an explicit production release flips the corresponding server +
+  // client gates. Already-published, verified claims remain interactable so a
+  // later launch lockdown never strands holders from an immutable contract.
   const environment = 'testnet';
   const mainnetClaimsEnabled = false;
   const claimNetwork = networks.testnet;
-
-  const directMainnetCanaryPreview = true;
-  const activeEnvironment = directMainnetCanaryPreview ? 'mainnet-canary' : environment;
-  const activeMainnetClaimsEnabled = directMainnetCanaryPreview ? true : mainnetClaimsEnabled;
-  const activeClaimNetwork = directMainnetCanaryPreview ? networks.mainnet : claimNetwork;
-  const testHelpersEnabled = activeClaimNetwork.chainId === networks.testnet.chainId && activeClaimNetwork.environment === 'testnet';
+  const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
-    environment: activeEnvironment,
-    mainnetClaimsEnabled: activeMainnetClaimsEnabled,
+    environment,
+    mainnetClaimsEnabled,
     testHelpersEnabled,
-    claimNetwork: activeClaimNetwork,
+    claimNetwork,
     networks,
     services: Object.freeze({
       claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
-      // Direct-only Canary: holder pays Robinhood Chain gas.
-      // Gasless relay stays unreachable from this public holder runtime.
+      // Direct-claim production mode: holder pays the network gas.
+      // Keep the gasless relay unreachable from the public claim UI/runtime.
       gaslessRelay: ''
     })
   });
 
-  function resolveClaimNetwork(value = config.claimNetwork.chainId) {
+  function resolveClaimNetwork(value = claimNetwork.chainId) {
     const key = String(value || '').toLowerCase();
     if (value === networks.testnet || value === networks.mainnet) return value;
     if (Number(value) === networks.testnet.chainId || key === networks.testnet.key || key === 'testnet') return networks.testnet;
@@ -61,19 +59,23 @@
     return null;
   }
 
-  // Launch permission. Published verified epochs use a separate continuity path.
-  function canExecuteClaims(network = config.claimNetwork) {
+  // Backwards-compatible name used by launcher/review code. This is a LAUNCH
+  // permission, not permission to interact with an already-published epoch.
+  function canExecuteClaims(network = claimNetwork) {
     const resolved = resolveClaimNetwork(network);
     if (!resolved) return false;
     if (resolved.environment === 'testnet') return true;
     return resolved.environment === 'mainnet' && config.mainnetClaimsEnabled === true;
   }
 
-  function canInteractWithPublishedClaim(network = config.claimNetwork) {
+  function canInteractWithPublishedClaim(network = claimNetwork) {
+    // Publication already passed FORGE server verification, runtime attestation,
+    // DB release policy and immutable metadata checks. A later launch kill switch
+    // must not prevent holders/sponsor from using that verified on-chain contract.
     return Boolean(resolveClaimNetwork(network));
   }
 
-  function assertClaimExecutionEnabled(network = config.claimNetwork) {
+  function assertClaimExecutionEnabled(network = claimNetwork) {
     const resolved = resolveClaimNetwork(network);
     if (!resolved) throw new Error('Unsupported FORGE claim network.');
     if (!canExecuteClaims(resolved)) {
@@ -82,7 +84,7 @@
     return resolved;
   }
 
-  async function ensureClaimNetwork({ requestAccounts = true, network = config.claimNetwork, requireExecution = true } = {}) {
+  async function ensureClaimNetwork({ requestAccounts = true, network = claimNetwork, requireExecution = true } = {}) {
     if (!window.ethereum?.request) throw new Error('No EVM browser wallet detected.');
     const resolved = resolveClaimNetwork(network);
     if (!resolved) throw new Error('Unsupported FORGE claim network.');
@@ -92,7 +94,10 @@
       if (!accounts?.[0]) throw new Error('Connect a wallet first.');
     }
     try {
-      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: resolved.hex }] });
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: resolved.hex }]
+      });
     } catch (error) {
       if (error?.code !== 4902 && !String(error?.message || '').toLowerCase().includes('unrecognized')) throw error;
       await window.ethereum.request({
@@ -109,7 +114,7 @@
     return resolved;
   }
 
-  function createReadProvider(network = config.claimNetwork) {
+  function createReadProvider(network = claimNetwork) {
     if (!window.ethers?.JsonRpcProvider) throw new Error('ethers.js is not loaded.');
     const resolved = resolveClaimNetwork(network);
     if (!resolved) throw new Error('Unsupported FORGE claim network.');
@@ -143,9 +148,11 @@
   }
 
   function installLockedClaimUiGuard() {
-    if (canExecuteClaims(config.claimNetwork)) return;
+    if (canExecuteClaims(claimNetwork)) return;
+    // Scope this guard to NEW epoch launch controls only. Published verified
+    // claims and sponsor recovery must remain usable after a later launch lock.
     const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';
-    const message = `${config.claimNetwork.name} new claim launches are locked until the FORGE mainnet release gate is enabled.`;
+    const message = `${claimNetwork.name} new claim launches are locked until the FORGE mainnet release gate is enabled.`;
     const lock = () => {
       document.querySelectorAll(selector).forEach(el => {
         try { if ('disabled' in el) el.disabled = true; } catch (_) {}
@@ -157,7 +164,7 @@
         review.className = 'status show warn';
       }
       const networkChip = document.getElementById('claimNetworkChip');
-      if (networkChip) networkChip.textContent = `🔒 ${config.claimNetwork.name} · new launches locked`;
+      if (networkChip) networkChip.textContent = `🔒 ${claimNetwork.name} · new launches locked`;
     };
     document.addEventListener('click', event => {
       const target = event.target?.closest?.(selector);
@@ -179,7 +186,7 @@
   window.ForgeRuntime = Object.freeze({
     config,
     networks,
-    claimNetwork: config.claimNetwork,
+    claimNetwork,
     resolveClaimNetwork,
     canExecuteClaims,
     canInteractWithPublishedClaim,
