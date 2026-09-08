@@ -1,13 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
-const [runtime, claimUi, claimHtml, relay, migration] = await Promise.all([
+const [runtime, claimUi, claimHtml, relayWrapper, relayCore, migration] = await Promise.all([
   readFile('forge-runtime-config.js', 'utf8'),
   readFile('forge-claim.js', 'utf8'),
   readFile('forge-claim.html', 'utf8'),
   readFile('supabase/functions/forge-gasless-relay/index.ts', 'utf8'),
+  readFile('supabase/functions/forge-gasless-relay/relay-core.ts', 'utf8'),
   readFile('supabase/migrations/20260907224600_forge_gasless_v2_hardening.sql', 'utf8'),
 ]);
+const relay = `${relayWrapper}\n${relayCore}`;
 
 assert.match(runtime, /gaslessRelay:\s*'https:\/\/yymwpnztjlyfxongwmsw\.supabase\.co\/functions\/v1\/forge-gasless-relay'/, 'runtime must expose the gasless relay service');
 assert.match(runtime, /const mainnetClaimsEnabled = false;/, 'client Mainnet launch gate must stay locked');
