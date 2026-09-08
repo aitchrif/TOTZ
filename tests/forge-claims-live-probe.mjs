@@ -2,20 +2,36 @@ import { Wallet, sha256, toUtf8Bytes } from 'ethers';
 
 const SERVICE = process.env.FORGE_CLAIMS_URL || 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims';
 const KNOWN_WRONG_RUNTIME = '0x8eebc59eef9a42ee3897227b2cfb03895cf46545';
+const REQUEST_ATTEMPTS = 3;
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
 }
 
+function isTransientFetchError(error) {
+  const code = String(error?.cause?.code || error?.code || '').toUpperCase();
+  if (['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET'].includes(code)) return true;
+  return error instanceof TypeError && String(error?.message || '').toLowerCase().includes('fetch failed');
+}
+
 async function request(route, { method = 'GET', body, headers = {}, query = '' } = {}) {
   const url = `${SERVICE}?route=${encodeURIComponent(route)}${query ? `&${query}` : ''}`;
-  const res = await fetch(url, {
-    method,
-    headers: body ? { 'content-type': 'application/json', ...headers } : headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await res.json().catch(() => ({}));
-  return { status: res.status, json };
+  for (let attempt = 1; attempt <= REQUEST_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: body ? { 'content-type': 'application/json', ...headers } : headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const json = await res.json().catch(() => ({}));
+      return { status: res.status, json };
+    } catch (error) {
+      if (attempt === REQUEST_ATTEMPTS || !isTransientFetchError(error)) throw error;
+      console.warn(`RETRY ${method} ${route} after transient network error (${attempt}/${REQUEST_ATTEMPTS - 1})`);
+      await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    }
+  }
+  throw new Error('unreachable request retry state');
 }
 
 async function expect(label, fn) {
