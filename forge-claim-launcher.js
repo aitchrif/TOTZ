@@ -26,6 +26,10 @@
     'function contractBalance() view returns (uint256)',
     'function isFullyFunded() view returns (bool)'
   ];
+  const CLAIM_ARTIFACTS = {
+    v1: { path: '/artifacts/ForgeMerkleClaim.json', runtimeHash: '0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56', label: 'V1' },
+    v2: { path: '/artifacts/ForgeMerkleClaimV2.json', runtimeHash: '0x9b4b2c73fbeabfc2adaf202a486ac47079940050bf1546249713265b005ababa', label: 'V2' }
+  };
   const $ = id => document.getElementById(id);
   const isAddress = v => /^0x[a-fA-F0-9]{40}$/.test(String(v || ''));
   const isBytes32 = v => /^0x[a-fA-F0-9]{64}$/.test(String(v || ''));
@@ -143,7 +147,7 @@
   }
 
   async function verifyPackage(data){
-    verified=false;pkg=null;claimAddress=null;publishedSlug=null;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
+    verified=false;pkg=null;claimAddress=null;publishedSlug=null;artifact=null;if($('contractVersionInput'))$('contractVersionInput').disabled=false;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
     clearStatus('deployStatus');clearStatus('fundStatus');clearStatus('publishStatus');
     try{
       setCheck('Package format', null);
@@ -198,7 +202,19 @@
   async function currentChain(){if(!window.ethereum?.request)return null;const h=await window.ethereum.request({method:'eth_chainId'});return parseInt(h,16);}
   function updateDeployReady(){const token=$('tokenInput').value.trim();const sponsor=$('sponsorInput').value.trim();const deadline=$('deadlineInput').value;deadlineUnix=deadline?Math.floor(new Date(deadline).getTime()/1000):0;$('deployBtn').disabled=!(writesEnabled()&&verified&&isAddress(token)&&isAddress(sponsor)&&deadlineUnix>Math.floor(Date.now()/1000)+60);}
 
-  async function loadArtifact(){if(artifact)return artifact;const r=await fetch('/artifacts/ForgeMerkleClaim.json',{cache:'no-store'});if(!r.ok)throw new Error('Claim contract artifact is unavailable.');artifact=await r.json();if(!artifact?.abi||!/^0x[0-9a-f]+$/i.test(artifact?.bytecode||''))throw new Error('Invalid claim contract artifact.');return artifact;}
+  function selectedContractVersion(){return $('contractVersionInput')?.value==='v2'?'v2':'v1';}
+  async function loadArtifact(){
+    const version=selectedContractVersion(),spec=CLAIM_ARTIFACTS[version];
+    if(artifact?.__forgeVersion===version)return artifact;
+    const r=await fetch(spec.path,{cache:'no-store'});
+    if(!r.ok)throw new Error(`Claim contract artifact ${spec.label} is unavailable.`);
+    const loaded=await r.json();
+    if(!loaded?.abi||!/^0x[0-9a-f]+$/i.test(loaded?.bytecode||''))throw new Error('Invalid claim contract artifact.');
+    if(loaded.compiler!=='0.8.24'||loaded.optimizer?.enabled!==true||Number(loaded.optimizer?.runs)!==200)throw new Error('Claim contract compiler settings are not approved.');
+    if(String(loaded.normalizedRuntimeHash||'').toLowerCase()!==spec.runtimeHash)throw new Error(`Claim contract ${spec.label} runtime hash is not approved.`);
+    artifact={...loaded,__forgeVersion:version};
+    return artifact;
+  }
   async function inspectToken(provider, token){const c=new ethers.Contract(token,ERC20_ABI,provider);const [symbol,decimals]=await Promise.all([c.symbol(),c.decimals()]);return{symbol:String(symbol),decimals:Number(decimals),contract:c};}
 
   async function deploy(){
@@ -214,12 +230,12 @@
       if(tokenMeta.decimals!==Number(pkg.reward.decimals))throw new Error(`Token decimals mismatch: package=${pkg.reward.decimals}, token=${tokenMeta.decimals}.`);
       if(tokenMeta.symbol!==String(pkg.reward.symbol))status('deployStatus',`Token symbol is ${tokenMeta.symbol}, while package says ${pkg.reward.symbol}. Decimals match; confirm this is intentional.`,'warn');
       $('tokenSymbol').textContent=tokenMeta.symbol;$('tokenDecimals').textContent=String(tokenMeta.decimals);
-      const art=await loadArtifact();const factory=new ethers.ContractFactory(art.abi,art.bytecode,signer);
-      status('deployStatus',`Wallet approval required to deploy the immutable claim contract on ${CLAIM_NETWORK.name}…`);
+      const art=await loadArtifact();const contractVersion=art.__forgeVersion||selectedContractVersion();const factory=new ethers.ContractFactory(art.abi,art.bytecode,signer);
+      status('deployStatus',`Wallet approval required to deploy the immutable ${contractVersion.toUpperCase()} claim contract on ${CLAIM_NETWORK.name}…`);
       const c=await factory.deploy(token,pkg.root,BigInt(pkg.reward.totalUnits),deadlineUnix,sponsor);await c.waitForDeployment();claimAddress=(await c.getAddress()).toLowerCase();
       const deployed=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [r,t,total,d,s]=await Promise.all([deployed.merkleRoot(),deployed.token(),deployed.totalAllocated(),deployed.deadline(),deployed.sponsor()]);
       if(String(r).toLowerCase()!==pkg.root.toLowerCase()||String(t).toLowerCase()!==token||BigInt(total)!==BigInt(pkg.reward.totalUnits)||Number(d)!==deadlineUnix||String(s).toLowerCase()!==sponsor)throw new Error('Deployed contract verification failed. Do not fund it.');
-      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus',`Claim contract deployed and verified on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
+      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');if($('contractVersionInput'))$('contractVersionInput').disabled=true;status('deployStatus',`${contractVersion.toUpperCase()} claim contract deployed and verified on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
     }catch(e){status('deployStatus',e?.shortMessage||e?.message||'Deployment failed.','error');updateDeployReady();}
   }
 
@@ -280,6 +296,7 @@
   $('connectBtn').addEventListener('click',async()=>{try{await ensureWallet(true);const chain=await currentChain();if(chain===CLAIM_NETWORK.chainId)toast(`Wallet connected on ${CLAIM_NETWORK.name}`);else toast(`Wallet connected · switch to ${CLAIM_NETWORK.name} before deployment`);updateDeployReady();}catch(e){toast(e?.message||'Wallet connection failed');}});
   $('switchBtn').addEventListener('click',async()=>{try{await ensureClaimNetwork();toast(`${CLAIM_NETWORK.name} ready`);}catch(e){status('deployStatus',e?.message||'Could not switch network.','error');}});
   ['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));
+  $('contractVersionInput')?.addEventListener('change',()=>{if(claimAddress)return;artifact=null;const v=selectedContractVersion().toUpperCase();status('deployStatus',`${v} selected. The pinned ${v} artifact will be verified before deployment.`,'ok');updateDeployReady();});
   $('deployBtn').addEventListener('click',deploy);$('fundBtn').addEventListener('click',fund);$('refreshFundBtn').addEventListener('click',()=>refreshFunding());$('publishBtn').addEventListener('click',publish);$('copyLinkBtn').addEventListener('click',async()=>{const u=$('claimLink').textContent;if(u){await navigator.clipboard.writeText(u);toast('Claim link copied');}});
   if(window.ethereum?.on){window.ethereum.on('accountsChanged',a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet)$('sponsorInput').value=wallet;updateDeployReady();});}
   renderNetworkUI();installHardWriteGuard();setDefaultDeadline();ensureWallet(false).catch(()=>{}).finally(updateDeployReady);flow(0);
