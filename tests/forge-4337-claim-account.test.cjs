@@ -8,6 +8,7 @@ const {
   Contract,
   ContractFactory,
   Interface,
+  Wallet,
   ZeroHash,
   getBytes,
   id,
@@ -79,28 +80,30 @@ async function main() {
     chain: { chainId: 1337 },
   });
   const provider = new BrowserProvider(eip1193);
-  const owner = await provider.getSigner(0);
-  const entryPoint = await provider.getSigner(1);
-  const outsider = await provider.getSigner(2);
-  const holder = await provider.getSigner(3);
+  const initialAccounts = Object.values(eip1193.getInitialAccounts());
+  assert.ok(initialAccounts.length >= 4, 'Ganache must expose deterministic local test accounts');
+  const owner = new Wallet(initialAccounts[0].secretKey, provider);
+  const entryPoint = new Wallet(initialAccounts[1].secretKey, provider);
+  const outsider = new Wallet(initialAccounts[2].secretKey, provider);
+  const holder = new Wallet(initialAccounts[3].secretKey, provider);
 
   const mockFactory = new ContractFactory(built.mock.abi, built.mock.bytecode, owner);
   const mock = await mockFactory.deploy();
   await mock.waitForDeployment();
 
   const accountFactory = new ContractFactory(built.account.abi, built.account.bytecode, owner);
-  const account = await accountFactory.deploy(await owner.getAddress(), await entryPoint.getAddress());
+  const account = await accountFactory.deploy(owner.address, entryPoint.address);
   await account.waitForDeployment();
 
-  assert.equal((await account.owner()).toLowerCase(), (await owner.getAddress()).toLowerCase());
-  assert.equal((await account.entryPoint()).toLowerCase(), (await entryPoint.getAddress()).toLowerCase());
+  assert.equal((await account.owner()).toLowerCase(), owner.address.toLowerCase());
+  assert.equal((await account.entryPoint()).toLowerCase(), entryPoint.address.toLowerCase());
 
   const claimIface = new Interface([
     'function claimFor(address,uint256,bytes32[],uint256,uint256,bytes)',
     'function wrongSelector()',
   ]);
   const claimData = claimIface.encodeFunctionData('claimFor', [
-    await holder.getAddress(),
+    holder.address,
     123n,
     [],
     0n,
@@ -110,7 +113,7 @@ async function main() {
 
   await (await account.connect(owner).execute(await mock.getAddress(), 0n, claimData)).wait();
   assert.equal(await mock.count(), 1n, 'approved claimFor call should execute');
-  assert.equal((await mock.lastAccount()).toLowerCase(), (await holder.getAddress()).toLowerCase());
+  assert.equal((await mock.lastAccount()).toLowerCase(), holder.address.toLowerCase());
   assert.equal(await mock.lastAmount(), 123n);
 
   await expectRevert(
@@ -154,7 +157,7 @@ async function main() {
   assert.equal(badSig, 1n, 'wrong owner signature must fail validation');
 
   const wrongSender = await account.connect(entryPoint).validateUserOp.staticCall(
-    { ...baseUserOp, sender: await outsider.getAddress() }, userOpHash, 0n,
+    { ...baseUserOp, sender: outsider.address }, userOpHash, 0n,
   );
   assert.equal(wrongSender, 1n, 'wrong UserOperation sender must fail validation');
 
