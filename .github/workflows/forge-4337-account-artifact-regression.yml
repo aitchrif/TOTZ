@@ -1,0 +1,29 @@
+name: FORGE 4337 Account Artifact Regression
+
+on:
+  pull_request:
+    branches: [forge-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  account-artifact-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pinned compiler dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+      - name: Rebuild and verify committed production account artifact
+        run: node tests/forge-4337-account-artifact-regression.cjs
+      - name: Confirm Mainnet release remains locked in source
+        run: |
+          grep -q 'const mainnetClaimsEnabled = false;' forge-runtime-config.js
+          grep -q "'gasless_mainnet_enabled',false" supabase/migrations/20260907224600_forge_gasless_v2_hardening.sql
