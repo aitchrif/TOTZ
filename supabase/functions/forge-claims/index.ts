@@ -23,6 +23,12 @@ type MainnetReleasePolicy = {
   canaryExpiresAt: string;
 };
 
+type ApprovedClaimBuild = {
+  version: "v1" | "v2";
+  runtimeHash: string;
+  immutableRanges: Array<{start:number;length:number}>;
+};
+
 const MAINNET_RPC_URL = (Deno.env.get("FORGE_MAINNET_RPC_URL") || "").trim();
 const CLAIM_NETWORKS: Record<number, ClaimNetwork> = {
   46630: {
@@ -43,12 +49,29 @@ const CLAIM_NETWORKS: Record<number, ClaimNetwork> = {
 
 const MAX_UINT256 = (1n << 256n) - 1n;
 const SOURCE_CHAINS: Record<string, number> = { robinhood:4663, ink:57073, ethereum:1, "robinhood-testnet":46630 };
-const APPROVED_CLAIM_RUNTIME_HASH = "0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56";
 const MAX_CANARY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CLAIM_IMMUTABLE_RANGES = [
-  {start:522,length:32},{start:1020,length:32},{start:1288,length:32},{start:1422,length:32},{start:1618,length:32},{start:1864,length:32},
-  {start:376,length:32},{start:1129,length:32},{start:1456,length:32},{start:1495,length:32},{start:255,length:32},{start:868,length:32},
-  {start:329,length:32},{start:719,length:32},{start:1740,length:32},{start:1787,length:32},{start:186,length:32},{start:558,length:32},{start:1193,length:32},
+const APPROVED_CLAIM_BUILDS: ApprovedClaimBuild[] = [
+  {
+    version: "v1",
+    runtimeHash: "0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56",
+    immutableRanges: [
+      {start:522,length:32},{start:1020,length:32},{start:1288,length:32},{start:1422,length:32},{start:1618,length:32},{start:1864,length:32},
+      {start:376,length:32},{start:1129,length:32},{start:1456,length:32},{start:1495,length:32},{start:255,length:32},{start:868,length:32},
+      {start:329,length:32},{start:719,length:32},{start:1740,length:32},{start:1787,length:32},{start:186,length:32},{start:558,length:32},{start:1193,length:32},
+    ],
+  },
+  {
+    version: "v2",
+    runtimeHash: "0x9b4b2c73fbeabfc2adaf202a486ac47079940050bf1546249713265b005ababa",
+    immutableRanges: [
+      {start:857,length:32},{start:1208,length:32},{start:1342,length:32},{start:1604,length:32},{start:1852,length:32},{start:2807,length:32},
+      {start:601,length:32},{start:1049,length:32},{start:1376,length:32},{start:1415,length:32},
+      {start:415,length:32},{start:2609,length:32},
+      {start:554,length:32},{start:1726,length:32},{start:1775,length:32},{start:2451,length:32},
+      {start:351,length:32},{start:1113,length:32},{start:2280,length:32},
+      {start:3357,length:32},{start:3315,length:32},{start:3273,length:32},{start:3438,length:32},{start:3478,length:32},{start:3059,length:32},{start:3103,length:32},
+    ],
+  },
 ];
 
 const coder=AbiCoder.defaultAbiCoder();
@@ -196,22 +219,25 @@ async function rpc(chainId:number,method:string,params:any[],timeoutMs=12000){
   }finally{clearTimeout(t);}
 }
 
-function normalizedRuntimeHash(code:string){
+function normalizedRuntimeHash(code:string,ranges:Array<{start:number;length:number}>){
   const hex=String(code||'').replace(/^0x/,'');
   if(!hex||hex.length%2)throw new Error('invalid runtime');
   const bytes=new Uint8Array(hex.length/2);
   for(let i=0;i<bytes.length;i++)bytes[i]=parseInt(hex.slice(i*2,i*2+2),16);
-  for(const {start,length} of CLAIM_IMMUTABLE_RANGES){if(start+length>bytes.length)throw new Error('runtime size mismatch');bytes.fill(0,start,start+length);}
+  for(const {start,length} of ranges){if(start+length>bytes.length)throw new Error('runtime size mismatch');bytes.fill(0,start,start+length);}
   return keccak256(bytes);
 }
 
 async function assertApprovedClaimRuntime(chainId:number,address:string){
   const code=await rpc(chainId,'eth_getCode',[address,'latest']);
   if(!code||code==='0x'||code==='0x0')throw new Error('Claim contract does not exist on the configured claim chain.');
-  let actual='';
-  try{actual=normalizedRuntimeHash(code);}catch{throw new Error('Claim contract runtime is not an approved TOTZ FORGE build.');}
-  if(actual.toLowerCase()!==APPROVED_CLAIM_RUNTIME_HASH)throw new Error('Claim contract runtime is not an approved TOTZ FORGE build.');
-  return actual;
+  for(const build of APPROVED_CLAIM_BUILDS){
+    try{
+      const actual=normalizedRuntimeHash(code,build.immutableRanges);
+      if(actual.toLowerCase()===build.runtimeHash.toLowerCase())return{runtimeHash:actual,contractVersion:build.version};
+    }catch(_){ }
+  }
+  throw new Error('Claim contract runtime is not an approved TOTZ FORGE build.');
 }
 async function codeAt(chainId:number,address:string){const c=await rpc(chainId,'eth_getCode',[address,'latest']);return Boolean(c&&c!=='0x'&&c!=='0x0');}
 async function call(chainId:number,iface:Interface,address:string,fn:string,args:any[]=[]){const data=iface.encodeFunctionData(fn,args),result=await rpc(chainId,'eth_call',[{to:address,data},'latest']);return iface.decodeFunctionResult(fn,result)[0];}
@@ -219,7 +245,7 @@ async function call(chainId:number,iface:Interface,address:string,fn:string,args
 async function verifyOnChain(supabase:any,expected:{creator:string;rewardToken:string;rewardSymbol:string;rewardDecimals:number;merkleRoot:string;totalUnits:string;eligibleWallets:number;claimChainId:number;claimContract:string;deadlineUnix:number;},requireFunded=true){
   await assertClaimWriteEnabled(supabase,expected.claimChainId,{creator:expected.creator,eligibleWallets:expected.eligibleWallets});
   const chainId=expected.claimChainId;
-  const runtimeHash=await assertApprovedClaimRuntime(chainId,expected.claimContract);
+  const runtime=await assertApprovedClaimRuntime(chainId,expected.claimContract);
   if(!await codeAt(chainId,expected.rewardToken))throw new Error('Reward token contract does not exist on the configured claim chain.');
   const [sponsor,tokenAddr,root,total,deadline,full,balance,symbol,decimals]=await Promise.all([
     call(chainId,claimIface,expected.claimContract,'sponsor'),
@@ -241,7 +267,7 @@ async function verifyOnChain(supabase:any,expected:{creator:string;rewardToken:s
   if(String(symbol)!==expected.rewardSymbol)throw new Error('Reward token symbol does not match the publication metadata.');
   if(requireFunded&&!Boolean(full))throw new Error('Claim contract is not fully funded.');
   if(requireFunded&&BigInt(balance)<BigInt(expected.totalUnits))throw new Error('Claim contract balance is below the committed allocation.');
-  return{sponsor:String(sponsor).toLowerCase(),funded:Boolean(full),balance:String(balance),runtimeHash};
+  return{sponsor:String(sponsor).toLowerCase(),funded:Boolean(full),balance:String(balance),runtimeHash:runtime.runtimeHash,contractVersion:runtime.contractVersion};
 }
 
 function pairHash(a:string,b:string){const A=BigInt(a),B=BigInt(b),x=A<=B?a:b,y=A<=B?b:a;return keccak256(`0x${x.slice(2)}${y.slice(2)}`);}
@@ -333,7 +359,7 @@ Deno.serve(async(req:Request)=>{
       const row={slug,creator_wallet:creator,status:'uploading',source_chain:sourceChain,source_chain_id:sourceChainId,source_contract:sourceContract,source_collection:clean(body.sourceCollection,100)||null,snapshot_block:snapshotBlock,reward_token:rewardToken,reward_symbol:clean(body.rewardSymbol,16),reward_decimals:decimals,merkle_root:root,total_allocated_units:totalUnits,eligible_wallets:eligible,claim_chain_id:claimChainId,claim_contract:claimContract,deadline:new Date(deadlineUnix*1000).toISOString(),package_fingerprint:clean(body.packageFingerprint,100)||null,upload_token_hash:await sha256(uploadToken),uploaded_entries:0};
       const {data,error}=await supabase.from('forge_claim_epochs').insert(row).select('id,slug').single();
       if(error){if(String(error.code)==='23505')return json({error:'Claim slug, Merkle root, or contract already exists.'},409);throw error;}
-      return json({ok:true,...data,authorizedCreator:creator,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash,authVersion:'V2',claimChainId});
+      return json({ok:true,...data,authorizedCreator:creator,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash,contractVersion:chainCheck.contractVersion,authVersion:'V2',claimChainId});
     }
 
     if(route==='upload'){
@@ -375,7 +401,7 @@ Deno.serve(async(req:Request)=>{
       const {data:finalized,error:e}=await supabase.rpc('forge_finalize_claim_epoch',{p_epoch_id:epoch.id,p_expected_entries:entries.length,p_expected_total:total.toString()});
       if(e){console.error('finalize rpc',e);return json({error:'Claim package changed during finalization.'},409);}
       if(finalized!==true)return json({error:'Claim publication state changed before finalization.'},409);
-      return json({ok:true,slug,entries:entries.length,totalAllocatedUnits:total.toString(),serverVerified:true,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash,transactionalFinalization:true,claimChainId:Number(epoch.claim_chain_id)});
+      return json({ok:true,slug,entries:entries.length,totalAllocatedUnits:total.toString(),serverVerified:true,onChainVerified:true,runtimeAttested:true,runtimeHash:chainCheck.runtimeHash,contractVersion:chainCheck.contractVersion,transactionalFinalization:true,claimChainId:Number(epoch.claim_chain_id)});
     }
 
     return json({error:'Unknown route.'},404);
