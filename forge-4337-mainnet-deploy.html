@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOTZ FORGE — Mainnet 4337 Account Deploy</title>
+<style>
+:root{--cream:#FFF3DC;--ink:#2B2140;--soft:#6B6278;--coral:#FF715F;--lime:#CBDB2A;--sky:#BFE6EE;--white:#fff;--red:#8D2B1F}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:860px;margin:auto;padding:44px 22px 80px}.card{background:var(--white);border-radius:28px;padding:24px;box-shadow:0 14px 36px rgba(43,33,64,.12);margin-top:16px}.eyebrow{display:inline-block;background:var(--lime);border-radius:999px;padding:7px 12px;font-weight:900;font-size:12px}.warn{background:#FFE1DC;border:2px solid #FF9B8E}.ok{background:#EFF6CD}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}.row{display:grid;grid-template-columns:170px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid rgba(43,33,64,.08)}.row:last-child{border-bottom:0}.label{font-weight:800;color:var(--soft);font-size:13px}.value{font-weight:800;font-size:13px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.btn{border:0;border-radius:999px;padding:12px 18px;font-weight:900;cursor:pointer;background:var(--ink);color:#fff}.btn.primary{background:var(--coral)}.btn:disabled{opacity:.42;cursor:not-allowed}.status{margin-top:14px;padding:12px 14px;border-radius:15px;background:var(--sky);font-weight:800;font-size:13px}.status.bad{background:#FFE1DC;color:var(--red)}.status.good{background:#EFF6CD}.check{display:flex;gap:9px;align-items:flex-start;margin-top:14px;font-weight:800;font-size:13px}input[type=checkbox]{margin-top:2px;transform:scale(1.2)}h1{font-size:clamp(32px,6vw,54px);margin:14px 0 8px;line-height:.98}p{color:var(--soft);font-weight:700;line-height:1.55}.small{font-size:12px}@media(max-width:640px){.row{grid-template-columns:1fr}.card{padding:18px}}
+</style>
+</head>
+<body><main class="wrap">
+<span class="eyebrow">TOTZ FORGE · OPERATOR ONLY · MAINNET</span>
+<h1>Deploy the restricted<br>ERC-4337 claim account.</h1>
+<p>This page deploys exactly one audited <b>Forge4337ClaimAccount</b> configuration. It does not enable claims, gasless sponsorship, a Canary, or any FORGE release gate.</p>
+
+<section class="card warn"><b>MAINNET WRITE</b><p class="small">The deployer wallet pays only the one-time contract deployment gas. The immutable owner remains the dedicated service owner shown below. Do not use the service-owner private key on this page.</p></section>
+
+<section class="card">
+<div class="row"><div class="label">Network</div><div class="value">Robinhood Chain Mainnet · 4663</div></div>
+<div class="row"><div class="label">Immutable owner</div><div id="owner" class="value mono"></div></div>
+<div class="row"><div class="label">Immutable EntryPoint</div><div id="entryPoint" class="value mono"></div></div>
+<div class="row"><div class="label">Approved runtime hash</div><div id="runtimeHash" class="value mono"></div></div>
+<div class="row"><div class="label">Deployer wallet</div><div id="deployer" class="value mono">Not connected</div></div>
+<div class="row"><div class="label">Estimated deployment gas</div><div id="gasEstimate" class="value">—</div></div>
+<div class="row"><div class="label">Estimated fee</div><div id="feeEstimate" class="value">—</div></div>
+<div class="check"><input id="ack" type="checkbox"><label for="ack">I understand this sends one Mainnet contract-deployment transaction and the connected deployer wallet pays its network fee.</label></div>
+<div class="actions"><button id="connect" class="btn">CONNECT DEPLOYER</button><button id="deploy" class="btn primary" disabled>DEPLOY RESTRICTED ACCOUNT</button></div>
+<div id="status" class="status">Loading pinned artifact and verifying configuration…</div>
+</section>
+
+<section id="result" class="card ok" hidden>
+<b>DEPLOYED + VERIFIED ✓</b>
+<div class="row"><div class="label">Smart account</div><div id="accountAddress" class="value mono"></div></div>
+<div class="row"><div class="label">Transaction</div><div id="txHash" class="value mono"></div></div>
+<div class="actions"><a id="openAccount" class="btn" target="_blank" rel="noopener">OPEN EXPLORER</a></div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.15.0/dist/ethers.umd.min.js"></script>
+<script>
+(() => {
+  const OWNER='0xbA2c71E898d6eA40D80D58EfCFDD04F685f09d9F';
+  const ENTRY_POINT='0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108';
+  const RUNTIME_HASH='0x675d5fc710082275eff5bf11373fb5412d78ead8032e4f8ddaa29a4d2f7fbf51';
+  const CHAIN_ID=4663;
+  const CHAIN_HEX='0x1237';
+  const EXPLORER='https://explorer.mainnet.chain.robinhood.com';
+  let artifact=null, provider=null, signer=null, deployer=null, ready=false;
+  const $=id=>document.getElementById(id);
+  $('owner').textContent=OWNER;$('entryPoint').textContent=ENTRY_POINT;$('runtimeHash').textContent=RUNTIME_HASH;
+  function status(text,type=''){const e=$('status');e.textContent=text;e.className='status'+(type?' '+type:'');}
+  function updateDeploy(){ $('deploy').disabled=!(ready&&signer&&$('ack').checked); }
+  async function ensureMainnet(){
+    const current=await window.ethereum.request({method:'eth_chainId'});
+    if(String(current).toLowerCase()===CHAIN_HEX)return;
+    try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
+    catch(e){if(e?.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:['https://rpc.mainnet.chain.robinhood.com'],blockExplorerUrls:[EXPLORER]}]});}else throw e;}
+  }
+  async function load(){
+    try{
+      const r=await fetch('/artifacts/Forge4337ClaimAccount.json',{cache:'no-store'});if(!r.ok)throw new Error('Pinned account artifact unavailable.');
+      artifact=await r.json();
+      if(artifact.contractName!=='Forge4337ClaimAccount'||artifact.compiler!=='0.8.24'||artifact.optimizer?.enabled!==true||Number(artifact.optimizer?.runs)!==200)throw new Error('Pinned account artifact compiler settings do not match the approved build.');
+      if(String(artifact.normalizedRuntimeHash).toLowerCase()!==RUNTIME_HASH)throw new Error('Pinned account runtime hash mismatch.');
+      ready=true;status('Pinned account artifact verified. Connect the operator/deployer wallet.','good');updateDeploy();
+    }catch(e){status(e?.message||'Artifact verification failed.','bad');}
+  }
+  async function estimate(){
+    if(!signer||!artifact)return;
+    const factory=new ethers.ContractFactory(artifact.abi,artifact.bytecode,signer);
+    const tx=await factory.getDeployTransaction(OWNER,ENTRY_POINT);
+    const gas=await provider.estimateGas({...tx,from:deployer});
+    const fee=await provider.getFeeData();
+    const price=fee.maxFeePerGas||fee.gasPrice||0n;
+    $('gasEstimate').textContent=gas.toString();
+    $('feeEstimate').textContent=price?`${ethers.formatEther(gas*price)} ETH maximum estimate`:'Wallet will calculate fee';
+  }
+  $('connect').onclick=async()=>{
+    try{
+      if(!window.ethereum?.request)throw new Error('MetaMask or another EVM wallet is required.');
+      await ensureMainnet();
+      const accounts=await window.ethereum.request({method:'eth_requestAccounts'});if(!accounts?.[0])throw new Error('No wallet connected.');
+      deployer=ethers.getAddress(accounts[0]);provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();
+      $('deployer').textContent=deployer;status('Deployer connected. Estimating the one-time deployment fee…','good');await estimate();status('Ready. Review MetaMask carefully before confirming the deployment.','good');updateDeploy();
+    }catch(e){status(e?.shortMessage||e?.message||'Could not connect deployer.','bad');}
+  };
+  $('ack').onchange=updateDeploy;
+  $('deploy').onclick=async()=>{
+    if(!ready||!signer||!$('ack').checked)return;
+    $('deploy').disabled=true;
+    try{
+      await ensureMainnet();
+      status('MetaMask approval required for one restricted-account deployment…');
+      const factory=new ethers.ContractFactory(artifact.abi,artifact.bytecode,signer);
+      const c=await factory.deploy(OWNER,ENTRY_POINT);
+      const deploymentTx=c.deploymentTransaction();
+      status(`Deployment submitted: ${deploymentTx.hash}. Waiting for confirmation…`);
+      await c.waitForDeployment();
+      const address=await c.getAddress();
+      const owner=await c.owner();const ep=await c.entryPoint();
+      if(owner.toLowerCase()!==OWNER.toLowerCase()||ep.toLowerCase()!==ENTRY_POINT.toLowerCase())throw new Error('Deployed immutable configuration does not match the approved owner/EntryPoint.');
+      const code=await provider.getCode(address);const bytes=ethers.getBytes(code);
+      for(const ranges of Object.values(artifact.immutableReferences||{})){for(const range of ranges)bytes.fill(0,range.start,range.start+range.length);}
+      const hash=ethers.keccak256(bytes);
+      if(hash.toLowerCase()!==RUNTIME_HASH)throw new Error(`Runtime attestation failed: ${hash}`);
+      $('accountAddress').textContent=address;$('txHash').textContent=deploymentTx.hash;$('openAccount').href=`${EXPLORER}/address/${address}`;$('result').hidden=false;
+      status('Deployment confirmed. Owner, EntryPoint and normalized runtime hash verified on-chain.','good');
+    }catch(e){status(e?.shortMessage||e?.reason||e?.message||'Deployment failed or was cancelled.','bad');updateDeploy();}
+  };
+  window.ethereum?.on?.('accountsChanged',()=>location.reload());
+  window.ethereum?.on?.('chainChanged',()=>location.reload());
+  load();
+})();
+</script>
+</body></html>
