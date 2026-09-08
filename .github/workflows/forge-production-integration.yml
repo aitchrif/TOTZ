@@ -1,0 +1,28 @@
+name: FORGE Production Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'forge*'
+      - 'artifacts/ForgeMerkleClaim.json'
+      - 'api/forge-holders.js'
+      - 'vercel.json'
+      - 'tests/forge-production-integration.mjs'
+      - '.github/workflows/forge-production-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-production-surface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify locked Mainnet direct-claim integration
+        run: node tests/forge-production-integration.mjs
