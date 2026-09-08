@@ -1,4 +1,4 @@
-name: FORGE Gasless Production Status
+name: FORGE Gasless Canary2 Auto E2E
 on:
   push:
     branches: [ops/forge-gasless-owner-7094]
@@ -9,8 +9,8 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe production relay status
+      - name: Execute signed sponsored Canary2 claim
         run: |
           set -euo pipefail
-          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-relay?route=status&chainId=46630'
+          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-autoclaim-canary2?token=4e20d39e61df4a17a44580237619dddf'
           echo
