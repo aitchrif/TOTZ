@@ -30,7 +30,6 @@ contract Forge4337ClaimAccount {
     address public immutable owner;
     address public immutable entryPoint;
 
-    error OnlyEntryPointOrOwner();
     error OnlyEntryPoint();
     error ExecutionFailed(bytes data);
     error ZeroAddress();
@@ -45,9 +44,10 @@ contract Forge4337ClaimAccount {
     }
 
     /// @notice Execute only the FORGE V2 claimFor selector with zero native value.
-    /// @dev This keeps a compromised service account from becoming a generic sponsored executor.
+    /// @dev Only EntryPoint may invoke execution. The owner key is valid solely as a UserOp signer,
+    ///      so it cannot bypass ERC-4337/paymaster policy with a direct execute transaction.
     function execute(address target, uint256 value, bytes calldata data) external returns (bytes memory result) {
-        if (msg.sender != entryPoint && msg.sender != owner) revert OnlyEntryPointOrOwner();
+        if (msg.sender != entryPoint) revert OnlyEntryPoint();
         if (value != 0) revert NonZeroValue();
         if (target == address(0) || target.code.length == 0) revert InvalidTarget();
         if (data.length < 4 || bytes4(data[:4]) != CLAIM_FOR_SELECTOR) revert InvalidCallSelector();
