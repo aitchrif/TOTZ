@@ -25,15 +25,13 @@
     })
   });
 
-  // Release-candidate safety: Testnet is the only launch network.
-  // Mainnet is defined now so the UI/backend can be migrated without changing
-  // chain constants later, but NEW deploy/fund/publish actions remain locked
-  // until an explicit production release flips the corresponding server +
-  // client gates. Already-published, verified claims remain interactable so a
-  // later launch lockdown never strands holders from an immutable contract.
-  const environment = 'testnet';
+  // Production integration baseline: the public FORGE surface reads Robinhood
+  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
+  // explicit controlled release flips both the client and server gates.
+  // Already-published verified claims remain interactable after lockdown.
+  const environment = 'mainnet';
   const mainnetClaimsEnabled = false;
-  const claimNetwork = networks.testnet;
+  const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
