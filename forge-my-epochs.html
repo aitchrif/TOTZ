@@ -27,15 +27,15 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 </head>
 <body>
 <div class="wrap">
-<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/forge-epochs">NEW EPOCH</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
-<div class="tool-nav"><a class="live" href="/forge">◉ X-RAY</a><a href="/forge-epochs">⚒ EPOCHS</a><a class="active" href="/forge-my-epochs">◫ MY EPOCHS</a></div>
-<section class="hero"><span class="eyebrow">◫ TOTZ FORGE · OPERATOR DASHBOARD</span><h1>TRACK EVERY <span>EPOCH.</span></h1><p>Connect the sponsor wallet used to launch your claims. FORGE indexes the published epochs, then verifies their live state directly from Robinhood Chain Testnet.</p><div class="safety"><span class="safe">👁 Read-only dashboard</span><span class="safe">⛓ Live contract state</span><span class="safe">🔐 Wallet scoped</span><span class="safe">🚫 No approvals</span></div></section>
+<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/forge/epochs">NEW EPOCH</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
+<div class="tool-nav"><a class="live" href="/forge">◉ X-RAY</a><a href="/forge/epochs">⚒ EPOCHS</a><a class="active" href="/forge/my-epochs">◫ MY EPOCHS</a></div>
+<section class="hero"><span class="eyebrow">◫ TOTZ FORGE · OPERATOR DASHBOARD</span><h1>TRACK EVERY <span>EPOCH.</span></h1><p>Connect the sponsor wallet used to launch your claims. FORGE indexes the published epochs, then verifies their live state directly from Robinhood Chain Mainnet.</p><div class="safety"><span class="safe">👁 Read-only dashboard</span><span class="safe">⛓ Live contract state</span><span class="safe">🔐 Wallet scoped</span><span class="safe">🚫 No approvals</span></div></section>
 <section class="card blue operator"><div><h2>Operator wallet</h2><p>Published claims are grouped by sponsor wallet. Connecting here never signs a transaction.</p></div><div class="operator-wallet"><b id="walletLabel">Not connected</b><span id="walletSub">Connect to load your published epochs</span></div></section>
 <div id="loadStatus" class="status"></div>
 <section id="summary" class="summary" hidden><div class="stat"><small>Published epochs</small><b id="sumTotal">0</b></div><div class="stat live"><small>Live</small><b id="sumLive">0</b></div><div class="stat recovery"><small>Recovery ready</small><b id="sumRecovery">0</b></div><div class="stat closed"><small>Closed</small><b id="sumClosed">0</b></div></section>
 <div id="toolbar" class="toolbar" hidden><div class="toolbar-left"><button class="filter active" data-filter="all" type="button">ALL</button><button class="filter" data-filter="live" type="button">LIVE</button><button class="filter" data-filter="recovery" type="button">RECOVERY READY</button><button class="filter" data-filter="closed" type="button">CLOSED</button><button class="filter" data-filter="attention" type="button">NEEDS ATTENTION</button></div><button id="refreshBtn" class="refresh" type="button">↻ REFRESH ON-CHAIN</button></div>
 <main id="epochs" class="epochs"></main>
-<section id="empty" class="card empty"><h2>No published epochs yet.</h2><p>Launch and publish a Merkle claim with this sponsor wallet. It will appear here automatically.</p><a class="btn good" href="/forge-epochs">BUILD AN EPOCH →</a></section>
+<section id="empty" class="card empty"><h2>No published epochs yet.</h2><p>Launch and publish a Merkle claim with this sponsor wallet. It will appear here automatically.</p><a class="btn good" href="/forge/epochs">BUILD AN EPOCH →</a></section>
 <div class="footer">© 2026 TOTZ FORGE · MY EPOCHS · Public metadata + live on-chain verification.</div>
 </div>
 <div id="toast" class="toast"></div>
