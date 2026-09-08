@@ -25,11 +25,20 @@ assert(runtime.includes("const environment = 'mainnet';"), 'Production FORGE mus
 assert(runtime.includes('const mainnetClaimsEnabled = false;'), 'Production launch gate must remain locked.');
 assert(runtime.includes('const claimNetwork = networks.mainnet;'), 'Production claim network must be Robinhood Mainnet.');
 assert(/gaslessRelay:\s*''/.test(runtime), 'Gasless relay must remain unreachable in direct-claim production mode.');
+assert(/function canInteractWithPublishedClaim\(network = claimNetwork\)[\s\S]*?return Boolean\(resolveClaimNetwork\(network\)\);/.test(runtime), 'Published verified claims must remain interactable independently of the new-launch gate.');
+assert(runtime.includes("const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';"), 'Mainnet launch lockdown must stay scoped to new-launch controls.');
+assert(!runtime.includes('#claimBtn'), 'Mainnet launch lockdown must never disable the published holder claim button.');
+assert(!runtime.includes('#recoverBtn'), 'Mainnet launch lockdown must never disable published sponsor recovery.');
 
 const claim = fs.readFileSync('forge-claim.html', 'utf8');
 assert(!claim.includes('GAS SPONSORED'), 'Public holder claim UI must not expose sponsored claiming.');
 assert(!claim.includes('gaslessClaimBtn'), 'Public holder claim UI must remain direct-only.');
 assert(/id="claimBtn"/.test(claim), 'Direct claim button is missing.');
+
+const claimJs = fs.readFileSync('forge-claim.js', 'utf8');
+assert(claimJs.includes('canInteractWithPublishedClaim'), 'Holder claim runtime must use published-claim interaction permission.');
+assert(/ensureClaimNetwork\(\{requestAccounts:false,network,requireExecution:false\}\)/.test(claimJs), 'Published claim network switching must not require the new-launch execution gate.');
+assert(/function claim\(\)[\s\S]*?interactionEnabled\(\)/.test(claimJs), 'Direct holder claims must remain governed by published-claim interaction permission.');
 
 const epochsHtml = fs.readFileSync('forge-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/epochs route.');
@@ -62,4 +71,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · direct claim only · clean routes/copy · claim routes no-store');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · published claims preserved · direct claim only · clean routes/copy · claim routes no-store');
