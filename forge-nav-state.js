@@ -58,6 +58,42 @@
     });
   }
 
+  function normalizeLegacyRoutes() {
+    document.querySelectorAll('a[href]').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      if (/^\/forge-epochs(?:[?#]|$)/.test(href)) {
+        link.setAttribute('href', href.replace('/forge-epochs', '/forge/epochs'));
+      } else if (/^\/forge-my-epochs(?:[?#]|$)/.test(href)) {
+        link.setAttribute('href', href.replace('/forge-my-epochs', '/forge/my-epochs'));
+      } else if (/^\/forge-claim-launcher(?:[?#]|$)/.test(href)) {
+        link.setAttribute('href', href.replace('/forge-claim-launcher', '/forge/claim-launcher'));
+      } else if (/^\/forge-claim(?:[?#]|$)/.test(href)) {
+        link.setAttribute('href', href.replace('/forge-claim', '/forge/claim'));
+      }
+    });
+  }
+
+  function normalizeRuntimeCopy() {
+    const env = window.TOTZ_FORGE_CONFIG?.environment;
+    if (env !== 'mainnet') return;
+
+    document.querySelectorAll('.hero p').forEach((paragraph) => {
+      if (/Robinhood Chain Testnet/i.test(paragraph.textContent || '')) {
+        paragraph.textContent = (paragraph.textContent || '').replace(/Robinhood Chain Testnet/gi, 'Robinhood Chain Mainnet');
+      }
+    });
+
+    document.querySelectorAll('a[href^="/forge/claim-launcher"],a[href^="/forge-claim-launcher"]').forEach((link) => {
+      if (/TESTNET CLAIM/i.test(link.textContent || '')) link.textContent = 'NEXT: OPEN OPERATOR LAUNCHER →';
+      link.setAttribute('href', '/forge/claim-launcher');
+    });
+
+    const note = document.querySelector('.contract-note');
+    if (note && /Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(note.textContent || '')) {
+      note.innerHTML = '<b>Next step:</b> export the verified Claim JSON and open the operator Claim Launcher. Production Mainnet deploy/fund/publish stays fail-closed until an explicit controlled release is armed.';
+    }
+  }
+
   function normalizeToolNav() {
     document.querySelectorAll('.tool-nav').forEach((nav) => {
       nav.setAttribute('aria-label', 'FORGE tools');
@@ -83,6 +119,14 @@
         badge.title = 'Claim deployment is restricted to Robinhood Chain Testnet';
         nav.appendChild(badge);
       }
+      if (env === 'mainnet' && !nav.querySelector('[data-forge-environment]')) {
+        const badge = document.createElement('span');
+        badge.dataset.forgeEnvironment = 'mainnet';
+        badge.className = 'forge-env-badge mainnet';
+        badge.textContent = '⛓ MAINNET READ';
+        badge.title = 'Production reads Robinhood Chain Mainnet. New claim writes remain release-gated.';
+        nav.appendChild(badge);
+      }
     });
 
     if (!document.getElementById('forge-nav-runtime-style')) {
@@ -90,6 +134,7 @@
       style.id = 'forge-nav-runtime-style';
       style.textContent = `
         .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
+        .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
         @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
       `;
       document.head.appendChild(style);
@@ -104,6 +149,8 @@
     if (syncing) return;
     syncing = true;
     removeLegacyInjectedNav();
+    normalizeLegacyRoutes();
+    normalizeRuntimeCopy();
     normalizeToolNav();
     toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
     toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
