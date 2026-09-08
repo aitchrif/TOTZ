@@ -1,0 +1,84 @@
+name: FORGE Mainnet Readiness Launcher Patch
+
+on:
+  push:
+    branches: [hardening/forge-gasless-mainnet-readiness]
+    paths:
+      - '.github/workflows/forge-mainnet-readiness-launcher-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-launcher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: hardening/forge-gasless-mainnet-readiness
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Add explicit V1/V2 deploy selector
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          {
+            const file='forge-claim-launcher.html';
+            let text=fs.readFileSync(file,'utf8');
+            const before='<div class="formgrid" style="margin-top:14px"><div class="field full"><label id="rewardTokenLabel">Reward token contract</label><input id="tokenInput" placeholder="0x ERC-20 token…" spellcheck="false"></div>';
+            const after='<div class="formgrid" style="margin-top:14px"><div class="field full"><label>Claim contract version</label><select id="contractVersionInput"><option value="v1" selected>V1 · Standard direct claim</option><option value="v2">V2 · Gas-sponsored compatible (EIP-712)</option></select></div><div class="field full"><label id="rewardTokenLabel">Reward token contract</label><input id="tokenInput" placeholder="0x ERC-20 token…" spellcheck="false"></div>';
+            if(!text.includes(before)) throw new Error('launcher form anchor not found');
+            text=text.replace(before,after);
+            fs.writeFileSync(file,text);
+          }
+
+          {
+            const file='forge-claim-launcher.js';
+            let text=fs.readFileSync(file,'utf8');
+
+            const abiAnchor="  const $ = id => document.getElementById(id);";
+            const specs=`  const CLAIM_ARTIFACTS = {\n    v1: { path: '/artifacts/ForgeMerkleClaim.json', runtimeHash: '0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56', label: 'V1' },\n    v2: { path: '/artifacts/ForgeMerkleClaimV2.json', runtimeHash: '0x9b4b2c73fbeabfc2adaf202a486ac47079940050bf1546249713265b005ababa', label: 'V2' }\n  };\n  const $ = id => document.getElementById(id);`;
+            if(!text.includes(abiAnchor)) throw new Error('artifact specs anchor not found');
+            text=text.replace(abiAnchor,specs);
+
+            const verifyAnchor="    verified=false;pkg=null;claimAddress=null;publishedSlug=null;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');";
+            const verifyAfter="    verified=false;pkg=null;claimAddress=null;publishedSlug=null;artifact=null;if($('contractVersionInput'))$('contractVersionInput').disabled=false;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');";
+            if(!text.includes(verifyAnchor)) throw new Error('verify reset anchor not found');
+            text=text.replace(verifyAnchor,verifyAfter);
+
+            const loadBefore="  async function loadArtifact(){if(artifact)return artifact;const r=await fetch('/artifacts/ForgeMerkleClaim.json',{cache:'no-store'});if(!r.ok)throw new Error('Claim contract artifact is unavailable.');artifact=await r.json();if(!artifact?.abi||!/^0x[0-9a-f]+$/i.test(artifact?.bytecode||''))throw new Error('Invalid claim contract artifact.');return artifact;}";
+            const loadAfter=`  function selectedContractVersion(){return $('contractVersionInput')?.value==='v2'?'v2':'v1';}\n  async function loadArtifact(){\n    const version=selectedContractVersion(),spec=CLAIM_ARTIFACTS[version];\n    if(artifact?.__forgeVersion===version)return artifact;\n    const r=await fetch(spec.path,{cache:'no-store'});\n    if(!r.ok)throw new Error(\`Claim contract artifact \${spec.label} is unavailable.\`);\n    const loaded=await r.json();\n    if(!loaded?.abi||!/^0x[0-9a-f]+$/i.test(loaded?.bytecode||''))throw new Error('Invalid claim contract artifact.');\n    if(loaded.compiler!=='0.8.24'||loaded.optimizer?.enabled!==true||Number(loaded.optimizer?.runs)!==200)throw new Error('Claim contract compiler settings are not approved.');\n    if(String(loaded.normalizedRuntimeHash||'').toLowerCase()!==spec.runtimeHash)throw new Error(\`Claim contract \${spec.label} runtime hash is not approved.\`);\n    artifact={...loaded,__forgeVersion:version};\n    return artifact;\n  }`;
+            if(!text.includes(loadBefore)) throw new Error('loadArtifact anchor not found');
+            text=text.replace(loadBefore,loadAfter);
+
+            const deployBefore="      const art=await loadArtifact();const factory=new ethers.ContractFactory(art.abi,art.bytecode,signer);\n      status('deployStatus',`Wallet approval required to deploy the immutable claim contract on ${CLAIM_NETWORK.name}…`);";
+            const deployAfter="      const art=await loadArtifact();const contractVersion=art.__forgeVersion||selectedContractVersion();const factory=new ethers.ContractFactory(art.abi,art.bytecode,signer);\n      status('deployStatus',`Wallet approval required to deploy the immutable ${contractVersion.toUpperCase()} claim contract on ${CLAIM_NETWORK.name}…`);";
+            if(!text.includes(deployBefore)) throw new Error('deploy version anchor not found');
+            text=text.replace(deployBefore,deployAfter);
+
+            const successBefore="      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus',`Claim contract deployed and verified on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);";
+            const successAfter="      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');if($('contractVersionInput'))$('contractVersionInput').disabled=true;status('deployStatus',`${contractVersion.toUpperCase()} claim contract deployed and verified on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);";
+            if(!text.includes(successBefore)) throw new Error('deploy success anchor not found');
+            text=text.replace(successBefore,successAfter);
+
+            const listenerAnchor="  ['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));";
+            const listenerAfter="  ['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));\n  $('contractVersionInput')?.addEventListener('change',()=>{if(claimAddress)return;artifact=null;const v=selectedContractVersion().toUpperCase();status('deployStatus',`${v} selected. The pinned ${v} artifact will be verified before deployment.`,'ok');updateDeployReady();});";
+            if(!text.includes(listenerAnchor)) throw new Error('listener anchor not found');
+            text=text.replace(listenerAnchor,listenerAfter);
+
+            fs.writeFileSync(file,text);
+          }
+          NODE
+      - name: Syntax check launcher
+        run: node --check forge-claim-launcher.js
+      - name: Commit launcher readiness patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add forge-claim-launcher.html forge-claim-launcher.js
+          git diff --cached --exit-code && { echo 'No changes to commit'; exit 0; } || true
+          git commit -m 'feat: make V2 an explicit pinned launcher target'
+          git push origin HEAD:hardening/forge-gasless-mainnet-readiness
