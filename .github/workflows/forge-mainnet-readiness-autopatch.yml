@@ -1,0 +1,87 @@
+name: FORGE Mainnet Readiness Autopatch
+
+on:
+  push:
+    branches: [hardening/forge-gasless-mainnet-readiness]
+    paths:
+      - '.github/workflows/forge-mainnet-readiness-autopatch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-audit-branch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: hardening/forge-gasless-mainnet-readiness
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Scope holder gasless status to epoch
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'forge-claim.js';
+          let text = fs.readFileSync(file, 'utf8');
+          const before = "const p=new URLSearchParams({route:'status',chainId:String(network.chainId)});";
+          const after = "const p=new URLSearchParams({route:'status',chainId:String(network.chainId),slug:String(epoch.slug||'')});";
+          if (!text.includes(before)) throw new Error('expected gasless status query not found');
+          text = text.replace(before, after);
+          fs.writeFileSync(file, text);
+          NODE
+      - name: Build and commit deterministic V2 artifact
+        run: |
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const solc = require('solc');
+          const { keccak256 } = require('ethers');
+          const sourcePath = 'contracts/ForgeMerkleClaimV2.sol';
+          const input = {
+            language: 'Solidity',
+            sources: { [sourcePath]: { content: fs.readFileSync(sourcePath, 'utf8') } },
+            settings: {
+              optimizer: { enabled: true, runs: 200 },
+              outputSelection: { '*': { '*': ['abi','evm.bytecode.object','evm.deployedBytecode.object','evm.deployedBytecode.immutableReferences'] } }
+            }
+          };
+          function findImports(importPath) {
+            try { return { contents: fs.readFileSync(path.resolve('node_modules', importPath), 'utf8') }; }
+            catch { return { error: `Import not found: ${importPath}` }; }
+          }
+          const output = JSON.parse(solc.compile(JSON.stringify(input), { import: findImports }));
+          const errors = (output.errors || []).filter(e => e.severity === 'error');
+          if (errors.length) throw new Error(errors.map(e => e.formattedMessage).join('\n'));
+          const c = output.contracts[sourcePath].ForgeMerkleClaimV2;
+          const deployedBytecode = c.evm.deployedBytecode.object;
+          const immutableReferences = c.evm.deployedBytecode.immutableReferences || {};
+          const normalized = Buffer.from(deployedBytecode, 'hex');
+          for (const ranges of Object.values(immutableReferences)) {
+            for (const {start,length} of ranges) normalized.fill(0,start,start+length);
+          }
+          const artifact = {
+            contractName:'ForgeMerkleClaimV2',
+            compiler:'0.8.24',
+            optimizer:{enabled:true,runs:200},
+            abi:c.abi,
+            bytecode:'0x'+c.evm.bytecode.object,
+            deployedBytecode:'0x'+deployedBytecode,
+            immutableReferences,
+            normalizedRuntimeHash:keccak256('0x'+normalized.toString('hex')),
+          };
+          if (artifact.normalizedRuntimeHash !== '0x9b4b2c73fbeabfc2adaf202a486ac47079940050bf1546249713265b005ababa') throw new Error('unexpected V2 runtime hash');
+          fs.mkdirSync('artifacts',{recursive:true});
+          fs.writeFileSync('artifacts/ForgeMerkleClaimV2.json',JSON.stringify(artifact));
+          NODE
+      - name: Commit audit branch patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add forge-claim.js artifacts/ForgeMerkleClaimV2.json
+          git diff --cached --exit-code && { echo 'No changes to commit'; exit 0; } || true
+          git commit -m 'build: pin V2 artifact and epoch-scope gasless status'
+          git push origin HEAD:hardening/forge-gasless-mainnet-readiness
