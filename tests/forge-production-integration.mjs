@@ -31,6 +31,22 @@ assert(!claim.includes('GAS SPONSORED'), 'Public holder claim UI must not expose
 assert(!claim.includes('gaslessClaimBtn'), 'Public holder claim UI must remain direct-only.');
 assert(/id="claimBtn"/.test(claim), 'Direct claim button is missing.');
 
+const epochsHtml = fs.readFileSync('forge-epochs.html', 'utf8');
+assert(!/href="\/forge-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/epochs route.');
+assert(!/href="\/forge-my-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/my-epochs route.');
+assert(!/href="\/forge-claim-launcher(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/claim-launcher route.');
+assert(!/TESTNET CLAIM|Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(epochsHtml), 'EPOCHS contains stale Testnet launch copy.');
+assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS must state the production write gate clearly.');
+
+const myEpochsHtml = fs.readFileSync('forge-my-epochs.html', 'utf8');
+assert(!/href="\/forge-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/epochs route.');
+assert(!/href="\/forge-my-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/my-epochs route.');
+assert(!/Robinhood Chain Testnet/i.test(myEpochsHtml), 'MY EPOCHS contains stale Testnet copy.');
+assert(/Robinhood Chain Mainnet/i.test(myEpochsHtml), 'MY EPOCHS must identify the live Mainnet read surface.');
+
+const launcherHtml = fs.readFileSync('forge-claim-launcher.html', 'utf8');
+assert(!/href="\/forge-epochs(?:[?#"])/.test(launcherHtml), 'Claim Launcher must use the clean /forge/epochs route.');
+
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const rewrites = new Map((vercel.rewrites || []).map(r => [r.source, r.destination]));
 assert(rewrites.get('/forge/epochs') === '/forge-epochs', 'Missing /forge/epochs route.');
@@ -46,4 +62,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · direct claim only · clean claim routes no-store');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · direct claim only · clean routes/copy · claim routes no-store');
