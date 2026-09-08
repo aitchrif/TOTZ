@@ -125,7 +125,7 @@
       gaslessState.v2=true;
     }catch(_){return gaslessState;}
     try{
-      const p=new URLSearchParams({route:'status',chainId:String(network.chainId)});
+      const p=new URLSearchParams({route:'status',chainId:String(network.chainId),slug:String(epoch.slug||'')});
       const d=await getJson(`${GASLESS_SERVICE}?${p}`);
       gaslessState.enabled=d?.enabled===true;
       gaslessState.configured=d?.configured===true;
