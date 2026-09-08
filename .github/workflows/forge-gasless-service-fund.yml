@@ -1,0 +1,37 @@
+name: FORGE Gasless Service Fund
+
+on:
+  push:
+    branches:
+      - ops/forge-gasless-owner-7094
+    paths:
+      - '.github/workflows/forge-gasless-service-fund.yml'
+      - 'tests/forge-gasless-service-fund.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fund:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ops/forge-gasless-owner-7094
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: |
+          if [ -z "$FORGE_TESTNET_OPERATOR_PRIVATE_KEY" ]; then
+            echo "Missing repository secret: FORGE_TESTNET_OPERATOR_PRIVATE_KEY"
+            exit 1
+          fi
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+      - run: npm install --no-save ethers@6.15.0
+      - run: node tests/forge-gasless-service-fund.mjs
+        env:
+          FORGE_TESTNET_OPERATOR_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_OPERATOR_PRIVATE_KEY }}
+          FORGE_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
