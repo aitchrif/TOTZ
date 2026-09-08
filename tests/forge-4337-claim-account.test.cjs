@@ -118,25 +118,29 @@ async function main() {
     '0x1234',
   ]);
 
-  await (await account.connect(owner).execute(await mock.getAddress(), 0n, claimData)).wait();
-  assert.equal(await mock.count(), 1n, 'approved claimFor call should execute');
+  await (await account.connect(entryPoint).execute(await mock.getAddress(), 0n, claimData)).wait();
+  assert.equal(await mock.count(), 1n, 'EntryPoint-approved claimFor call should execute');
   assert.equal((await mock.lastAccount()).toLowerCase(), (await holder.getAddress()).toLowerCase());
   assert.equal(await mock.lastAmount(), 123n);
 
+  await expectRevert(
+    account.connect(owner).execute.staticCall(await mock.getAddress(), 0n, claimData),
+    'owner key must not bypass EntryPoint with a direct execute transaction',
+  );
   await expectRevert(
     account.connect(outsider).execute.staticCall(await mock.getAddress(), 0n, claimData),
     'outsider must not execute through service account',
   );
   await expectRevert(
-    account.connect(owner).execute.staticCall(await mock.getAddress(), 1n, claimData),
+    account.connect(entryPoint).execute.staticCall(await mock.getAddress(), 1n, claimData),
     'non-zero native value must be rejected',
   );
   await expectRevert(
-    account.connect(owner).execute.staticCall(await mock.getAddress(), 0n, claimIface.encodeFunctionData('wrongSelector')),
+    account.connect(entryPoint).execute.staticCall(await mock.getAddress(), 0n, claimIface.encodeFunctionData('wrongSelector')),
     'arbitrary call selectors must be rejected',
   );
   await expectRevert(
-    account.connect(owner).execute.staticCall('0x0000000000000000000000000000000000000001', 0n, claimData),
+    account.connect(entryPoint).execute.staticCall('0x0000000000000000000000000000000000000001', 0n, claimData),
     'non-contract targets must be rejected',
   );
 
