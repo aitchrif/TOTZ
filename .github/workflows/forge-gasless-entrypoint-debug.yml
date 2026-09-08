@@ -1,0 +1,16 @@
+name: FORGE Gasless EntryPoint Debug
+on:
+  push:
+    branches: [ops/forge-gasless-owner-7094]
+    paths: [.github/workflows/forge-gasless-entrypoint-debug.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run EntryPoint gas diagnostic
+        run: |
+          set -euo pipefail
+          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-entrypoint-debug?token=c2bba52fe3bb420fae94f8c761591b3e'
+          echo
