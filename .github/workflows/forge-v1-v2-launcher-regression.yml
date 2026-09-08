@@ -1,0 +1,79 @@
+name: FORGE V1-V2 Launcher Regression
+
+on:
+  pull_request:
+    branches: [forge-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-launcher-and-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Parse launcher and run static V1/V2 regression
+        run: |
+          node --check forge-claim-launcher.js
+          node tests/forge-claim-launcher-v2-regression.mjs
+      - name: Install pinned compiler dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save solc@0.8.24 @openzeppelin/contracts@5.0.1 ethers@6.15.0
+      - name: Rebuild and verify approved V1/V2 runtime hashes
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const solc = require('solc');
+          const { keccak256 } = require('ethers');
+
+          const expected = {
+            ForgeMerkleClaim: '0x0051149977ffb2b42b63e07841f68b4bd382a1656ac32efbf5c3c064f12a0b56',
+            ForgeMerkleClaimV2: '0x9b4b2c73fbeabfc2adaf202a486ac47079940050bf1546249713265b005ababa',
+          };
+          const specs = [
+            ['contracts/ForgeMerkleClaim.sol', 'ForgeMerkleClaim'],
+            ['contracts/ForgeMerkleClaimV2.sol', 'ForgeMerkleClaimV2'],
+          ];
+          const sources = Object.fromEntries(specs.map(([file]) => [file, { content: fs.readFileSync(file, 'utf8') }]));
+          const input = {
+            language: 'Solidity',
+            sources,
+            settings: {
+              optimizer: { enabled: true, runs: 200 },
+              outputSelection: { '*': { '*': ['evm.deployedBytecode.object','evm.deployedBytecode.immutableReferences'] } },
+            },
+          };
+          function findImports(importPath) {
+            try { return { contents: fs.readFileSync(path.resolve('node_modules', importPath), 'utf8') }; }
+            catch { return { error: `Import not found: ${importPath}` }; }
+          }
+          const output = JSON.parse(solc.compile(JSON.stringify(input), { import: findImports }));
+          const errors = (output.errors || []).filter((e) => e.severity === 'error');
+          if (errors.length) throw new Error(errors.map((e) => e.formattedMessage).join('\n'));
+
+          for (const [sourcePath, contractName] of specs) {
+            const c = output.contracts[sourcePath][contractName];
+            const bytes = Buffer.from(c.evm.deployedBytecode.object, 'hex');
+            for (const ranges of Object.values(c.evm.deployedBytecode.immutableReferences || {})) {
+              for (const { start, length } of ranges) bytes.fill(0, start, start + length);
+            }
+            const actual = keccak256('0x' + bytes.toString('hex')).toLowerCase();
+            if (actual !== expected[contractName]) throw new Error(`${contractName} runtime hash changed: ${actual}`);
+            const committed = JSON.parse(fs.readFileSync(`artifacts/${contractName}.json`, 'utf8'));
+            if (String(committed.normalizedRuntimeHash || '').toLowerCase() !== actual) throw new Error(`${contractName} committed artifact does not match rebuilt runtime`);
+            if (committed.compiler !== '0.8.24' || committed.optimizer?.enabled !== true || Number(committed.optimizer?.runs) !== 200) throw new Error(`${contractName} committed compiler settings are not pinned`);
+            console.log(`PASS ${contractName} ${actual}`);
+          }
+          NODE
+      - name: Verify readiness work stays fail-closed on Mainnet
+        run: |
+          grep -q 'const mainnetClaimsEnabled = false;' forge-runtime-config.js
+          grep -q 'const claimNetwork = networks.testnet;' forge-runtime-config.js
+          ! grep -q 'const mainnetClaimsEnabled = true;' forge-runtime-config.js
