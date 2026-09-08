@@ -5,7 +5,6 @@ const solc = require('solc');
 const ganache = require('ganache');
 const {
   BrowserProvider,
-  Contract,
   ContractFactory,
   Interface,
   Wallet,
@@ -82,28 +81,36 @@ async function main() {
   const provider = new BrowserProvider(eip1193);
   const initialAccounts = Object.values(eip1193.getInitialAccounts());
   assert.ok(initialAccounts.length >= 4, 'Ganache must expose deterministic local test accounts');
-  const owner = new Wallet(initialAccounts[0].secretKey, provider);
-  const entryPoint = new Wallet(initialAccounts[1].secretKey, provider);
-  const outsider = new Wallet(initialAccounts[2].secretKey, provider);
-  const holder = new Wallet(initialAccounts[3].secretKey, provider);
+
+  // Use Ganache JSON-RPC signers for transactions so nonce handling stays authoritative.
+  // Use isolated in-memory wallets only for the message signatures validated by the account.
+  const owner = await provider.getSigner(0);
+  const entryPoint = await provider.getSigner(1);
+  const outsider = await provider.getSigner(2);
+  const holder = await provider.getSigner(3);
+  const ownerSigningWallet = new Wallet(initialAccounts[0].secretKey);
+  const outsiderSigningWallet = new Wallet(initialAccounts[2].secretKey);
+
+  assert.equal(ownerSigningWallet.address.toLowerCase(), (await owner.getAddress()).toLowerCase());
+  assert.equal(outsiderSigningWallet.address.toLowerCase(), (await outsider.getAddress()).toLowerCase());
 
   const mockFactory = new ContractFactory(built.mock.abi, built.mock.bytecode, owner);
   const mock = await mockFactory.deploy();
   await mock.waitForDeployment();
 
   const accountFactory = new ContractFactory(built.account.abi, built.account.bytecode, owner);
-  const account = await accountFactory.deploy(owner.address, entryPoint.address);
+  const account = await accountFactory.deploy(await owner.getAddress(), await entryPoint.getAddress());
   await account.waitForDeployment();
 
-  assert.equal((await account.owner()).toLowerCase(), owner.address.toLowerCase());
-  assert.equal((await account.entryPoint()).toLowerCase(), entryPoint.address.toLowerCase());
+  assert.equal((await account.owner()).toLowerCase(), (await owner.getAddress()).toLowerCase());
+  assert.equal((await account.entryPoint()).toLowerCase(), (await entryPoint.getAddress()).toLowerCase());
 
   const claimIface = new Interface([
     'function claimFor(address,uint256,bytes32[],uint256,uint256,bytes)',
     'function wrongSelector()',
   ]);
   const claimData = claimIface.encodeFunctionData('claimFor', [
-    holder.address,
+    await holder.getAddress(),
     123n,
     [],
     0n,
@@ -113,7 +120,7 @@ async function main() {
 
   await (await account.connect(owner).execute(await mock.getAddress(), 0n, claimData)).wait();
   assert.equal(await mock.count(), 1n, 'approved claimFor call should execute');
-  assert.equal((await mock.lastAccount()).toLowerCase(), holder.address.toLowerCase());
+  assert.equal((await mock.lastAccount()).toLowerCase(), (await holder.getAddress()).toLowerCase());
   assert.equal(await mock.lastAmount(), 123n);
 
   await expectRevert(
@@ -134,8 +141,8 @@ async function main() {
   );
 
   const userOpHash = id('FORGE_4337_ACCOUNT_TEST');
-  const validSignature = await owner.signMessage(getBytes(userOpHash));
-  const invalidSignature = await outsider.signMessage(getBytes(userOpHash));
+  const validSignature = await ownerSigningWallet.signMessage(getBytes(userOpHash));
+  const invalidSignature = await outsiderSigningWallet.signMessage(getBytes(userOpHash));
   const baseUserOp = {
     sender: await account.getAddress(),
     nonce: 0n,
@@ -157,7 +164,7 @@ async function main() {
   assert.equal(badSig, 1n, 'wrong owner signature must fail validation');
 
   const wrongSender = await account.connect(entryPoint).validateUserOp.staticCall(
-    { ...baseUserOp, sender: outsider.address }, userOpHash, 0n,
+    { ...baseUserOp, sender: await outsider.getAddress() }, userOpHash, 0n,
   );
   assert.equal(wrongSender, 1n, 'wrong UserOperation sender must fail validation');
 
