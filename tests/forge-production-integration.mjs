@@ -38,4 +38,12 @@ assert(rewrites.get('/forge/my-epochs') === '/forge-my-epochs', 'Missing /forge/
 assert(rewrites.get('/forge/claim') === '/forge-claim', 'Missing /forge/claim route.');
 assert(rewrites.get('/forge/claim-launcher') === '/forge-claim-launcher', 'Missing /forge/claim-launcher route.');
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · direct claim only');
+const headerMap = new Map((vercel.headers || []).map(entry => [entry.source, new Map((entry.headers || []).map(h => [String(h.key).toLowerCase(), String(h.value).toLowerCase()]))]));
+for (const route of ['/forge/claim', '/forge/claim-launcher']) {
+  const headers = headerMap.get(route);
+  assert(headers, `Missing explicit headers for clean FORGE route: ${route}`);
+  assert(headers.get('cache-control') === 'no-store, max-age=0', `${route} must be no-store.`);
+  assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
+}
+
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · direct claim only · clean claim routes no-store');
