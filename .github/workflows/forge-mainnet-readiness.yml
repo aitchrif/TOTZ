@@ -11,19 +11,27 @@ on:
       - 'forge-claim-launcher.js'
       - 'forge-my-epochs.js'
       - 'artifacts/ForgeMerkleClaim.json'
+      - 'artifacts/ForgeMerkleClaimV2.json'
       - 'artifacts/ForgeTestUSDG.json'
       - 'contracts/ForgeMerkleClaim.sol'
+      - 'contracts/ForgeMerkleClaimV2.sol'
       - 'contracts/ForgeTestUSDG.sol'
       - 'supabase/functions/forge-claims/**'
+      - 'supabase/functions/forge-gasless-relay/**'
       - 'supabase/migrations/20260906154000_forge_mainnet_release_gate.sql'
       - 'supabase/migrations/20260906161000_forge_mainnet_canary_policy.sql'
       - 'supabase/migrations/20260906163000_forge_mainnet_canary_expiry.sql'
+      - 'supabase/migrations/20260907224600_forge_gasless_v2_hardening.sql'
       - 'supabase/sql/forge-mainnet-lockdown.sql'
       - 'tests/forge-mainnet-readiness.mjs'
       - 'tests/forge-mainnet-canary-1-audit.mjs'
       - 'tests/forge-mainnet-pilot-2-audit.mjs'
       - 'tests/forge-mainnet-pilot-3-audit.mjs'
       - 'tests/forge-claim-gas-ux.mjs'
+      - 'tests/forge-claim-v2.test.cjs'
+      - 'tests/forge-gasless-v2-static.mjs'
+      - 'tests/forge-gasless-hardening-static.mjs'
+      - 'tests/forge-gasless-testnet-gas-guard.mjs'
       - 'tests/forge-pilot-2-package.mjs'
       - 'tests/forge-pilot-2-arm-preview.mjs'
       - 'tests/forge-pilot-3-package.mjs'
@@ -36,6 +44,7 @@ on:
       - 'tests/forge-canary-arm-preview.mjs'
       - '.github/workflows/forge-testnet-wallet-e2e.yml'
       - '.github/workflows/forge-canary-prepare.yml'
+      - '.github/workflows/forge-gasless-v2-poc.yml'
       - '.github/workflows/forge-mainnet-readiness.yml'
   workflow_dispatch:
 
@@ -45,7 +54,7 @@ permissions:
 jobs:
   locked-pre-canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
         with:
@@ -62,10 +71,18 @@ jobs:
           node --check tests/forge-mainnet-pilot-2-audit.mjs
           node --check tests/forge-mainnet-pilot-3-audit.mjs
           node --check tests/forge-claim-gas-ux.mjs
+          node --check tests/forge-gasless-v2-static.mjs
+          node --check tests/forge-gasless-hardening-static.mjs
+          node --check tests/forge-gasless-testnet-gas-guard.mjs
           node --check tests/forge-pilot-2-package.mjs
           node --check tests/forge-pilot-2-arm-preview.mjs
           node --check tests/forge-pilot-3-package.mjs
           node --check tests/forge-pilot-3-arm-preview.mjs
+      - name: Verify Gasless V2 static safety and relay hardening invariants
+        run: |
+          node tests/forge-gasless-v2-static.mjs
+          node tests/forge-gasless-hardening-static.mjs
+          node tests/forge-gasless-testnet-gas-guard.mjs
       - name: Verify holder gas and chain UX regression
         run: node tests/forge-claim-gas-ux.mjs
       - name: Verify atomic first-Canary arm stays preview-only
