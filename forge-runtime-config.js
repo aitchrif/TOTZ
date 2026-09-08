@@ -45,7 +45,9 @@
     services: Object.freeze({
       claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
-      gaslessRelay: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-relay'
+      // Direct-claim production mode: holder pays the network gas.
+      // Keep the gasless relay unreachable from the public claim UI/runtime.
+      gaslessRelay: ''
     })
   });
 
@@ -147,8 +149,8 @@
 
   function installLockedClaimUiGuard() {
     if (canExecuteClaims(claimNetwork)) return;
-    // Scope this guard to NEW epoch launch controls only. Never include claimBtn,
-    // gaslessClaimBtn or recoverBtn: published verified epochs must survive a later launch lock.
+    // Scope this guard to NEW epoch launch controls only. Published verified
+    // claims and sponsor recovery must remain usable after a later launch lock.
     const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';
     const message = `${claimNetwork.name} new claim launches are locked until the FORGE mainnet release gate is enabled.`;
     const lock = () => {

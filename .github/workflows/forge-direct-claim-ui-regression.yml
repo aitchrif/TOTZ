@@ -1,0 +1,24 @@
+name: FORGE Direct Claim UI Regression
+
+on:
+  pull_request:
+    paths:
+      - 'forge-claim.html'
+      - 'forge-runtime-config.js'
+      - 'tests/forge-direct-claim-ui-regression.mjs'
+      - '.github/workflows/forge-direct-claim-ui-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  direct-claim-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify direct-only public claim experience
+        run: node tests/forge-direct-claim-ui-regression.mjs

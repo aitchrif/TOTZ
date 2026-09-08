@@ -11,17 +11,20 @@ const [runtime, claimUi, claimHtml, relayWrapper, relayCore, migration] = await 
 ]);
 const relay = `${relayWrapper}\n${relayCore}`;
 
-assert.match(runtime, /gaslessRelay:\s*'https:\/\/yymwpnztjlyfxongwmsw\.supabase\.co\/functions\/v1\/forge-gasless-relay'/, 'runtime must expose the gasless relay service');
+// Product mode is now direct-claim only. Keep the hardened relay code/audit path
+// test-covered, but make it unreachable from the public holder runtime and UI.
+assert.match(runtime, /gaslessRelay:\s*''/, 'public runtime must keep the gasless relay unreachable');
 assert.match(runtime, /const mainnetClaimsEnabled = false;/, 'client Mainnet launch gate must stay locked');
 assert.match(runtime, /const claimNetwork = networks\.testnet;/, 'Testnet must remain the default claim launch network');
 
-assert.match(claimHtml, /id="gaslessClaimBtn"[^>]*hidden[^>]*disabled/, 'sponsored button must fail closed in markup');
-assert.match(claimUi, /authorizationNonces/, 'holder UI must detect V2 nonce support');
-assert.match(claimUi, /signTypedData/, 'holder UI must use EIP-712 authorization');
-assert.match(claimUi, /route:'status'/, 'holder UI must read server gasless status before enabling');
-assert.match(claimUi, /route=relay/, 'holder UI must submit signed authorization to relay');
-assert.match(claimUi, /c\.claim\(claimUnits,claimData\.proof\)/, 'direct on-chain claim fallback must remain available');
-assert.match(claimUi, /Direct claim is still available/, 'gasless failure must not silently auto-spend gas');
+assert.doesNotMatch(claimHtml, /id="gaslessClaimBtn"/, 'public holder UI must not expose a sponsored claim button');
+assert.match(claimHtml, /id="claimBtn"[^>]*>CLAIM<\/button>/, 'public holder UI must expose the direct claim button');
+assert.match(claimUi, /authorizationNonces/, 'dormant V2 holder code must retain nonce support if re-enabled in a future isolated build');
+assert.match(claimUi, /signTypedData/, 'dormant V2 holder code must retain EIP-712 authorization if re-enabled');
+assert.match(claimUi, /route:'status'/, 'dormant V2 holder code must still gate relay status server-side');
+assert.match(claimUi, /route=relay/, 'dormant V2 holder code must still submit signed authorization only to the relay');
+assert.match(claimUi, /c\.claim\(claimUnits,claimData\.proof\)/, 'direct on-chain claim path must remain available');
+assert.match(claimUi, /Direct claim is still available/, 'gasless failure code must never silently auto-spend gas');
 
 assert.match(relay, /gasless_testnet_enabled/, 'relay must have an independent Testnet gasless gate');
 assert.match(relay, /gasless_mainnet_enabled/, 'relay must have an independent Mainnet gasless gate');
@@ -47,4 +50,4 @@ assert.match(migration, /grant execute on function public\.forge_reserve_gasless
 assert.match(migration, /p_max_attempts integer default 2/, 'rate-limit attempt cap must be explicit');
 assert.match(migration, /request_hash text not null unique/, 'gasless requests must have an idempotency key');
 
-console.log('PASS FORGE gasless V2 hardening static invariants');
+console.log('PASS FORGE gasless infrastructure hardening (public runtime disabled)');
