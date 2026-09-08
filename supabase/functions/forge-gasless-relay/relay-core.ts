@@ -27,6 +27,13 @@ type NetworkConfig = {
   flagKey: string;
 };
 
+type GaslessEpochPolicyContext = {
+  slug?: string;
+  creator_wallet?: string;
+  eligible_wallets?: number;
+  claim_chain_id?: number;
+};
+
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") || "").trim();
 const SERVICE_ROLE_KEY = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
 const ENTRY_POINT_V08 = "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108";
@@ -34,6 +41,7 @@ const MAX_BODY_BYTES = 24_000;
 const DEFAULT_TTL_SECONDS = 600;
 const DEFAULT_RETRY_WINDOW_SECONDS = 900;
 const DEFAULT_MAX_ATTEMPTS = 2;
+const MAX_MAINNET_CANARY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const claimIface = new Interface([
   "function token() view returns (address)",
@@ -104,6 +112,9 @@ async function releaseConfig(client: any) {
     client.from("forge_release_flags").select("key,enabled").in("key", ["gasless_testnet_enabled", "gasless_mainnet_enabled", "mainnet_claims_enabled"]),
     client.from("forge_release_config").select("key,value").in("key", [
       "mainnet_release_mode",
+      "mainnet_canary_sponsor",
+      "mainnet_canary_max_wallets",
+      "mainnet_canary_expires_at",
       "gasless_authorization_ttl_seconds",
       "gasless_retry_window_seconds",
       "gasless_max_attempts_per_wallet",
@@ -159,13 +170,36 @@ function networkConfig(chainId: number, policy: any): NetworkConfig | null {
   return null;
 }
 
-function enabledForNetwork(net: NetworkConfig, policy: any) {
+function mainnetCanaryPolicy(policy: any) {
+  const sponsor = String(policy.cfg.get("mainnet_canary_sponsor") || "").trim().toLowerCase();
+  const maxWallets = Number(policy.cfg.get("mainnet_canary_max_wallets") || 0);
+  const expiresAt = String(policy.cfg.get("mainnet_canary_expires_at") || "").trim();
+  const expiryMs = Date.parse(expiresAt);
+  const remainingMs = expiryMs - Date.now();
+  return {
+    sponsor,
+    maxWallets,
+    expiresAt,
+    valid: isAddress(sponsor) && Number.isInteger(maxWallets) && maxWallets >= 1 && maxWallets <= 100 &&
+      Number.isFinite(expiryMs) && remainingMs > 0 && remainingMs <= MAX_MAINNET_CANARY_WINDOW_MS,
+  };
+}
+
+function enabledForNetwork(net: NetworkConfig, policy: any, epoch: GaslessEpochPolicyContext | null = null) {
   if (policy.flag.get(net.flagKey) !== true) return false;
-  if (net.environment === "mainnet") {
-    if (policy.flag.get("mainnet_claims_enabled") !== true) return false;
-    if (String(policy.cfg.get("mainnet_release_mode") || "locked").toLowerCase() !== "public") return false;
-  }
-  return true;
+  if (net.environment !== "mainnet") return true;
+  if (policy.flag.get("mainnet_claims_enabled") !== true) return false;
+
+  const mode = String(policy.cfg.get("mainnet_release_mode") || "locked").toLowerCase();
+  if (mode === "public") return true;
+  if (mode !== "canary" || !epoch) return false;
+
+  const canary = mainnetCanaryPolicy(policy);
+  const creator = String(epoch.creator_wallet || "").trim().toLowerCase();
+  const eligible = Number(epoch.eligible_wallets || 0);
+  const epochChainId = Number(epoch.claim_chain_id || 0);
+  return canary.valid && creator === canary.sponsor && epochChainId === net.chainId &&
+    Number.isInteger(eligible) && eligible >= 1 && eligible <= canary.maxWallets;
 }
 function configured(net: NetworkConfig) {
   return Boolean(
@@ -200,14 +234,32 @@ async function statusRoute(req: Request) {
   const chainId = Number(url.searchParams.get("chainId") || 46630);
   const net = networkConfig(chainId, policy);
   if (!net) return json(req, { enabled: false, configured: false, chainId, reason: "unsupported_chain" }, 400);
+
+  const mode = net.environment === "mainnet"
+    ? String(policy.cfg.get("mainnet_release_mode") || "locked").toLowerCase()
+    : "testnet";
+  let epoch: GaslessEpochPolicyContext | null = null;
+  const slug = String(url.searchParams.get("slug") || "").trim().toLowerCase();
+  if (net.environment === "mainnet" && mode === "canary" && isSlug(slug)) {
+    const { data, error } = await client.from("forge_claim_epochs")
+      .select("slug,creator_wallet,eligible_wallets,claim_chain_id")
+      .eq("slug", slug).eq("status", "published").maybeSingle();
+    if (error) throw new Error("could not read canary epoch policy context");
+    if (data && Number(data.claim_chain_id) === net.chainId) epoch = data;
+  }
+
   const ready = configured(net);
+  const releaseEnabled = enabledForNetwork(net, policy, epoch);
   return json(req, {
     mode: "erc4337-paymaster",
     chainId,
     environment: net.environment,
-    enabled: enabledForNetwork(net, policy) && ready,
-    releaseEnabled: enabledForNetwork(net, policy),
+    enabled: releaseEnabled && ready,
+    releaseEnabled,
     configured: ready,
+    releaseMode: mode,
+    canaryScoped: net.environment === "mainnet" && mode === "canary",
+    canaryEpochMatched: net.environment === "mainnet" && mode === "canary" ? releaseEnabled : null,
     authorizationTtlSeconds: policy.ttlSeconds,
     retryWindowSeconds: policy.retryWindowSeconds,
     maxAttemptsPerWallet: policy.maxAttempts,
@@ -232,7 +284,7 @@ async function relayRoute(req: Request) {
   const policy = await releaseConfig(client);
 
   const { data: epoch, error: epochError } = await client.from("forge_claim_epochs")
-    .select("id,slug,status,creator_wallet,reward_token,merkle_root,total_allocated_units,claim_chain_id,claim_contract,deadline")
+    .select("id,slug,status,creator_wallet,eligible_wallets,reward_token,merkle_root,total_allocated_units,claim_chain_id,claim_contract,deadline")
     .eq("slug", slug).eq("status", "published").maybeSingle();
   if (epochError) throw new Error("could not read published epoch");
   if (!epoch) return json(req, { error: "Published claim not found." }, 404);
@@ -240,7 +292,7 @@ async function relayRoute(req: Request) {
   const chainId = Number(epoch.claim_chain_id);
   const net = networkConfig(chainId, policy);
   if (!net) return json(req, { error: "Gasless claims are unavailable on this chain." }, 400);
-  if (!enabledForNetwork(net, policy)) return json(req, { error: "Gasless claiming is currently disabled.", code: "gasless_locked" }, 423);
+  if (!enabledForNetwork(net, policy, epoch)) return json(req, { error: "Gasless claiming is currently disabled.", code: "gasless_locked" }, 423);
   if (!configured(net)) return json(req, { error: "Gasless relay infrastructure is not fully configured.", code: "gasless_unconfigured" }, 503);
 
   const { data: entry, error: entryError } = await client.from("forge_claim_entries")
