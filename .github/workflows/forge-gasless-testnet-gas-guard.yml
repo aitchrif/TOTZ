@@ -1,0 +1,21 @@
+name: FORGE Gasless Testnet Gas Guard
+
+on:
+  pull_request:
+    branches: [forge-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gasless-testnet-gas-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Verify Testnet gas override scope and Mainnet locks
+        run: node tests/forge-gasless-testnet-gas-guard.mjs
