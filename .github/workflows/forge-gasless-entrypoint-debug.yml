@@ -1,4 +1,4 @@
-name: FORGE Gasless Canary2 Auto E2E
+name: FORGE Gasless Canary2 Direct Debug Send
 on:
   push:
     branches: [ops/forge-gasless-owner-7094]
@@ -9,8 +9,8 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Execute signed sponsored Canary2 claim
+      - name: Execute direct debug sponsored UserOperation
         run: |
           set -euo pipefail
-          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-autoclaim-canary2?token=4e20d39e61df4a17a44580237619dddf'
+          curl -sS 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-gasless-entrypoint-debug?token=c2bba52fe3bb420fae94f8c761591b3e'
           echo
