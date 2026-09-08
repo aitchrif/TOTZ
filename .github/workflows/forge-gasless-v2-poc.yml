@@ -85,6 +85,8 @@ jobs:
           retention-days: 7
       - name: Run V2 EIP-712 relay security suite
         run: node tests/forge-claim-v2.test.cjs
+      - name: Run restricted ERC-4337 claim account security suite
+        run: node tests/forge-4337-claim-account.test.cjs
       - name: Verify V1 contract and Mainnet launch controls remain locked
         run: |
           git fetch --no-tags origin forge-v1:refs/remotes/origin/forge-v1
