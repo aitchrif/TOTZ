@@ -3,6 +3,14 @@
   const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || ''));
   let syncing = false;
 
+  function ensureSharedBrand() {
+    if (document.querySelector('script[src$="totz-ui-brand.js"],script[src$="/totz-ui-brand.js"]')) return;
+    const script = document.createElement('script');
+    script.src = '/totz-ui-brand.js';
+    script.dataset.forgeSharedBrand = '1';
+    document.head.appendChild(script);
+  }
+
   function context() {
     const params = new URLSearchParams(location.search);
     const activeNetwork = document.querySelector('.network-btn.active')?.dataset?.chain;
@@ -94,6 +102,36 @@
     }
   }
 
+  function normalizeEpochChainIcons() {
+    const svgByChain = {
+      robinhood: `
+        <svg class="forge-chain-svg" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="1" y="1" width="30" height="30" rx="9" fill="#C8FA00"/>
+          <path d="M9.2 24.6c2.1-5.5 5.1-9.6 11.7-15.2-1.1 4.7-3.2 9.5-7 13.4-1.4 1.5-3 2.2-4.7 1.8Zm6-9.9 6.1-6.1-2.1 7.7-4 2.5v-4.1Zm-3.4 5.7 5.9-2.8-3.1 5.3-2.8 1.1v-3.6Z" fill="#111111"/>
+        </svg>`,
+      ink: `
+        <svg class="forge-chain-svg" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="1" y="1" width="30" height="30" rx="9" fill="#713CFF"/>
+          <circle cx="16" cy="16" r="8.2" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
+          <path d="M11.8 16h8.4M13.6 12.5h4.8M13.6 19.5h4.8" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>`,
+      ethereum: `
+        <svg class="forge-chain-svg forge-chain-svg-eth" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 2.8 8.7 15.9 16 12.6l7.3 3.3L16 2.8Z" fill="#343434"/>
+          <path d="M8.7 17.4 16 21.7l7.3-4.3L16 29.2 8.7 17.4Z" fill="#111111"/>
+          <path d="m16 12.6-7.3 3.3L16 20v-7.4Z" fill="#777777"/>
+          <path d="m16 12.6 7.3 3.3L16 20v-7.4Z" fill="#202020"/>
+        </svg>`
+    };
+
+    document.querySelectorAll('.network-btn[data-chain] .network-icon').forEach((icon) => {
+      const chain = icon.closest('.network-btn')?.dataset?.chain;
+      if (!svgByChain[chain] || icon.dataset.forgeChainLogo === '1') return;
+      icon.innerHTML = svgByChain[chain];
+      icon.dataset.forgeChainLogo = '1';
+    });
+  }
+
   function normalizeToolNav() {
     document.querySelectorAll('.tool-nav').forEach((nav) => {
       nav.setAttribute('aria-label', 'FORGE tools');
@@ -135,6 +173,8 @@
       style.textContent = `
         .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
+        .network-icon .forge-chain-svg{display:block;width:30px;height:30px}
+        .network-icon .forge-chain-svg-eth{width:23px;height:29px}
         @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
       `;
       document.head.appendChild(style);
@@ -146,6 +186,7 @@
   }
 
   function stripEmDashCopy() {
+    document.title = (document.title || '').replace(/\s*—\s*/g, ' | ');
     const root = document.body;
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -166,6 +207,7 @@
     normalizeLegacyRoutes();
     normalizeRuntimeCopy();
     normalizeToolNav();
+    normalizeEpochChainIcons();
     stripEmDashCopy();
     toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
     toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
@@ -185,5 +227,6 @@
   const observer = new MutationObserver(() => queueMicrotask(sync));
   observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
 
+  ensureSharedBrand();
   sync();
 })();
