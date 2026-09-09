@@ -34,7 +34,6 @@ html body.epochs-xray-shell .workspace .network-btn:hover{transform:translateY(-
 html body.epochs-xray-shell .workspace .network-btn.active{background:#fff!important;border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.1)!important}
 html body.epochs-xray-shell .workspace .network-btn b{font-size:.82rem!important;line-height:normal!important;letter-spacing:0!important}
 html body.epochs-xray-shell .workspace .network-btn span{font-size:.64rem!important;margin-top:1px!important;line-height:normal!important}
-/* Keep the approved X-RAY logos exactly as currently shipped. */
 html body.epochs-xray-shell .workspace .network-icon{width:38px!important;height:38px!important;flex:0 0 38px!important;border-radius:12px!important;box-shadow:none!important}
 
 html body.epochs-xray-shell .source-form{gap:10px!important;margin-top:12px!important}
@@ -53,16 +52,96 @@ html body.epochs-xray-shell .access-state{min-width:185px!important;padding:11px
 html body.epochs-xray-shell .access-state b{font-family:'Baloo 2',cursive!important;font-size:.96rem!important;line-height:1.1!important}
 html body.epochs-xray-shell .access-state span{font-size:.63rem!important;margin-top:3px!important}
 
-html body.epochs-xray-shell .workspace>.card:not(:first-child){border-radius:27px!important;padding:22px!important;box-shadow:var(--shadow-sm)!important;border:0!important;background:#fff!important}
-html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head h2{font-size:1.55rem!important;letter-spacing:0!important}
-html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head p{font-size:.8rem!important;line-height:1.42!important}
-html body.epochs-xray-shell .box{border-radius:21px!important;padding:16px!important;background:#fff!important;box-shadow:none!important}
-html body.epochs-xray-shell .box h3{font-size:1.06rem!important}
-html body.epochs-xray-shell .field input,html body.epochs-xray-shell .field select,html body.epochs-xray-shell .field textarea{background:var(--cream)!important;border:2px solid var(--sky2)!important;box-shadow:none!important}
+/* Full EPOCHS workspace polish */
+html body.epochs-xray-shell .workspace>.card:not(:first-child){position:relative;overflow:hidden;border-radius:30px!important;padding:26px!important;box-shadow:var(--shadow)!important;border:1px solid rgba(43,33,64,.06)!important;background:linear-gradient(180deg,#fff 0%,#fffdf9 100%)!important}
+html body.epochs-xray-shell .workspace>.card:not(:first-child)::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--lime),var(--sky2),var(--coral))}
+html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head{margin-bottom:20px!important;align-items:center!important}
+html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head h2{font-size:1.72rem!important;line-height:1!important;letter-spacing:-.01em!important}
+html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head p{max-width:760px!important;margin-top:6px!important;font-size:.82rem!important;line-height:1.48!important}
+html body.epochs-xray-shell .workspace>.card:not(:first-child) .tag{padding:7px 10px!important;border-radius:999px!important;background:var(--sky)!important;font-size:.61rem!important;letter-spacing:.03em!important}
 
+html body.epochs-xray-shell .builder{gap:14px!important;align-items:stretch!important}
+html body.epochs-xray-shell .box{position:relative;border:1px solid rgba(43,33,64,.08)!important;border-radius:24px!important;padding:19px!important;background:var(--cream)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)!important}
+html body.epochs-xray-shell .box:first-child{background:linear-gradient(180deg,#FFF8EA 0%,var(--cream) 100%)!important}
+html body.epochs-xray-shell .box:nth-child(2){background:linear-gradient(180deg,#F8F6FF 0%,#F4F0FA 100%)!important}
+html body.epochs-xray-shell .box h3{font-size:1.22rem!important;line-height:1.05!important;margin:0 0 5px!important}
+html body.epochs-xray-shell .box>p{font-size:.72rem!important;line-height:1.45!important;margin-bottom:15px!important}
+html body.epochs-xray-shell .fields{gap:11px!important}
+html body.epochs-xray-shell .field{gap:7px!important}
+html body.epochs-xray-shell .field label{font-size:.61rem!important;letter-spacing:.055em!important;color:var(--soft)!important}
+html body.epochs-xray-shell .field input,html body.epochs-xray-shell .field select,html body.epochs-xray-shell .field textarea{min-height:44px!important;border:2px solid rgba(142,210,226,.95)!important;border-radius:16px!important;background:#fff!important;padding:11px 13px!important;box-shadow:0 4px 10px rgba(43,33,64,.035)!important;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease!important}
+html body.epochs-xray-shell .field textarea{min-height:102px!important}
+html body.epochs-xray-shell .field input:focus,html body.epochs-xray-shell .field select:focus,html body.epochs-xray-shell .field textarea:focus{border-color:var(--coral)!important;box-shadow:0 0 0 4px rgba(255,113,95,.11)!important}
+html body.epochs-xray-shell .field.locked{opacity:.5!important}
+html body.epochs-xray-shell .lock-note{margin-top:12px!important;border:1px dashed rgba(43,33,64,.14)!important;border-radius:16px!important;background:rgba(255,255,255,.72)!important;padding:11px 13px!important;line-height:1.45!important}
+
+html body.epochs-xray-shell .actions{gap:9px!important;margin-top:18px!important;padding-top:17px!important;border-top:1px solid rgba(43,33,64,.08)!important}
+html body.epochs-xray-shell .actions .btn{min-height:42px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:11px 17px!important;transition:transform .14s ease,box-shadow .14s ease,opacity .14s ease!important}
+html body.epochs-xray-shell .actions .btn:not(:disabled):hover{transform:translateY(-1px)!important}
+html body.epochs-xray-shell .btn.soft{background:#DDF3F7!important}
+html body.epochs-xray-shell .btn.dark{background:var(--ink)!important;color:#fff!important;box-shadow:0 5px 0 #1e162e!important}
+html body.epochs-xray-shell .btn.good{background:var(--lime)!important;color:var(--ink)!important;box-shadow:0 5px 0 #AAB81E!important}
+html body.epochs-xray-shell .btn.ghost{background:#fff!important}
+
+html body.epochs-xray-shell .status.show{border-radius:16px!important;padding:12px 14px!important;margin-top:13px!important;box-shadow:inset 0 0 0 1px rgba(43,33,64,.05)!important}
+html body.epochs-xray-shell .snapshot{border-radius:20px!important;padding:13px!important;box-shadow:0 10px 22px rgba(43,33,64,.12)!important}
+html body.epochs-xray-shell .snapshot>div{border:1px solid rgba(255,255,255,.06)!important}
+
+html body.epochs-xray-shell .results{margin-top:20px!important;padding-top:20px!important;border-top:1px solid rgba(43,33,64,.08)!important}
+html body.epochs-xray-shell .result-stats{gap:10px!important}
+html body.epochs-xray-shell .result-stat{min-height:86px!important;border:1px solid rgba(43,33,64,.06)!important;border-radius:18px!important;padding:14px!important;background:var(--cream)!important;box-shadow:0 6px 14px rgba(43,33,64,.04)!important}
+html body.epochs-xray-shell .result-stat:nth-child(1){background:var(--lime)!important}
+html body.epochs-xray-shell .result-stat:nth-child(4){background:#DDF3F7!important}
+html body.epochs-xray-shell .result-stat:nth-child(5){background:#F1ECF7!important}
+html body.epochs-xray-shell .result-stat small{font-size:.57rem!important;letter-spacing:.045em!important}
+html body.epochs-xray-shell .result-stat b{font-size:1.28rem!important;line-height:1.05!important;margin-top:7px!important}
+html body.epochs-xray-shell .fingerprint{margin-top:12px!important;border:1px solid rgba(43,33,64,.06)!important;border-radius:16px!important;padding:12px 14px!important;background:linear-gradient(90deg,var(--mint),#E5F4F7)!important}
+html body.epochs-xray-shell .table-wrap{margin-top:12px!important;border-radius:20px!important;border:1px solid rgba(43,33,64,.08)!important;box-shadow:0 8px 20px rgba(43,33,64,.045)!important}
+html body.epochs-xray-shell .table th{background:#FFF7E8!important;padding:12px 13px!important}
+html body.epochs-xray-shell .table td{padding:12px 13px!important;background:#fff!important}
+html body.epochs-xray-shell .table tbody tr:hover td{background:#FFFDF7!important}
+html body.epochs-xray-shell .allocation{background:#DDF3F7!important;border:1px solid rgba(43,33,64,.05)!important}
+
+html body.epochs-xray-shell .delivery{margin-top:24px!important;padding:22px!important;border-top:0!important;border-radius:24px!important;background:#F8F6FB!important;border:1px solid rgba(43,33,64,.07)!important}
+html body.epochs-xray-shell .delivery-head{margin-bottom:15px!important;align-items:center!important}
+html body.epochs-xray-shell .delivery-head h3{font-size:1.48rem!important;line-height:1!important}
+html body.epochs-xray-shell .delivery-head p{font-size:.74rem!important;line-height:1.45!important;max-width:700px!important}
+html body.epochs-xray-shell .delivery-count{padding:7px 10px!important;box-shadow:0 4px 10px rgba(43,33,64,.05)!important}
+html body.epochs-xray-shell .delivery-methods{gap:12px!important}
+html body.epochs-xray-shell .delivery-method{min-height:118px!important;border:2px solid rgba(43,33,64,.06)!important;border-radius:22px!important;padding:18px!important;background:#fff!important;box-shadow:0 8px 18px rgba(43,33,64,.045)!important;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease!important}
+html body.epochs-xray-shell .delivery-method:hover{transform:translateY(-2px)!important;box-shadow:var(--shadow-sm)!important}
+html body.epochs-xray-shell .delivery-method.active{border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.1)!important}
+html body.epochs-xray-shell .delivery-method b{font-size:1.18rem!important}
+html body.epochs-xray-shell .delivery-method span{font-size:.69rem!important;line-height:1.45!important}
+html body.epochs-xray-shell .fit{top:12px!important;right:12px!important;padding:5px 8px!important}
+html body.epochs-xray-shell .delivery-panel{margin-top:13px!important;border:1px solid rgba(43,33,64,.08)!important;border-radius:22px!important;padding:19px!important;background:#fff!important;box-shadow:0 8px 18px rgba(43,33,64,.035)!important}
+html body.epochs-xray-shell .delivery-panel h4{font-size:1.18rem!important}
+html body.epochs-xray-shell .delivery-panel p{font-size:.72rem!important;line-height:1.48!important}
+html body.epochs-xray-shell .delivery-panel .actions{margin-top:12px!important;padding-top:12px!important}
+html body.epochs-xray-shell .delivery-note,html body.epochs-xray-shell .contract-note{border:1px solid rgba(43,33,64,.06)!important;border-radius:16px!important;padding:12px 13px!important;line-height:1.5!important}
+html body.epochs-xray-shell .merkle-grid{gap:10px!important}
+html body.epochs-xray-shell .merkle-stat{border:1px solid rgba(43,33,64,.05)!important;border-radius:17px!important;padding:13px!important;box-shadow:0 5px 12px rgba(43,33,64,.035)!important}
+
+html body.epochs-xray-shell .footer{margin-top:34px!important;padding-top:18px!important;border-top:1px solid rgba(43,33,64,.08)!important}
+
+@media(max-width:900px){
+  html body.epochs-xray-shell .workspace>.card:not(:first-child){padding:21px!important}
+  html body.epochs-xray-shell .builder{grid-template-columns:1fr!important}
+  html body.epochs-xray-shell .result-stats{grid-template-columns:repeat(3,1fr)!important}
+}
 @media(max-width:650px){
   html body.epochs-xray-shell .hero{padding:30px 0 20px!important}
   html body.epochs-xray-shell .workspace>.card.blue:first-child{margin-top:18px!important;padding:17px!important}
   html body.epochs-xray-shell .access{padding:16px 17px!important}
   html body.epochs-xray-shell .access-state{width:100%!important;text-align:left!important;min-width:0!important}
+  html body.epochs-xray-shell .workspace>.card:not(:first-child){padding:18px!important;border-radius:24px!important}
+  html body.epochs-xray-shell .workspace>.card:not(:first-child) .card-head{align-items:flex-start!important;flex-direction:column!important}
+  html body.epochs-xray-shell .box{padding:15px!important}
+  html body.epochs-xray-shell .fields{grid-template-columns:1fr!important}
+  html body.epochs-xray-shell .field.full{grid-column:auto!important}
+  html body.epochs-xray-shell .actions .btn{width:100%!important}
+  html body.epochs-xray-shell .result-stats{grid-template-columns:1fr 1fr!important}
+  html body.epochs-xray-shell .delivery{padding:16px!important}
+  html body.epochs-xray-shell .delivery-methods{grid-template-columns:1fr!important}
+  html body.epochs-xray-shell .delivery-head{align-items:flex-start!important;flex-direction:column!important}
 }
