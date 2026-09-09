@@ -135,7 +135,25 @@
       style.textContent = `
         .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
-        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
+
+        /* Keep EPOCHS network cards visually identical to X-RAY. */
+        .workspace .network-label{display:block;margin:18px 0 8px;color:var(--soft);font-size:.65rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
+        .workspace .network-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+        .workspace .network-btn{border:2px solid transparent;border-radius:17px;background:var(--cream);padding:11px 13px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;transition:.15s ease;color:var(--ink)}
+        .workspace .network-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+        .workspace .network-btn.active{background:#fff;border-color:var(--ink);box-shadow:0 5px 0 rgba(43,33,64,.1)}
+        .workspace .network-icon{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;background:#fff;border:1px solid rgba(43,33,64,.08);overflow:hidden}
+        .workspace .network-icon img{display:block;object-fit:contain;object-position:center;margin:auto;max-width:26px;max-height:26px}
+        .workspace .network-btn[data-chain="robinhood"] .network-icon img{width:26px;height:26px}
+        .workspace .network-btn[data-chain="ink"] .network-icon img{width:24px;height:24px}
+        .workspace .network-btn[data-chain="ethereum"] .network-icon img{width:20px;height:25px}
+        .workspace .network-btn b{display:block;font-size:.82rem}
+        .workspace .network-btn span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:1px}
+
+        @media(max-width:650px){
+          .tool-nav .forge-env-badge{display:none}
+          .workspace .network-row{grid-template-columns:1fr}
+        }
       `;
       document.head.appendChild(style);
     }
