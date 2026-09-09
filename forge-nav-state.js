@@ -145,6 +145,20 @@
     document.querySelectorAll('.forge-tool-nav').forEach((nav) => nav.remove());
   }
 
+  function stripEmDashCopy() {
+    const root = document.body;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const parent = node.parentElement;
+      if (!parent || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA','CODE'].includes(parent.tagName)) return;
+      const text = node.nodeValue || '';
+      if (text.includes('—')) node.nodeValue = text.replace(/\s*—\s*/g, ' ');
+    });
+  }
+
   function sync() {
     if (syncing) return;
     syncing = true;
@@ -152,6 +166,7 @@
     normalizeLegacyRoutes();
     normalizeRuntimeCopy();
     normalizeToolNav();
+    stripEmDashCopy();
     toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
     toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
     toolLinks('myEpochs').forEach((link) => { link.href = '/forge/my-epochs'; });
