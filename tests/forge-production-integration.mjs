@@ -17,6 +17,7 @@ const required = [
   'forge-claim-launcher.html',
   'forge-claim-launcher.js',
   'forge-runtime-config.js',
+  'forge-nav-state.js',
   'api/forge-holders.js',
   'package.json',
   'artifacts/ForgeMerkleClaim.json'
@@ -63,6 +64,12 @@ assert(!/href="\/forge-claim-launcher(?:[?#"])/.test(epochsHtml), 'EPOCHS must u
 assert(!/TESTNET CLAIM|Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(epochsHtml), 'EPOCHS contains stale Testnet launch copy.');
 assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS must state the production write gate clearly.');
 
+const navState = fs.readFileSync('forge-nav-state.js', 'utf8');
+assert(navState.includes('Keep EPOCHS network cards visually identical to X-RAY.'), 'EPOCHS/X-RAY network-card parity guard is missing.');
+assert(/\.workspace \.network-icon\{width:34px;height:34px;flex:0 0 34px/.test(navState), 'EPOCHS network icon geometry must match X-RAY.');
+assert(/\.workspace \.network-btn b\{display:block;font-size:\.82rem\}/.test(navState), 'EPOCHS network title sizing must match X-RAY.');
+assert(/\.workspace \.network-btn span\{display:block;color:var\(--soft\);font-size:\.64rem/.test(navState), 'EPOCHS network subtitle sizing must match X-RAY.');
+
 const myEpochsHtml = fs.readFileSync('forge-my-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/epochs route.');
 assert(!/href="\/forge-my-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/my-epochs route.');
@@ -90,4 +97,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · EPOCHS/X-RAY network parity');
