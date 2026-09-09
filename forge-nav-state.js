@@ -104,9 +104,26 @@
       s.textContent=`
         .tool-nav .forge-env-badge{background:#f4e8ff;color:#603b82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#e7f4ef;color:#2b5b49;border-color:rgba(43,91,73,.12)}
-        .network-icon{background:#fff!important}
-        .network-icon img{display:block!important;object-fit:contain!important}
-        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
+
+        /* EPOCHS chain selector: consistent brand tiles without changing loading behavior. */
+        .network-row{gap:12px!important}
+        .network-btn{position:relative;min-height:76px;padding:12px 15px!important;border:2px solid rgba(43,33,64,.08)!important;border-radius:19px!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease;overflow:hidden}
+        .network-btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(43,33,64,.09)}
+        .network-btn.active{background:#fff!important;border-color:#2b2140!important;box-shadow:0 6px 0 rgba(43,33,64,.10),0 12px 24px rgba(43,33,64,.08)!important}
+        .network-btn.active:after{content:'✓';position:absolute;right:10px;top:9px;width:20px;height:20px;display:grid;place-items:center;border-radius:999px;background:#2b2140;color:#fff;font-size:.66rem;font-weight:900}
+        .network-icon{width:48px!important;height:48px!important;flex:0 0 48px!important;border-radius:15px!important;border:1px solid rgba(43,33,64,.08)!important;background:#fff!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65);overflow:hidden!important}
+        .network-icon img{display:block!important;object-fit:contain!important;object-position:center!important;margin:auto!important}
+        .network-btn[data-chain="robinhood"] .network-icon{background:#c8ff00!important}
+        .network-btn[data-chain="robinhood"] .network-icon img{width:40px!important;height:40px!important}
+        .network-btn[data-chain="ink"] .network-icon{background:#7132f5!important}
+        .network-btn[data-chain="ink"] .network-icon img{width:44px!important;height:44px!important;border-radius:12px!important}
+        .network-btn[data-chain="ethereum"] .network-icon{background:#fff!important}
+        .network-btn[data-chain="ethereum"] .network-icon img{width:27px!important;height:35px!important}
+        .network-btn>span:last-child{min-width:0;padding-right:22px}
+        .network-btn>span:last-child>b{font-size:.84rem!important;line-height:1.1;letter-spacing:-.01em}
+        .network-btn>span:last-child>span{margin-top:4px;color:#6b617a!important;font-size:.59rem!important;font-weight:900!important;letter-spacing:.01em}
+
+        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}.network-btn{min-height:68px}.network-icon{width:44px!important;height:44px!important;flex-basis:44px!important}}
       `;
       document.head.appendChild(s);
     }
