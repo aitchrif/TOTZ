@@ -123,9 +123,9 @@
 
     const homeLink = document.querySelector('nav .nav-actions a.pill');
     if (homeLink) {
-      homeLink.href = '/';
-      homeLink.textContent = 'HOME';
-      homeLink.classList.add('home-pill');
+      if (homeLink.getAttribute('href') !== '/') homeLink.setAttribute('href', '/');
+      if (homeLink.textContent !== 'HOME') homeLink.textContent = 'HOME';
+      if (!homeLink.classList.contains('home-pill')) homeLink.classList.add('home-pill');
     }
 
     document.querySelectorAll('.tool-nav').forEach((nav) => {
@@ -247,16 +247,19 @@
   function sync() {
     if (syncing) return;
     syncing = true;
-    removeLegacyInjectedNav();
-    normalizeLegacyRoutes();
-    normalizeRuntimeCopy();
-    normalizeEpochNetworkCards();
-    normalizeToolNav();
-    toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
-    toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
-    toolLinks('myEpochs').forEach((link) => { link.href = '/forge/my-epochs'; });
-    installEpochCard();
-    syncing = false;
+    try {
+      removeLegacyInjectedNav();
+      normalizeLegacyRoutes();
+      normalizeRuntimeCopy();
+      normalizeEpochNetworkCards();
+      normalizeToolNav();
+      toolLinks('xray').forEach((link) => { link.href = withContext('/forge'); });
+      toolLinks('epochs').forEach((link) => { link.href = withContext('/forge/epochs'); });
+      toolLinks('myEpochs').forEach((link) => { link.href = '/forge/my-epochs'; });
+      installEpochCard();
+    } finally {
+      syncing = false;
+    }
   }
 
   document.addEventListener('input', (event) => {
