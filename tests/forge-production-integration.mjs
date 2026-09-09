@@ -75,6 +75,8 @@ assert(/\.workspace \.network-btn\.active \.network-icon\{background:var\(--ink\
 assert(/\.workspace \.network-btn::before,\.workspace \.network-btn::after\{content:none!important;display:none!important\}/.test(navState), 'EPOCHS must suppress legacy active checkmarks/decorators.');
 assert(/\.workspace \.network-btn b\{display:block;font-size:\.82rem/.test(navState), 'EPOCHS network title sizing must match X-RAY.');
 assert(/\.workspace \.network-btn span\{display:block;color:var\(--soft\);font-size:\.64rem/.test(navState), 'EPOCHS network subtitle sizing must match X-RAY.');
+assert(navState.includes("if (homeLink.textContent !== 'HOME') homeLink.textContent = 'HOME';"), 'EPOCHS shell normalization must not self-trigger the global MutationObserver through repeated textContent writes.');
+assert(/function sync\(\) \{[\s\S]*?syncing = true;[\s\S]*?try \{[\s\S]*?\} finally \{\s*syncing = false;\s*\}/.test(navState), 'FORGE nav sync must always release its re-entrancy guard.');
 
 const myEpochsHtml = fs.readFileSync('forge-my-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/epochs route.');
@@ -103,4 +105,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · hard X-RAY selector parity');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · hard X-RAY selector parity · EPOCHS observer race guard');
