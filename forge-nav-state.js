@@ -95,14 +95,25 @@
   }
 
   function normalizeEpochNetworkCards() {
-    if (!document.querySelector('.workspace .network-row')) return;
-    const iconText = { robinhood: 'RH', ink: 'INK', ethereum: 'Ξ' };
-    document.querySelectorAll('.workspace .network-btn').forEach((button) => {
-      const chain = button.dataset.chain;
-      const icon = button.querySelector('.network-icon');
-      if (!icon || !iconText[chain]) return;
-      if (icon.textContent !== iconText[chain] || icon.querySelector('img')) icon.textContent = iconText[chain];
-      icon.setAttribute('aria-hidden', 'true');
+    const row = document.querySelector('.workspace .network-row');
+    if (!row) return;
+
+    const queryChain = new URLSearchParams(location.search).get('chain');
+    const currentChain = row.querySelector('.network-btn.active')?.dataset?.chain;
+    const selected = CHAINS.has(currentChain) ? currentChain : (CHAINS.has(queryChain) ? queryChain : 'robinhood');
+
+    if (row.dataset.xrayParity !== '1' || row.querySelector('img') || row.children.length !== 3) {
+      row.id = 'networkRow';
+      row.dataset.xrayParity = '1';
+      row.innerHTML = `
+        <button class="network-btn" data-chain="robinhood" type="button"><span class="network-icon">RH</span><span><b>Robinhood Chain</b><span>Chain ID 4663</span></span></button>
+        <button class="network-btn" data-chain="ink" type="button"><span class="network-icon">INK</span><span><b>Ink</b><span>Chain ID 57073</span></span></button>
+        <button class="network-btn" data-chain="ethereum" type="button"><span class="network-icon">Ξ</span><span><b>Ethereum</b><span>Chain ID 1</span></span></button>
+      `;
+    }
+
+    row.querySelectorAll('.network-btn').forEach((button) => {
+      button.classList.toggle('active', button.dataset.chain === selected);
     });
   }
 
@@ -148,19 +159,17 @@
         .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
 
-        /* EPOCHS network selector is intentionally the exact X-RAY visual system. */
+        /* Exact copy of the X-RAY selector visual system. */
         .workspace .network-label{display:block;margin:18px 0 8px;color:var(--soft);font-size:.65rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
         .workspace .network-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-        .workspace .network-btn{border:2px solid transparent;border-radius:17px;background:var(--cream);padding:11px 13px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;transition:.15s ease;color:var(--ink);position:relative;min-height:58px}
+        .workspace .network-btn{border:2px solid transparent!important;border-radius:17px!important;background:var(--cream)!important;padding:11px 13px!important;cursor:pointer;text-align:left;display:flex!important;align-items:center!important;gap:10px!important;transition:.15s ease;color:var(--ink)!important;min-height:0!important;box-shadow:none}
         .workspace .network-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
-        .workspace .network-btn.active{background:#fff;border-color:var(--ink);box-shadow:0 5px 0 rgba(43,33,64,.1)}
+        .workspace .network-btn.active{background:#fff!important;border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.1)!important}
         .workspace .network-btn::before,.workspace .network-btn::after{content:none!important;display:none!important}
-        .workspace .network-icon{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;background:#fff;font-family:'Baloo 2',cursive;font-size:.83rem;font-weight:900;border:1px solid rgba(43,33,64,.08);overflow:hidden;line-height:1;margin:0}
-        .workspace .network-btn.active .network-icon{background:var(--ink);color:#fff}
-        .workspace .network-btn b{display:block;font-size:.82rem;line-height:1.1}
-        .workspace .network-btn span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:1px;line-height:1.2}
-        .workspace .network-btn .network-icon{color:var(--ink);margin-top:0}
-        .workspace .network-btn.active .network-icon{color:#fff}
+        .workspace .network-icon{width:34px!important;height:34px!important;flex:0 0 34px!important;border-radius:11px!important;display:grid!important;place-items:center!important;background:#fff!important;font-family:'Baloo 2',cursive!important;font-size:.83rem!important;font-weight:900!important;border:1px solid rgba(43,33,64,.08)!important;color:var(--ink)!important;line-height:1!important;margin:0!important;padding:0!important;box-shadow:none!important}
+        .workspace .network-btn.active .network-icon{background:var(--ink)!important;color:#fff!important}
+        .workspace .network-btn b{display:block;font-size:.82rem;line-height:normal}
+        .workspace .network-btn span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:1px;line-height:normal}
         .workspace .network-btn .network-icon + span{margin-top:0}
 
         @media(max-width:650px){
