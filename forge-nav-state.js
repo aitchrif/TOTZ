@@ -1,5 +1,12 @@
 (() => {
   const CHAINS = new Set(['robinhood', 'ink', 'ethereum']);
+  const NETWORK_NAMES = Object.freeze({ robinhood: 'Robinhood Chain', ink: 'Ink', ethereum: 'Ethereum' });
+  const NETWORK_LOGOS = Object.freeze({
+    robinhood: 'https://cdn.robinhood.com/assets/generated_assets/hoodchain_docsite/rh_favicon_120.png',
+    ink: 'https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png',
+    ethereum: 'https://ethereum.org/images/assets/svgs/eth-diamond-glyph.svg'
+  });
+  const NETWORK_FALLBACKS = Object.freeze({ robinhood: 'RH', ink: 'INK', ethereum: 'Ξ' });
   const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || ''));
   let syncing = false;
   let syncScheduled = false;
@@ -86,6 +93,36 @@
     }
   }
 
+  function installNetworkLogos(root = document) {
+    root.querySelectorAll('.network-btn').forEach((btn) => {
+      const chain = btn.dataset.chain;
+      const icon = btn.querySelector('.network-icon');
+      const src = NETWORK_LOGOS[chain];
+      if (!icon || !src) return;
+
+      const existing = icon.querySelector('img[data-forge-network-logo]');
+      if (existing?.getAttribute('src') === src) return;
+      if (icon.dataset.logoFailed === src) return;
+
+      icon.classList.remove('logo-fallback');
+      icon.textContent = '';
+      const img = document.createElement('img');
+      img.dataset.forgeNetworkLogo = '1';
+      img.src = src;
+      img.alt = `${NETWORK_NAMES[chain] || chain} network logo`;
+      img.loading = 'eager';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.onerror = () => {
+        if (!img.isConnected) return;
+        icon.dataset.logoFailed = src;
+        icon.textContent = NETWORK_FALLBACKS[chain] || '';
+        icon.classList.add('logo-fallback');
+      };
+      icon.appendChild(img);
+    });
+  }
+
   function normalizeEpochNetworkCards() {
     const row = document.querySelector('.workspace .network-row');
     if (!row) return;
@@ -93,7 +130,7 @@
     const currentChain = row.querySelector('.network-btn.active')?.dataset?.chain;
     const selected = CHAINS.has(currentChain) ? currentChain : (CHAINS.has(queryChain) ? queryChain : 'robinhood');
 
-    if (row.dataset.xrayParity !== '1' || row.querySelector('img') || row.children.length !== 3) {
+    if (row.dataset.xrayParity !== '1' || row.children.length !== 3) {
       row.id = 'networkRow';
       row.dataset.xrayParity = '1';
       row.innerHTML = `
@@ -105,6 +142,7 @@
     row.querySelectorAll('.network-btn').forEach((button) => {
       button.classList.toggle('active', button.dataset.chain === selected);
     });
+    installNetworkLogos(row);
   }
 
   function normalizeEpochShell() {
@@ -143,16 +181,18 @@
       .workspace .network-btn:hover{transform:translateY(-2px);box-shadow:0 9px 20px rgba(43,33,64,.09)}
       .workspace .network-btn.active{background:#fff!important;border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.10),0 12px 24px rgba(43,33,64,.07)!important}
       .workspace .network-btn::before,.workspace .network-btn::after{content:none!important;display:none!important}
-      .workspace .network-icon{width:40px!important;height:40px!important;flex:0 0 40px!important;border-radius:13px!important;display:grid!important;place-items:center!important;background:#fff!important;font-family:'Baloo 2',cursive!important;font-size:.83rem!important;font-weight:900!important;border:1px solid rgba(43,33,64,.08)!important;color:var(--ink)!important;line-height:1!important;margin:0!important;padding:0!important;box-shadow:0 4px 10px rgba(43,33,64,.06)!important;overflow:hidden}
+
+      /* Exact X-RAY network-logo treatment. */
+      .workspace .network-icon{width:38px!important;height:38px!important;flex:0 0 38px!important;border-radius:12px!important;background:#fff!important;color:var(--ink)!important;border:1px solid rgba(43,33,64,.09)!important;display:grid!important;place-items:center!important;padding:0!important;overflow:hidden!important;box-shadow:0 2px 7px rgba(43,33,64,.05)!important;font-family:'Baloo 2',cursive!important;font-size:.72rem!important;font-weight:900!important;line-height:1!important;margin:0!important}
+      .workspace .network-btn.active .network-icon{background:#fff!important;color:var(--ink)!important}
+      .workspace .network-icon img{display:block!important;object-fit:contain!important;object-position:center!important;margin:auto!important}
+      .workspace .network-btn[data-chain="robinhood"] .network-icon img{width:30px!important;height:30px!important;border-radius:8px!important}
+      .workspace .network-btn[data-chain="ink"] .network-icon img{width:28px!important;height:28px!important;border-radius:7px!important}
+      .workspace .network-btn[data-chain="ethereum"] .network-icon img{width:22px!important;height:28px!important}
+      .workspace .network-icon.logo-fallback{font-family:'Baloo 2',cursive!important;font-size:.72rem!important;font-weight:900!important}
       .workspace .network-btn b{display:block;font-size:.84rem;line-height:1.15;letter-spacing:-.01em}
       .workspace .network-btn span{display:block;color:var(--soft);font-size:.63rem;font-weight:800;margin-top:3px;line-height:1.2}
       .workspace .network-btn .network-icon + span{margin-top:0}
-
-      /* Network marks: keep DOM text stable for handlers/tests, replace only presentation. */
-      .workspace .network-btn[data-chain="robinhood"] .network-icon{font-size:0!important;background:#CCFF00!important;color:#000!important;border-color:rgba(0,0,0,.08)!important}
-      .workspace .network-btn[data-chain="robinhood"] .network-icon::before{content:'🪶';font-size:19px;line-height:1;filter:saturate(.7) contrast(1.05)}
-      .workspace .network-btn[data-chain="ink"] .network-icon{font-size:0!important;background:#fff url('https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png') center/contain no-repeat!important;border-color:rgba(113,50,245,.16)!important}
-      .workspace .network-btn[data-chain="ethereum"] .network-icon{font-size:0!important;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 417'%3E%3Cpath fill='%236f66a8' d='M127.9 0 125 9.8v275.7l2.9 2.9 127.9-75.6z'/%3E%3Cpath fill='%238c8c8c' d='M127.9 0 0 212.8l127.9 75.6V154.1z'/%3E%3Cpath fill='%235f5f5f' d='m127.9 312.7-1.6 1.9v98.2l1.6 4.7L256 236.7z'/%3E%3Cpath fill='%238c8c8c' d='M127.9 417.5V312.7L0 236.7z'/%3E%3C/svg%3E") center/16px 27px no-repeat!important}
 
       /* EPOCHS polish: richer hierarchy without changing runtime behaviour. */
       .epochs-xray-shell{background:
