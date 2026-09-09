@@ -20,14 +20,14 @@ html body.epochs-xray-shell .hero p{max-width:790px!important;font-size:1.04rem!
 html body.epochs-xray-shell .safety{gap:8px!important;margin-top:17px!important}
 html body.epochs-xray-shell .safe{padding:8px 12px!important;font-size:.76rem!important;border:0!important;box-shadow:var(--shadow-sm)!important}
 
-html body.epochs-xray-shell .workspace{gap:14px!important}
-html body.epochs-xray-shell .workspace>.card.blue:first-child{margin:26px 0 0!important;border:2.5px solid var(--sky2)!important;border-radius:30px!important;padding:24px!important;background:#fff!important;box-shadow:var(--shadow)!important}
-html body.epochs-xray-shell .workspace>.card.blue:first-child .card-head{margin-bottom:16px!important}
+html body.epochs-xray-shell .workspace{gap:12px!important}
+html body.epochs-xray-shell .workspace>.card.blue:first-child{margin:26px 0 0!important;border:2.5px solid var(--sky2)!important;border-radius:30px!important;padding:22px 24px!important;background:#fff!important;box-shadow:var(--shadow)!important}
+html body.epochs-xray-shell .workspace>.card.blue:first-child .card-head{margin-bottom:14px!important}
 html body.epochs-xray-shell .workspace>.card.blue:first-child .card-head h2{font-size:1.68rem!important;letter-spacing:0!important}
 html body.epochs-xray-shell .workspace>.card.blue:first-child .card-head p{margin:4px 0 0!important;font-size:.9rem!important;line-height:1.45!important;max-width:none!important}
 html body.epochs-xray-shell .workspace>.card.blue:first-child .tag{padding:6px 9px!important;font-size:.65rem!important;background:var(--sky)!important;border:0!important}
 
-html body.epochs-xray-shell .workspace .network-label{margin:18px 0 8px!important;font-size:.65rem!important}
+html body.epochs-xray-shell .workspace .network-label{margin:16px 0 8px!important;font-size:.65rem!important}
 html body.epochs-xray-shell .workspace .network-row{gap:9px!important}
 html body.epochs-xray-shell .workspace .network-btn{min-height:0!important;border:2px solid transparent!important;border-radius:17px!important;background:var(--cream)!important;padding:11px 13px!important;gap:10px!important;box-shadow:none!important;transform:none!important}
 html body.epochs-xray-shell .workspace .network-btn:hover{transform:translateY(-1px)!important;box-shadow:var(--shadow-sm)!important}
@@ -37,7 +37,7 @@ html body.epochs-xray-shell .workspace .network-btn span{font-size:.64rem!import
 /* Keep the approved X-RAY logos exactly as currently shipped. */
 html body.epochs-xray-shell .workspace .network-icon{width:38px!important;height:38px!important;flex:0 0 38px!important;border-radius:12px!important;box-shadow:none!important}
 
-html body.epochs-xray-shell .source-form{gap:10px!important;margin-top:13px!important}
+html body.epochs-xray-shell .source-form{gap:10px!important;margin-top:12px!important}
 html body.epochs-xray-shell .source-form input{min-height:0!important;padding:13px 17px!important;background:var(--cream)!important;border:2px solid var(--sky2)!important;box-shadow:none!important}
 html body.epochs-xray-shell .source-form input:focus{border-color:var(--coral)!important;background:var(--cream)!important;box-shadow:none!important}
 html body.epochs-xray-shell .source-form .btn{min-height:0!important;padding:12px 18px!important}
@@ -45,11 +45,11 @@ html body.epochs-xray-shell .btn{transform:none!important}
 html body.epochs-xray-shell .btn.primary{box-shadow:0 6px 0 var(--coral2)!important}
 html body.epochs-xray-shell .btn.primary:active{transform:translateY(3px)!important;box-shadow:0 3px 0 var(--coral2)!important}
 
-html body.epochs-xray-shell .access{margin-top:0!important;border-radius:25px!important;padding:19px 20px!important;box-shadow:var(--shadow-sm)!important;border:0!important;background:linear-gradient(135deg,var(--ink),#483A61)!important}
+html body.epochs-xray-shell .access{margin-top:0!important;border-radius:25px!important;padding:16px 20px!important;box-shadow:var(--shadow-sm)!important;border:0!important;background:linear-gradient(135deg,var(--ink),#483A61)!important}
 html body.epochs-xray-shell .access.unlocked{background:linear-gradient(135deg,#304729,#49643A)!important}
 html body.epochs-xray-shell .access h3{font-size:1.28rem!important;letter-spacing:0!important}
 html body.epochs-xray-shell .access p{margin:3px 0 0!important;font-size:.76rem!important;line-height:1.4!important;max-width:none!important}
-html body.epochs-xray-shell .access-state{min-width:185px!important;padding:12px!important;border-radius:17px!important;text-align:center!important;background:rgba(255,255,255,.09)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:none!important}
+html body.epochs-xray-shell .access-state{min-width:185px!important;padding:11px 12px!important;border-radius:17px!important;text-align:center!important;background:rgba(255,255,255,.09)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:none!important}
 html body.epochs-xray-shell .access-state b{font-family:'Baloo 2',cursive!important;font-size:.96rem!important;line-height:1.1!important}
 html body.epochs-xray-shell .access-state span{font-size:.63rem!important;margin-top:3px!important}
 
@@ -63,5 +63,6 @@ html body.epochs-xray-shell .field input,html body.epochs-xray-shell .field sele
 @media(max-width:650px){
   html body.epochs-xray-shell .hero{padding:30px 0 20px!important}
   html body.epochs-xray-shell .workspace>.card.blue:first-child{margin-top:18px!important;padding:17px!important}
+  html body.epochs-xray-shell .access{padding:16px 17px!important}
   html body.epochs-xray-shell .access-state{width:100%!important;text-align:left!important;min-width:0!important}
 }
