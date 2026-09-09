@@ -176,7 +176,7 @@
       const root = document.documentElement || document.body;
       if (root) new MutationObserver(lock).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
     else start();
   }
 
