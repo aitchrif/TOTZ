@@ -66,10 +66,12 @@ assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-cl
 
 const navState = fs.readFileSync('forge-nav-state.js', 'utf8');
 assert(navState.includes('function normalizeEpochNetworkCards()'), 'EPOCHS network-card DOM normalizer is missing.');
-assert(navState.includes("const iconText = { robinhood: 'RH', ink: 'INK', ethereum: 'Ξ' };"), 'EPOCHS must use the same RH / INK / Ξ icon treatment as X-RAY.');
-assert(navState.includes('EPOCHS network selector is intentionally the exact X-RAY visual system.'), 'Exact EPOCHS/X-RAY network parity guard is missing.');
-assert(/\.workspace \.network-icon\{width:34px;height:34px;flex:0 0 34px/.test(navState), 'EPOCHS network icon geometry must match X-RAY.');
-assert(/\.workspace \.network-btn\.active \.network-icon\{background:var\(--ink\);color:#fff\}/.test(navState), 'EPOCHS active icon treatment must match X-RAY.');
+assert(navState.includes('<span class="network-icon">RH</span>'), 'EPOCHS must hard-render the X-RAY RH mark.');
+assert(navState.includes('<span class="network-icon">INK</span>'), 'EPOCHS must hard-render the X-RAY INK mark.');
+assert(navState.includes('<span class="network-icon">Ξ</span>'), 'EPOCHS must hard-render the X-RAY Ethereum mark.');
+assert(navState.includes('Exact copy of the X-RAY selector visual system.'), 'Exact EPOCHS/X-RAY network parity guard is missing.');
+assert(/\.workspace \.network-icon\{width:34px!important;height:34px!important;flex:0 0 34px!important/.test(navState), 'EPOCHS network icon geometry must match X-RAY.');
+assert(/\.workspace \.network-btn\.active \.network-icon\{background:var\(--ink\)!important;color:#fff!important\}/.test(navState), 'EPOCHS active icon treatment must match X-RAY.');
 assert(/\.workspace \.network-btn::before,\.workspace \.network-btn::after\{content:none!important;display:none!important\}/.test(navState), 'EPOCHS must suppress legacy active checkmarks/decorators.');
 assert(/\.workspace \.network-btn b\{display:block;font-size:\.82rem/.test(navState), 'EPOCHS network title sizing must match X-RAY.');
 assert(/\.workspace \.network-btn span\{display:block;color:var\(--soft\);font-size:\.64rem/.test(navState), 'EPOCHS network subtitle sizing must match X-RAY.');
@@ -101,4 +103,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · exact EPOCHS/X-RAY network parity');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · hard X-RAY selector parity');
