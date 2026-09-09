@@ -44,7 +44,7 @@
     claimNetwork,
     networks,
     services: Object.freeze({
-      claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
+      claims: '/api/forge-claims',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
       // Direct-only Phase A: holders pay Robinhood Chain gas.
       // Gasless relay remains unreachable from the public holder runtime.
@@ -179,7 +179,7 @@
       const root = document.documentElement || document.body;
       if (root) new MutationObserver(lock).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
     else start();
   }
 
