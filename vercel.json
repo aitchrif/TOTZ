@@ -7,10 +7,6 @@
     { "source": "/forge/claim-launcher", "destination": "/forge-claim-launcher" },
     { "source": "/forge/claim", "destination": "/forge-claim" },
     {
-      "source": "/api/forge-claims",
-      "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims"
-    },
-    {
       "source": "/discord-link/start",
       "destination": "https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/totz-discord?route=oauth-start"
     },
