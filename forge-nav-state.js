@@ -1,7 +1,6 @@
 (() => {
   const CHAINS = new Set(['robinhood','ink','ethereum']);
   const isAddress = v => /^0x[a-fA-F0-9]{40}$/.test(String(v || ''));
-  let syncing = false;
 
   const pathname = () => (location.pathname || '/').replace(/\/+$/, '') || '/';
   const isForge = () => pathname() === '/forge' || pathname().startsWith('/forge/') || /^\/forge-/.test(pathname());
@@ -25,14 +24,15 @@
 
   function ensureShell() {
     if (!isForge()) return;
+
     if (!document.getElementById('forge-shell-style')) {
       const s = document.createElement('style');
       s.id = 'forge-shell-style';
       s.textContent = `
         .forge-top-accent{position:relative;left:50%;transform:translateX(-50%);width:100vw;height:6px;background:linear-gradient(90deg,#ff715f 0 26%,#cbdb2a 26% 50%,#8ed2e2 50% 74%,#2b2140 74%);box-shadow:0 2px 0 rgba(43,33,64,.06);z-index:3}
         .forge-site-dock{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:9999;width:132px;padding:8px;display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.96);border:2px solid #8ed2e2;border-radius:22px;box-shadow:0 14px 34px rgba(43,33,64,.16);backdrop-filter:blur(14px)}
-        .forge-site-dock:before{content:'TOTZ';text-align:center;padding:3px 4px 2px;color:#5b5270;font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;letter-spacing:.14em}
-        .forge-site-dock a{position:relative;min-height:43px;padding:8px 10px;display:flex;align-items:center;gap:8px;border-radius:14px;color:#2b2140;font-family:'Nunito',sans-serif;font-size:.68rem;font-weight:900;box-sizing:border-box}
+        .forge-site-dock:before{content:'TOTZ';text-align:center;padding:3px 4px 2px;color:#5b5270;font-family:'Baloo 2','Arial Rounded MT Bold','Trebuchet MS',Arial,sans-serif;font-size:.62rem;font-weight:900;letter-spacing:.14em}
+        .forge-site-dock a{position:relative;min-height:43px;padding:8px 10px;display:flex;align-items:center;gap:8px;border-radius:14px;color:#2b2140;font-family:'Nunito','Trebuchet MS',Arial,sans-serif;font-size:.68rem;font-weight:900;box-sizing:border-box}
         .forge-site-dock a:hover{background:#fff3dc;transform:translateX(2px)}
         .forge-site-dock a.active{background:#2b2140;color:#fff;box-shadow:0 6px 15px rgba(43,33,64,.18)}
         .forge-site-dock .dock-icon{width:25px;height:25px;flex:0 0 25px;display:grid;place-items:center;border-radius:9px;background:#fff3dc;font-size:.9rem}
@@ -99,34 +99,17 @@
     });
 
     if (!document.getElementById('forge-nav-style')) {
-      const s = document.createElement('style'); s.id='forge-nav-style';
+      const s = document.createElement('style');
+      s.id='forge-nav-style';
       s.textContent=`
         .tool-nav .forge-env-badge{background:#f4e8ff;color:#603b82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#e7f4ef;color:#2b5b49;border-color:rgba(43,91,73,.12)}
         .network-icon{background:#fff!important}
         .network-icon img{display:block!important;object-fit:contain!important}
-        .network-btn[data-chain="robinhood"] .network-icon img{width:30px!important;height:30px!important}
-        .network-btn[data-chain="ink"] .network-icon img{width:29px!important;height:29px!important}
-        .network-btn[data-chain="ethereum"] .network-icon img{width:22px!important;height:28px!important}
         @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
       `;
       document.head.appendChild(s);
     }
-  }
-
-  function officialChainIcons() {
-    const assets = {
-      robinhood:['https://cdn.robinhood.com/assets/generated_assets/hoodchain_docsite/rh_favicon_120.png','Robinhood Chain'],
-      ink:['https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png','Ink'],
-      ethereum:['https://ethereum.org/images/assets/svgs/eth-diamond-glyph.svg','Ethereum']
-    };
-    document.querySelectorAll('.network-btn[data-chain] .network-icon').forEach(icon => {
-      const chain = icon.closest('.network-btn')?.dataset?.chain;
-      const asset = assets[chain];
-      if (!asset || icon.dataset.official === '1') return;
-      icon.innerHTML = `<img src="${asset[0]}" alt="${asset[1]}">`;
-      icon.dataset.official = '1';
-    });
   }
 
   function normalizeCopy() {
@@ -141,10 +124,12 @@
         a.setAttribute('href','/forge/claim-launcher');
       });
     }
+
     const root=document.body;
     if (!root) return;
     const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    const nodes=[]; while(w.nextNode()) nodes.push(w.currentNode);
+    const nodes=[];
+    while(w.nextNode()) nodes.push(w.currentNode);
     nodes.forEach(n => {
       const p=n.parentElement;
       if (!p || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA','CODE'].includes(p.tagName)) return;
@@ -152,27 +137,31 @@
     });
   }
 
+  function syncLinks() {
+    document.querySelectorAll('.tool-nav a[href]').forEach(a => {
+      const h=a.getAttribute('href')||'';
+      if (/^\/forge(?:\?|$)/.test(h)) a.setAttribute('href',withCtx('/forge'));
+      else if (h.startsWith('/forge/epochs')) a.setAttribute('href',withCtx('/forge/epochs'));
+      else if (h.startsWith('/forge/my-epochs')) a.setAttribute('href','/forge/my-epochs');
+    });
+  }
+
   function sync() {
-    if (syncing) return;
-    syncing=true;
     ensureShell();
     normalizeRoutes();
     normalizeToolNav();
-    officialChainIcons();
     normalizeCopy();
-    document.querySelectorAll('.tool-nav a[href]').forEach(a => {
-      const h=a.getAttribute('href')||'';
-      if (/^\/forge(?:\?|$)/.test(h)) a.href=withCtx('/forge');
-      else if (h.startsWith('/forge/epochs')) a.href=withCtx('/forge/epochs');
-      else if (h.startsWith('/forge/my-epochs')) a.href='/forge/my-epochs';
-    });
-    syncing=false;
+    syncLinks();
   }
 
-  document.addEventListener('input',e => { if (e.target?.id==='contractInput') queueMicrotask(sync); });
-  document.addEventListener('click',e => { if (e.target?.closest?.('.network-btn')) setTimeout(sync,0); });
-  window.addEventListener('popstate',sync);
-  const obs=new MutationObserver(() => queueMicrotask(sync));
-  obs.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  sync();
+  document.addEventListener('DOMContentLoaded', sync, { once:true });
+  document.addEventListener('input', e => {
+    if (e.target?.id === 'contractInput') queueMicrotask(syncLinks);
+  });
+  document.addEventListener('click', e => {
+    if (e.target?.closest?.('.network-btn')) setTimeout(syncLinks,0);
+  });
+  window.addEventListener('popstate', syncLinks);
+
+  if (document.readyState !== 'loading') sync();
 })();
