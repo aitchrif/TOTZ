@@ -16,6 +16,8 @@ const required = [
   'forge-claim-launcher.html',
   'forge-claim-launcher.js',
   'forge-runtime-config.js',
+  'api/forge-holders.js',
+  'package.json',
   'artifacts/ForgeMerkleClaim.json'
 ];
 for (const file of required) assert(fs.existsSync(file), `Missing production FORGE file: ${file}`);
@@ -39,6 +41,11 @@ const claimJs = fs.readFileSync('forge-claim.js', 'utf8');
 assert(claimJs.includes('canInteractWithPublishedClaim'), 'Holder claim runtime must use published-claim interaction permission.');
 assert(/ensureClaimNetwork\(\{requestAccounts:false,network,requireExecution:false\}\)/.test(claimJs), 'Published claim network switching must not require the new-launch execution gate.');
 assert(/function claim\(\)[\s\S]*?interactionEnabled\(\)/.test(claimJs), 'Direct holder claims must remain governed by published-claim interaction permission.');
+
+const holdersApi = fs.readFileSync('api/forge-holders.js', 'utf8');
+assert(/from ['"]ethers['"]/.test(holdersApi), 'FORGE holder snapshot API must declare its ethers runtime import.');
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+assert(packageJson?.dependencies?.ethers === '6.15.0', 'FORGE holder snapshot runtime must pin ethers 6.15.0.');
 
 const epochsHtml = fs.readFileSync('forge-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/epochs route.');
@@ -71,4 +78,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · published claims preserved · direct claim only · clean routes/copy · claim routes no-store');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store');
