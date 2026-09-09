@@ -3,12 +3,48 @@
   const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || ''));
   let syncing = false;
 
-  function ensureSharedBrand() {
-    if (document.querySelector('script[src$="totz-ui-brand.js"],script[src$="/totz-ui-brand.js"]')) return;
-    const script = document.createElement('script');
-    script.src = '/totz-ui-brand.js';
-    script.dataset.forgeSharedBrand = '1';
-    document.head.appendChild(script);
+  function ensureForgeShell() {
+    if (!document.getElementById('forge-shared-shell-style')) {
+      const style = document.createElement('style');
+      style.id = 'forge-shared-shell-style';
+      style.textContent = `
+        .totz-top-accent{position:relative;left:50%;transform:translateX(-50%);width:100vw;height:6px;margin:0;background:linear-gradient(90deg,var(--coral,#FF715F) 0 26%,var(--lime,#CBDB2A) 26% 50%,var(--sky2,var(--sky-deep,#8ED2E2)) 50% 74%,var(--ink,#2B2140) 74% 100%);box-shadow:0 2px 0 rgba(43,33,64,.06);z-index:3}
+        .totz-section-dock{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:9998;display:flex;flex-direction:column;gap:6px;padding:8px;width:132px;box-sizing:border-box;overflow:hidden;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:2px solid var(--sky2,var(--sky-deep,#8ED2E2));border-radius:22px;box-shadow:0 14px 34px rgba(43,33,64,.16)}
+        .totz-section-dock::before{content:'TOTZ';display:block;text-align:center;padding:3px 4px 2px;color:var(--soft,var(--ink-soft,#5B5270));font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;letter-spacing:.14em}
+        .totz-section-dock a{position:relative;width:100%;min-width:0;min-height:43px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:8px 10px;border-radius:14px;color:var(--ink,#2B2140);font-family:'Nunito',sans-serif;font-size:.68rem;font-weight:900;letter-spacing:.018em;transition:transform .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease}
+        .totz-section-dock a:hover{transform:translateX(2px);background:var(--cream,#FFF3DC)}
+        .totz-section-dock a.active{background:var(--ink,#2B2140);color:#fff;box-shadow:0 6px 15px rgba(43,33,64,.18)}
+        .totz-section-dock a.active::before{content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:5px;height:22px;border-radius:999px;background:var(--coral,#FF7A66)}
+        .totz-section-dock .dock-icon{width:25px;height:25px;display:grid;place-items:center;flex:0 0 25px;border-radius:9px;background:var(--cream,#FFF3DC);font-size:.9rem;line-height:1}
+        .totz-section-dock a.active .dock-icon{background:rgba(255,255,255,.14)}
+        .totz-section-dock .dock-label{min-width:0;white-space:nowrap;overflow:hidden;line-height:1}
+        @media(max-width:1280px) and (min-width:721px){.totz-section-dock{width:56px;left:9px;padding:6px;border-radius:18px}.totz-section-dock::before{font-size:.5rem;letter-spacing:.05em}.totz-section-dock a{justify-content:center;padding:7px;min-height:42px}.totz-section-dock a.active::before{left:-7px;height:18px}.totz-section-dock .dock-label{display:none}}
+        @media(max-width:720px){body{padding-bottom:72px!important}.totz-section-dock{top:auto;left:50%;bottom:10px;transform:translateX(-50%);width:auto;min-width:350px;max-width:calc(100vw - 20px);flex-direction:row;justify-content:center;padding:6px;border-radius:19px;gap:5px}.totz-section-dock::before{display:none}.totz-section-dock a{min-width:0;flex:1;min-height:41px;justify-content:center;padding:7px 8px}.totz-section-dock a.active::before{left:50%;top:auto;bottom:-7px;transform:translateX(-50%);width:28px;height:4px}.totz-section-dock .dock-label{display:inline;font-size:.59rem}}
+      `;
+      document.head.appendChild(style);
+    }
+
+    if (!document.querySelector('.totz-top-accent')) {
+      const nav = document.querySelector('nav');
+      if (nav) {
+        const accent = document.createElement('div');
+        accent.className = 'totz-top-accent';
+        accent.setAttribute('aria-hidden', 'true');
+        nav.insertAdjacentElement('afterend', accent);
+      }
+    }
+
+    if (!document.querySelector('.totz-section-dock') && document.body) {
+      const dock = document.createElement('div');
+      dock.className = 'totz-section-dock';
+      dock.setAttribute('aria-label', 'TOTZ pages');
+      dock.innerHTML = `
+        <a href="/" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
+        <a href="/forge" class="active" title="FORGE" aria-label="FORGE"><span class="dock-icon">⚒️</span><span class="dock-label">FORGE</span></a>
+        <a href="/staking" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
+        <a href="/rewards" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
+      document.body.appendChild(dock);
+    }
   }
 
   function context() {
@@ -203,6 +239,7 @@
   function sync() {
     if (syncing) return;
     syncing = true;
+    ensureForgeShell();
     removeLegacyInjectedNav();
     normalizeLegacyRoutes();
     normalizeRuntimeCopy();
@@ -227,6 +264,6 @@
   const observer = new MutationObserver(() => queueMicrotask(sync));
   observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
 
-  ensureSharedBrand();
+  ensureForgeShell();
   sync();
 })();
