@@ -25,28 +25,26 @@
     })
   });
 
-  // Production integration baseline stays pinned and locked on main.
-  // This isolated release branch temporarily arms a one-wallet Mainnet Canary
-  // without changing the safe literals that production regression tests pin.
+  // Production integration baseline: the public FORGE surface reads Robinhood
+  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
+  // explicit controlled release flips both the client and server gates.
+  // Already-published verified claims remain interactable after lockdown.
   const environment = 'mainnet';
   const mainnetClaimsEnabled = false;
   const claimNetwork = networks.mainnet;
-  const directMainnetCanaryPreview = true;
-  const activeEnvironment = directMainnetCanaryPreview ? 'mainnet-canary' : environment;
-  const activeMainnetClaimsEnabled = directMainnetCanaryPreview ? true : mainnetClaimsEnabled;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
-    environment: activeEnvironment,
-    mainnetClaimsEnabled: activeMainnetClaimsEnabled,
+    environment,
+    mainnetClaimsEnabled,
     testHelpersEnabled,
     claimNetwork,
     networks,
     services: Object.freeze({
       claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
-      // Direct-only Mainnet Canary: holder pays Robinhood Chain gas.
-      // Gasless relay remains unreachable from the public holder runtime.
+      // Direct-claim production mode: holder pays the network gas.
+      // Keep the gasless relay unreachable from the public claim UI/runtime.
       gaslessRelay: ''
     })
   });
