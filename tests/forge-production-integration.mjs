@@ -7,6 +7,7 @@ function assert(condition, message) {
 const required = [
   'forge.html',
   'forge.js',
+  'forge-guide.html',
   'forge-epochs.html',
   'forge-epochs-page.js',
   'forge-my-epochs.html',
@@ -47,6 +48,14 @@ assert(/from ['"]ethers['"]/.test(holdersApi), 'FORGE holder snapshot API must d
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 assert(packageJson?.dependencies?.ethers === '6.15.0', 'FORGE holder snapshot runtime must pin ethers 6.15.0.');
 
+const guideHtml = fs.readFileSync('forge-guide.html', 'utf8');
+assert(/TOTZ FORGE · PUBLIC BETA/.test(guideHtml), 'Public Beta guide must identify the launch state.');
+assert(/Mainnet writes<\/small><b>Operator-controlled<\/b>/.test(guideHtml), 'Public Beta guide must state that Mainnet writes are operator-controlled.');
+assert(/New Robinhood Mainnet deploy \/ fund \/ publish actions remain operator-controlled during Public Beta/.test(guideHtml), 'Public Beta guide must explain the Mainnet release boundary.');
+assert(/href="\/forge"/.test(guideHtml), 'Public Beta guide must link to X-RAY.');
+assert(/href="\/forge\/epochs"/.test(guideHtml), 'Public Beta guide must link to EPOCHS.');
+assert(!/href="\/forge\/claim-launcher"/.test(guideHtml), 'Public Beta guide must not send public users directly to the operator Claim Launcher.');
+
 const epochsHtml = fs.readFileSync('forge-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/epochs route.');
 assert(!/href="\/forge-my-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/my-epochs route.');
@@ -65,12 +74,15 @@ assert(!/href="\/forge-epochs(?:[?#"])/.test(launcherHtml), 'Claim Launcher must
 
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const rewrites = new Map((vercel.rewrites || []).map(r => [r.source, r.destination]));
+assert(rewrites.get('/forge/guide') === '/forge-guide', 'Missing /forge/guide route.');
 assert(rewrites.get('/forge/epochs') === '/forge-epochs', 'Missing /forge/epochs route.');
 assert(rewrites.get('/forge/my-epochs') === '/forge-my-epochs', 'Missing /forge/my-epochs route.');
 assert(rewrites.get('/forge/claim') === '/forge-claim', 'Missing /forge/claim route.');
 assert(rewrites.get('/forge/claim-launcher') === '/forge-claim-launcher', 'Missing /forge/claim-launcher route.');
 
 const headerMap = new Map((vercel.headers || []).map(entry => [entry.source, new Map((entry.headers || []).map(h => [String(h.key).toLowerCase(), String(h.value).toLowerCase()]))]));
+const guideHeaders = headerMap.get('/forge/guide');
+assert(guideHeaders?.get('cache-control') === 'no-store, max-age=0', '/forge/guide must be no-store during Public Beta.');
 for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   const headers = headerMap.get(route);
   assert(headers, `Missing explicit headers for clean FORGE route: ${route}`);
@@ -78,4 +90,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store');
