@@ -135,19 +135,98 @@
     style.textContent = `
       .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
       .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
-      /* Exact copy of the X-RAY selector visual system. */
+
+      /* Stable X-RAY selector geometry. */
       .workspace .network-label{display:block;margin:18px 0 8px;color:var(--soft);font-size:.65rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
-      .workspace .network-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-      .workspace .network-btn{border:2px solid transparent!important;border-radius:17px!important;background:var(--cream)!important;padding:11px 13px!important;cursor:pointer;text-align:left;display:flex!important;align-items:center!important;gap:10px!important;transition:.15s ease;color:var(--ink)!important;min-height:0!important;box-shadow:none}
-      .workspace .network-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
-      .workspace .network-btn.active{background:#fff!important;border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.1)!important}
+      .workspace .network-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+      .workspace .network-btn{border:1.5px solid rgba(43,33,64,.08)!important;border-radius:18px!important;background:#FFF5E3!important;padding:12px 14px!important;cursor:pointer;text-align:left;display:flex!important;align-items:center!important;gap:11px!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease;color:var(--ink)!important;min-height:68px!important;box-shadow:none}
+      .workspace .network-btn:hover{transform:translateY(-2px);box-shadow:0 9px 20px rgba(43,33,64,.09)}
+      .workspace .network-btn.active{background:#fff!important;border-color:var(--ink)!important;box-shadow:0 5px 0 rgba(43,33,64,.10),0 12px 24px rgba(43,33,64,.07)!important}
       .workspace .network-btn::before,.workspace .network-btn::after{content:none!important;display:none!important}
-      .workspace .network-icon{width:34px!important;height:34px!important;flex:0 0 34px!important;border-radius:11px!important;display:grid!important;place-items:center!important;background:#fff!important;font-family:'Baloo 2',cursive!important;font-size:.83rem!important;font-weight:900!important;border:1px solid rgba(43,33,64,.08)!important;color:var(--ink)!important;line-height:1!important;margin:0!important;padding:0!important;box-shadow:none!important}
-      .workspace .network-btn.active .network-icon{background:var(--ink)!important;color:#fff!important}
-      .workspace .network-btn b{display:block;font-size:.82rem;line-height:normal}
-      .workspace .network-btn span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:1px;line-height:normal}
+      .workspace .network-icon{width:40px!important;height:40px!important;flex:0 0 40px!important;border-radius:13px!important;display:grid!important;place-items:center!important;background:#fff!important;font-family:'Baloo 2',cursive!important;font-size:.83rem!important;font-weight:900!important;border:1px solid rgba(43,33,64,.08)!important;color:var(--ink)!important;line-height:1!important;margin:0!important;padding:0!important;box-shadow:0 4px 10px rgba(43,33,64,.06)!important;overflow:hidden}
+      .workspace .network-btn b{display:block;font-size:.84rem;line-height:1.15;letter-spacing:-.01em}
+      .workspace .network-btn span{display:block;color:var(--soft);font-size:.63rem;font-weight:800;margin-top:3px;line-height:1.2}
       .workspace .network-btn .network-icon + span{margin-top:0}
-      @media(max-width:650px){.tool-nav .forge-env-badge{display:none}.workspace .network-row{grid-template-columns:1fr}}
+
+      /* Network marks: keep DOM text stable for handlers/tests, replace only presentation. */
+      .workspace .network-btn[data-chain="robinhood"] .network-icon{font-size:0!important;background:#CCFF00!important;color:#000!important;border-color:rgba(0,0,0,.08)!important}
+      .workspace .network-btn[data-chain="robinhood"] .network-icon::before{content:'🪶';font-size:19px;line-height:1;filter:saturate(.7) contrast(1.05)}
+      .workspace .network-btn[data-chain="ink"] .network-icon{font-size:0!important;background:#fff url('https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png') center/contain no-repeat!important;border-color:rgba(113,50,245,.16)!important}
+      .workspace .network-btn[data-chain="ethereum"] .network-icon{font-size:0!important;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 417'%3E%3Cpath fill='%236f66a8' d='M127.9 0 125 9.8v275.7l2.9 2.9 127.9-75.6z'/%3E%3Cpath fill='%238c8c8c' d='M127.9 0 0 212.8l127.9 75.6V154.1z'/%3E%3Cpath fill='%235f5f5f' d='m127.9 312.7-1.6 1.9v98.2l1.6 4.7L256 236.7z'/%3E%3Cpath fill='%238c8c8c' d='M127.9 417.5V312.7L0 236.7z'/%3E%3C/svg%3E") center/16px 27px no-repeat!important}
+
+      /* EPOCHS polish: richer hierarchy without changing runtime behaviour. */
+      .epochs-xray-shell{background:
+        radial-gradient(circle at 12% 4%,rgba(255,255,255,.52),transparent 29%),
+        radial-gradient(circle at 88% 14%,rgba(191,230,238,.24),transparent 24%),
+        var(--cream)!important;min-height:100vh}
+      .epochs-xray-shell .wrap{max-width:1210px!important;padding:0 4.5vw 88px!important}
+      .epochs-xray-shell nav{padding:22px 0 18px!important}
+      .epochs-xray-shell .logo{font-size:1.72rem!important;letter-spacing:-.035em!important;gap:11px!important}
+      .epochs-xray-shell .logo .dot{width:13px!important;height:13px!important;box-shadow:0 0 0 5px rgba(255,113,95,.10)!important}
+      .epochs-xray-shell .nav-actions{gap:9px!important}
+      .epochs-xray-shell .pill{padding:9px 15px!important;transition:transform .15s ease,box-shadow .15s ease!important}
+      .epochs-xray-shell .pill:hover{transform:translateY(-1px)!important;box-shadow:0 7px 15px rgba(43,33,64,.08)!important}
+      .epochs-xray-shell .pill.dark{box-shadow:0 5px 0 rgba(43,33,64,.12)!important}
+
+      .epochs-xray-shell .tool-nav{background:rgba(255,255,255,.82)!important;border:1px solid rgba(43,33,64,.07)!important;box-shadow:0 10px 24px rgba(43,33,64,.08)!important;backdrop-filter:blur(10px);padding:6px!important;gap:6px!important}
+      .epochs-xray-shell .tool-nav a{min-height:34px!important;padding:8px 14px!important;transition:transform .14s ease,box-shadow .14s ease!important}
+      .epochs-xray-shell .tool-nav a:hover{transform:translateY(-1px)!important}
+      .epochs-xray-shell .tool-nav .active{box-shadow:0 5px 11px rgba(43,33,64,.16)!important}
+
+      .epochs-xray-shell .hero{padding:38px 0 26px!important}
+      .epochs-xray-shell .eyebrow{padding:8px 15px!important;border:1px solid rgba(43,33,64,.06)!important;box-shadow:0 7px 16px rgba(43,33,64,.05)!important}
+      .epochs-xray-shell .hero h1{font-size:clamp(3rem,6.25vw,5.55rem)!important;max-width:1020px!important;margin:18px auto 14px!important;line-height:.91!important}
+      .epochs-xray-shell .hero p{max-width:800px!important;font-size:1.02rem!important;line-height:1.56!important}
+      .epochs-xray-shell .safety{gap:9px!important;margin-top:18px!important}
+      .epochs-xray-shell .safe{padding:8px 12px!important;border:1px solid rgba(43,33,64,.045)!important;box-shadow:0 7px 16px rgba(43,33,64,.055)!important}
+
+      .epochs-xray-shell .workspace{gap:14px!important}
+      .epochs-xray-shell .workspace>.card{border:1px solid rgba(43,33,64,.055)!important;box-shadow:0 14px 34px rgba(43,33,64,.08)!important}
+      .epochs-xray-shell .workspace>.card.blue:first-child{border:2px solid var(--sky2)!important;border-radius:30px!important;padding:25px 26px 24px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 16px 40px rgba(43,33,64,.09)!important}
+      .epochs-xray-shell .workspace>.card.blue:first-child .card-head{margin-bottom:17px!important}
+      .epochs-xray-shell .workspace>.card.blue:first-child .card-head h2{font-size:1.72rem!important;letter-spacing:-.025em!important}
+      .epochs-xray-shell .workspace>.card.blue:first-child .card-head p{font-size:.84rem!important;max-width:720px!important}
+      .epochs-xray-shell .workspace>.card.blue:first-child .tag{background:#DDF4F7!important;padding:7px 10px!important;border:1px solid rgba(43,33,64,.04)!important}
+
+      .epochs-xray-shell .source-form{gap:12px!important;margin-top:14px!important}
+      .epochs-xray-shell .source-form input{min-height:52px!important;padding:13px 18px!important;background:#FFF8EA!important;border-width:2px!important;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease!important}
+      .epochs-xray-shell .source-form input:focus{background:#fff!important;border-color:var(--coral)!important;box-shadow:0 0 0 4px rgba(255,113,95,.10)!important}
+      .epochs-xray-shell .source-form .btn{min-height:52px!important;padding-left:22px!important;padding-right:22px!important}
+      .epochs-xray-shell .btn{transition:transform .15s ease,box-shadow .15s ease!important}
+      .epochs-xray-shell .btn:not(:disabled):hover{transform:translateY(-1px)!important}
+      .epochs-xray-shell .btn.primary:not(:disabled):hover{box-shadow:0 8px 0 var(--coral2),0 10px 18px rgba(233,80,61,.14)!important}
+
+      .epochs-xray-shell .access{border-radius:26px!important;padding:18px 19px!important;box-shadow:0 13px 28px rgba(43,33,64,.10)!important;border:1px solid rgba(255,255,255,.08)!important}
+      .epochs-xray-shell .access.unlocked{background:linear-gradient(135deg,#2F492B,#456039)!important;border-color:rgba(203,219,42,.18)!important}
+      .epochs-xray-shell .access h3{font-size:1.25rem!important;letter-spacing:-.015em!important}
+      .epochs-xray-shell .access p{font-size:.72rem!important;max-width:720px!important}
+      .epochs-xray-shell .access-state{min-width:205px!important;padding:12px 14px!important;background:rgba(255,255,255,.10)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)!important}
+      .epochs-xray-shell .access.unlocked .access-state{background:rgba(255,255,255,.12)!important}
+      .epochs-xray-shell .access.unlocked .access-state b::before{content:'● ';color:var(--lime);font-size:.72em}
+
+      .epochs-xray-shell .workspace>.card:not(.blue){border-radius:28px!important;padding:23px 24px!important;background:rgba(255,255,255,.96)!important}
+      .epochs-xray-shell .workspace>.card:not(.blue) .card-head h2{font-size:1.62rem!important;letter-spacing:-.02em!important}
+      .epochs-xray-shell .box{border-color:rgba(43,33,64,.07)!important;border-radius:22px!important;background:#FFFCF7!important;padding:17px!important}
+      .epochs-xray-shell .box h3{font-size:1.1rem!important}
+      .epochs-xray-shell .field input,.epochs-xray-shell .field select,.epochs-xray-shell .field textarea{background:#FFF8EA!important;border-color:#9DDCE8!important;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease!important}
+      .epochs-xray-shell .field input:focus,.epochs-xray-shell .field select:focus,.epochs-xray-shell .field textarea:focus{background:#fff!important;border-color:var(--coral)!important;box-shadow:0 0 0 4px rgba(255,113,95,.08)!important}
+      .epochs-xray-shell .lock-note{border:1px dashed rgba(43,33,64,.12)!important}
+      .epochs-xray-shell .result-stat,.epochs-xray-shell .merkle-stat{border:1px solid rgba(43,33,64,.045)!important}
+      .epochs-xray-shell .table-wrap{box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)!important}
+
+      @media(max-width:760px){
+        .epochs-xray-shell .hero{padding-top:26px!important}
+        .epochs-xray-shell .hero h1{font-size:clamp(2.65rem,12vw,4.6rem)!important}
+        .epochs-xray-shell .workspace>.card.blue:first-child{padding:20px!important}
+      }
+      @media(max-width:650px){
+        .tool-nav .forge-env-badge{display:none}
+        .workspace .network-row{grid-template-columns:1fr}
+        .epochs-xray-shell .network-btn{min-height:64px!important}
+        .epochs-xray-shell .access{align-items:flex-start!important;flex-direction:column!important}
+        .epochs-xray-shell .access-state{width:100%!important;text-align:left!important;min-width:0!important}
+        .epochs-xray-shell .workspace>.card:not(.blue){padding:19px!important}
+      }
     `;
     document.head.appendChild(style);
   }
