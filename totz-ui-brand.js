@@ -1,14 +1,17 @@
 (() => {
-  const rawPage = (location.pathname.split('/').pop() || '').toLowerCase();
+  const pathname = (location.pathname || '/').replace(/\/+$/, '') || '/';
+  const rawPage = (pathname.split('/').pop() || '').toLowerCase();
   const page = rawPage.replace(/\.html$/i, '');
-  const isHome = page === '' || page === 'index';
+  const isHome = pathname === '/' || page === 'index';
   const isStaking = page === 'staking';
   const isRewards = page === 'rewards';
   const isAdmin = page === 'rewards-admin';
-  const hasDock = isHome || isStaking || isRewards;
+  const isForge = pathname === '/forge' || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
+  const hasDock = isHome || isStaking || isRewards || isForge;
 
   const style = document.createElement('style');
   style.textContent = `
+    .totz-top-accent{position:relative;left:50%;transform:translateX(-50%);width:100vw;height:6px;margin:0;background:linear-gradient(90deg,var(--coral,#FF715F) 0 26%,var(--lime,#CBDB2A) 26% 50%,var(--sky2,var(--sky-deep,#8ED2E2)) 50% 74%,var(--ink,#2B2140) 74% 100%);box-shadow:0 2px 0 rgba(43,33,64,.06);z-index:3}
     ${isRewards ? `
       .prize-media{aspect-ratio:1/1!important}
       .prize-media img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important}
@@ -60,10 +63,20 @@
       .totz-section-dock a.active .dock-icon{background:rgba(255,255,255,.14)}
       .totz-section-dock .dock-label{min-width:0;white-space:nowrap;overflow:hidden;line-height:1}
       @media(max-width:1280px) and (min-width:721px){.totz-section-dock{width:56px;left:9px;padding:6px;border-radius:18px}.totz-section-dock::before{font-size:.5rem;letter-spacing:.05em}.totz-section-dock a{justify-content:center;padding:7px;min-height:42px}.totz-section-dock a.active::before{left:-7px;height:18px}.totz-section-dock .dock-label{display:none}}
-      @media(max-width:720px){body{padding-bottom:72px!important}.totz-section-dock{top:auto;left:50%;bottom:10px;transform:translateX(-50%);width:auto;min-width:300px;max-width:calc(100vw - 20px);flex-direction:row;justify-content:center;padding:6px;border-radius:19px;gap:5px}.totz-section-dock::before{display:none}.totz-section-dock a{min-width:0;flex:1;min-height:41px;justify-content:center;padding:7px 9px}.totz-section-dock a.active::before{left:50%;top:auto;bottom:-7px;transform:translateX(-50%);width:28px;height:4px}.totz-section-dock .dock-label{display:inline;font-size:.62rem}}
+      @media(max-width:720px){body{padding-bottom:72px!important}.totz-section-dock{top:auto;left:50%;bottom:10px;transform:translateX(-50%);width:auto;min-width:350px;max-width:calc(100vw - 20px);flex-direction:row;justify-content:center;padding:6px;border-radius:19px;gap:5px}.totz-section-dock::before{display:none}.totz-section-dock a{min-width:0;flex:1;min-height:41px;justify-content:center;padding:7px 8px}.totz-section-dock a.active::before{left:50%;top:auto;bottom:-7px;transform:translateX(-50%);width:28px;height:4px}.totz-section-dock .dock-label{display:inline;font-size:.59rem}}
     ` : ''}
   `;
   document.head.appendChild(style);
+
+  function installTopAccent() {
+    if (document.querySelector('.totz-top-accent')) return;
+    const nav = document.querySelector('nav');
+    if (!nav) return;
+    const accent = document.createElement('div');
+    accent.className = 'totz-top-accent';
+    accent.setAttribute('aria-hidden', 'true');
+    nav.insertAdjacentElement('afterend', accent);
+  }
 
   function installSectionDock() {
     if (!hasDock || document.querySelector('.totz-section-dock')) return;
@@ -72,6 +85,7 @@
     dock.setAttribute('aria-label', 'TOTZ pages');
     dock.innerHTML = `
       <a href="/" class="${isHome ? 'active' : ''}" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
+      <a href="/forge" class="${isForge ? 'active' : ''}" title="FORGE" aria-label="FORGE"><span class="dock-icon">⚒️</span><span class="dock-label">FORGE</span></a>
       <a href="/staking" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
       <a href="/rewards" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
     document.body.appendChild(dock);
@@ -146,6 +160,8 @@
     nodes.forEach(rewriteTextNode);
   }
 
+  document.title = (document.title || '').replace(/\s*—\s*/g, ' | ');
+  installTopAccent();
   installSectionDock();
   loadHomeEarnings();
   rewrite(document.body);
