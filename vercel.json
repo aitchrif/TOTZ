@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/forge/guide", "destination": "/forge-guide" },
     { "source": "/forge/epochs", "destination": "/forge-epochs" },
     { "source": "/forge/my-epochs", "destination": "/forge-my-epochs" },
     { "source": "/forge/claim-launcher", "destination": "/forge-claim-launcher" },
@@ -64,6 +65,9 @@
     },
     { "source": "/forge", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/forge.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/forge/guide", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/forge-guide", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/forge-guide.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/forge/epochs", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/forge-epochs", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
     { "source": "/forge-epochs.html", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
