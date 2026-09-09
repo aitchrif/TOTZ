@@ -24,11 +24,10 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 @media(max-width:920px){.epoch-grid{grid-template-columns:repeat(3,1fr)}.summary{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.wrap{padding-left:4vw;padding-right:4vw}.tool-nav{width:100%;border-radius:20px}.tool-nav a,.tool-nav span{flex:1;padding:9px 8px;font-size:.62rem}.tool-nav .soon{display:none}.operator{align-items:flex-start;flex-direction:column}.operator-wallet{text-align:left;min-width:0}.summary{grid-template-columns:1fr 1fr}.epoch-grid{grid-template-columns:1fr 1fr}.toolbar{align-items:flex-start;flex-direction:column}.epoch-top{flex-direction:column}.actions .btn{flex:1}.card{padding:17px}}
 </style>
-<link rel="stylesheet" href="/forge-my-epochs-polish.css?v=1">
 </head>
 <body>
 <div class="wrap">
-<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/">HOME</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
+<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/forge/epochs">NEW EPOCH</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
 <div class="tool-nav"><a class="live" href="/forge">◉ X-RAY</a><a href="/forge/epochs">⚒ EPOCHS</a><a class="active" href="/forge/my-epochs">◫ MY EPOCHS</a></div>
 <section class="hero"><span class="eyebrow">◫ TOTZ FORGE · OPERATOR DASHBOARD</span><h1>TRACK EVERY <span>EPOCH.</span></h1><p>Connect the sponsor wallet used to launch your claims. FORGE indexes the published epochs, then verifies their live state directly from Robinhood Chain Mainnet.</p><div class="safety"><span class="safe">👁 Read-only dashboard</span><span class="safe">⛓ Live contract state</span><span class="safe">🔐 Wallet scoped</span><span class="safe">🚫 No approvals</span></div></section>
 <section class="card blue operator"><div><h2>Operator wallet</h2><p>Published claims are grouped by sponsor wallet. Connecting here never signs a transaction.</p></div><div class="operator-wallet"><b id="walletLabel">Not connected</b><span id="walletSub">Connect to load your published epochs</span></div></section>
@@ -42,7 +41,7 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script src="/forge-runtime-config.js?v=1"></script>
-<script src="/forge-nav-state.js?v=4"></script>
+<script src="/forge-nav-state.js?v=2"></script>
 <script src="/forge-my-epochs.js?v=1"></script>
 </body>
 </html>
