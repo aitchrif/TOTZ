@@ -1,5 +1,6 @@
 (() => {
   const CHAINS = new Set(['robinhood','ink','ethereum']);
+  const CHAIN_MARKS = { robinhood:'RH', ink:'INK', ethereum:'Ξ' };
   const isAddress = v => /^0x[a-fA-F0-9]{40}$/.test(String(v || ''));
 
   const pathname = () => (location.pathname || '/').replace(/\/+$/, '') || '/';
@@ -78,6 +79,18 @@
     });
   }
 
+  function normalizeNetworkMarks() {
+    document.querySelectorAll('.network-btn[data-chain]').forEach(btn => {
+      const chain = btn.dataset.chain;
+      const mark = CHAIN_MARKS[chain];
+      const icon = btn.querySelector('.network-icon');
+      if (!mark || !icon || icon.dataset.xrayMark === mark) return;
+      icon.replaceChildren(document.createTextNode(mark));
+      icon.dataset.xrayMark = mark;
+      icon.removeAttribute('data-official');
+    });
+  }
+
   function normalizeToolNav() {
     document.querySelectorAll('.tool-nav').forEach(nav => {
       nav.setAttribute('aria-label','FORGE tools');
@@ -105,25 +118,19 @@
         .tool-nav .forge-env-badge{background:#f4e8ff;color:#603b82;border:1px solid rgba(96,59,130,.12)}
         .tool-nav .forge-env-badge.mainnet{background:#e7f4ef;color:#2b5b49;border-color:rgba(43,91,73,.12)}
 
-        /* EPOCHS chain selector: consistent brand tiles without changing loading behavior. */
-        .network-row{gap:12px!important}
-        .network-btn{position:relative;min-height:76px;padding:12px 15px!important;border:2px solid rgba(43,33,64,.08)!important;border-radius:19px!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease;overflow:hidden}
-        .network-btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(43,33,64,.09)}
-        .network-btn.active{background:#fff!important;border-color:#2b2140!important;box-shadow:0 6px 0 rgba(43,33,64,.10),0 12px 24px rgba(43,33,64,.08)!important}
-        .network-btn.active:after{content:'✓';position:absolute;right:10px;top:9px;width:20px;height:20px;display:grid;place-items:center;border-radius:999px;background:#2b2140;color:#fff;font-size:.66rem;font-weight:900}
-        .network-icon{width:48px!important;height:48px!important;flex:0 0 48px!important;border-radius:15px!important;border:1px solid rgba(43,33,64,.08)!important;background:#fff!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65);overflow:hidden!important}
-        .network-icon img{display:block!important;object-fit:contain!important;object-position:center!important;margin:auto!important}
-        .network-btn[data-chain="robinhood"] .network-icon{background:#c8ff00!important}
-        .network-btn[data-chain="robinhood"] .network-icon img{width:40px!important;height:40px!important}
-        .network-btn[data-chain="ink"] .network-icon{background:#7132f5!important}
-        .network-btn[data-chain="ink"] .network-icon img{width:44px!important;height:44px!important;border-radius:12px!important}
-        .network-btn[data-chain="ethereum"] .network-icon{background:#fff!important}
-        .network-btn[data-chain="ethereum"] .network-icon img{width:27px!important;height:35px!important}
-        .network-btn>span:last-child{min-width:0;padding-right:22px}
-        .network-btn>span:last-child>b{font-size:.84rem!important;line-height:1.1;letter-spacing:-.01em}
-        .network-btn>span:last-child>span{margin-top:4px;color:#6b617a!important;font-size:.59rem!important;font-weight:900!important;letter-spacing:.01em}
-
-        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}.network-btn{min-height:68px}.network-icon{width:44px!important;height:44px!important;flex-basis:44px!important}}
+        /* Keep the EPOCHS network selector visually identical to X-RAY. */
+        .network-row{gap:9px!important}
+        .network-btn{border:2px solid transparent!important;border-radius:17px!important;background:#fff3dc!important;padding:11px 13px!important;gap:10px!important;transition:.15s ease!important;color:#2b2140!important;min-height:0!important;box-shadow:none!important;transform:none}
+        .network-btn:hover{transform:translateY(-1px)!important;box-shadow:0 8px 20px rgba(43,33,64,.09)!important}
+        .network-btn.active{background:#fff!important;border-color:#2b2140!important;box-shadow:0 5px 0 rgba(43,33,64,.10)!important}
+        .network-btn.active:after{content:none!important}
+        .network-icon{width:34px!important;height:34px!important;flex:0 0 34px!important;border-radius:11px!important;display:grid!important;place-items:center!important;background:#fff!important;color:#2b2140!important;border:1px solid rgba(43,33,64,.08)!important;font-family:'Baloo 2','Arial Rounded MT Bold','Trebuchet MS',Arial,sans-serif!important;font-size:.83rem!important;font-weight:900!important;line-height:1!important;overflow:hidden!important;box-shadow:none!important}
+        .network-btn.active .network-icon{background:#2b2140!important;color:#fff!important}
+        .network-btn[data-chain="ink"] .network-icon{font-size:.68rem!important;letter-spacing:-.03em}
+        .network-btn>span:last-child{padding-right:0!important;min-width:0}
+        .network-btn>span:last-child>b{display:block!important;font-size:.82rem!important;line-height:1.15!important}
+        .network-btn>span:last-child>span{display:block!important;color:#5b5270!important;font-size:.64rem!important;font-weight:800!important;margin-top:1px!important;letter-spacing:0!important}
+        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}.network-btn{min-height:0!important}.network-icon{width:34px!important;height:34px!important;flex-basis:34px!important}}
       `;
       document.head.appendChild(s);
     }
@@ -166,6 +173,7 @@
   function sync() {
     ensureShell();
     normalizeRoutes();
+    normalizeNetworkMarks();
     normalizeToolNav();
     normalizeCopy();
     syncLinks();
