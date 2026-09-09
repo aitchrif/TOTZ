@@ -25,29 +25,26 @@
     })
   });
 
-  // Production integration baseline stays pinned and locked on main.
-  // This isolated Phase A preview only unlocks NEW launch controls on the
-  // protected release branch. The server release gate remains independently
-  // locked until the verified Phase A package receives an explicit arm.
+  // Production integration baseline: the public FORGE surface reads Robinhood
+  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
+  // explicit controlled release flips both the client and server gates.
+  // Already-published verified claims remain interactable after lockdown.
   const environment = 'mainnet';
   const mainnetClaimsEnabled = false;
   const claimNetwork = networks.mainnet;
-  const directMainnetPhaseAPreview = true;
-  const activeEnvironment = directMainnetPhaseAPreview ? 'mainnet-phase-a' : environment;
-  const activeMainnetClaimsEnabled = directMainnetPhaseAPreview ? true : mainnetClaimsEnabled;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
   const config = Object.freeze({
-    environment: activeEnvironment,
-    mainnetClaimsEnabled: activeMainnetClaimsEnabled,
+    environment,
+    mainnetClaimsEnabled,
     testHelpersEnabled,
     claimNetwork,
     networks,
     services: Object.freeze({
-      claims: '/api/forge-claims',
+      claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
-      // Direct-only Phase A: holders pay Robinhood Chain gas.
-      // Gasless relay remains unreachable from the public holder runtime.
+      // Direct-claim production mode: holder pays the network gas.
+      // Keep the gasless relay unreachable from the public claim UI/runtime.
       gaslessRelay: ''
     })
   });
