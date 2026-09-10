@@ -63,20 +63,23 @@ assert(!/href="\/forge-my-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use th
 assert(!/href="\/forge-claim-launcher(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/claim-launcher route.');
 assert(!/TESTNET CLAIM|Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(epochsHtml), 'EPOCHS contains stale Testnet launch copy.');
 assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS must state the production write gate clearly.');
+assert(epochsHtml.includes('<a class="pill" href="/forge">X-RAY</a>'), 'EPOCHS must preserve the original pre-UI top action.');
+assert(epochsHtml.includes('rh_favicon_120.png'), 'EPOCHS must preserve the original Robinhood network logo.');
+assert(epochsHtml.includes('docs-logo-symbol.png'), 'EPOCHS must preserve the original Ink network logo.');
+assert(epochsHtml.includes('eth-diamond-glyph.svg'), 'EPOCHS must preserve the original Ethereum network logo.');
+assert(!epochsHtml.includes('epochs-xray-shell'), 'EPOCHS must not re-introduce the later X-RAY shell UI override.');
+assert(!epochsHtml.includes('forge-epochs-parity.css'), 'EPOCHS must not load the later parity stylesheet.');
+assert(!epochsHtml.includes('<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>'), 'Ethers must remain off the parser-blocking first-paint path.');
+assert(epochsHtml.includes('ethersScript.async = true;'), 'EPOCHS must keep ethers enhancement asynchronous.');
 
 const navState = fs.readFileSync('forge-nav-state.js', 'utf8');
-assert(navState.includes('function normalizeEpochNetworkCards()'), 'EPOCHS network-card DOM normalizer is missing.');
-assert(navState.includes('<span class="network-icon">RH</span>'), 'EPOCHS must hard-render the X-RAY RH mark.');
-assert(navState.includes('<span class="network-icon">INK</span>'), 'EPOCHS must hard-render the X-RAY INK mark.');
-assert(navState.includes('<span class="network-icon">Ξ</span>'), 'EPOCHS must hard-render the X-RAY Ethereum mark.');
-assert(navState.includes('Exact copy of the X-RAY selector visual system.'), 'Exact EPOCHS/X-RAY network parity guard is missing.');
-assert(/\.workspace \.network-icon\{width:34px!important;height:34px!important;flex:0 0 34px!important/.test(navState), 'EPOCHS network icon geometry must match X-RAY.');
-assert(/\.workspace \.network-btn\.active \.network-icon\{background:var\(--ink\)!important;color:#fff!important\}/.test(navState), 'EPOCHS active icon treatment must match X-RAY.');
-assert(/\.workspace \.network-btn::before,\.workspace \.network-btn::after\{content:none!important;display:none!important\}/.test(navState), 'EPOCHS must suppress legacy active checkmarks/decorators.');
-assert(/\.workspace \.network-btn b\{display:block;font-size:\.82rem/.test(navState), 'EPOCHS network title sizing must match X-RAY.');
-assert(/\.workspace \.network-btn span\{display:block;color:var\(--soft\);font-size:\.64rem/.test(navState), 'EPOCHS network subtitle sizing must match X-RAY.');
-assert(navState.includes("if (homeLink.textContent !== 'HOME') homeLink.textContent = 'HOME';"), 'EPOCHS shell normalization must not self-trigger the global MutationObserver through repeated textContent writes.');
+assert(!navState.includes('function normalizeEpochNetworkCards()'), 'Original EPOCHS network UI must not be replaced at runtime.');
+assert(!navState.includes('function normalizeEpochShell()'), 'Original EPOCHS shell must not be replaced at runtime.');
 assert(/function sync\(\) \{[\s\S]*?syncing = true;[\s\S]*?try \{[\s\S]*?\} finally \{\s*syncing = false;\s*\}/.test(navState), 'FORGE nav sync must always release its re-entrancy guard.');
+assert(navState.includes("typeof requestAnimationFrame === 'function'"), 'FORGE nav sync must schedule at a paint boundary.');
+assert(navState.includes("observer.observe(root, { subtree: true, childList: true });"), 'FORGE nav observer must stay child-list only.');
+assert(!navState.includes('queueMicrotask'), 'FORGE nav observer must not use a microtask feedback loop.');
+assert(!navState.includes("attributeFilter: ['class']"), 'FORGE nav observer must not watch global class churn.');
 
 const myEpochsHtml = fs.readFileSync('forge-my-epochs.html', 'utf8');
 assert(!/href="\/forge-epochs(?:[?#"])/.test(myEpochsHtml), 'MY EPOCHS must use the clean /forge/epochs route.');
@@ -105,4 +108,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · hard X-RAY selector parity · EPOCHS observer race guard');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · original EPOCHS UI preserved · paint-safe nav sync');
