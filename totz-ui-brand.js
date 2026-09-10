@@ -1,13 +1,17 @@
 (() => {
+  if (window.__TOTZ_UI_BRAND_ACTIVE__) return;
+  window.__TOTZ_UI_BRAND_ACTIVE__ = true;
+
   const pathname = (location.pathname || '/').replace(/\/+$/, '') || '/';
   const rawPage = (pathname.split('/').pop() || '').toLowerCase();
   const page = rawPage.replace(/\.html$/i, '');
   const isHome = pathname === '/' || page === 'index';
   const isStaking = page === 'staking';
   const isRewards = page === 'rewards';
-  const isAdmin = page === 'rewards-admin';
+  const isAdmin = page === 'rewards-admin' || page === 'admin';
   const isForge = pathname === '/forge' || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
-  const hasDock = isHome || isStaking || isRewards || isForge;
+  const hasDock = true;
+  const enableBrandTextRewrite = isHome || isStaking || isRewards || isAdmin || pathname === '/forge' || page === 'forge';
 
   const style = document.createElement('style');
   style.textContent = `
@@ -71,11 +75,11 @@
   function installTopAccent() {
     if (document.querySelector('.totz-top-accent')) return;
     const nav = document.querySelector('nav');
-    if (!nav) return;
     const accent = document.createElement('div');
     accent.className = 'totz-top-accent';
     accent.setAttribute('aria-hidden', 'true');
-    nav.insertAdjacentElement('afterend', accent);
+    if (nav) nav.insertAdjacentElement('afterend', accent);
+    else document.body.prepend(accent);
   }
 
   function installSectionDock() {
@@ -87,14 +91,14 @@
       <a href="/" class="${isHome ? 'active' : ''}" title="Home" aria-label="Home"><span class="dock-icon">🏠</span><span class="dock-label">HOME</span></a>
       <a href="/forge" class="${isForge ? 'active' : ''}" title="FORGE" aria-label="FORGE"><span class="dock-icon">⚒️</span><span class="dock-label">FORGE</span></a>
       <a href="/staking" class="${isStaking ? 'active' : ''}" title="Staking" aria-label="Staking"><span class="dock-icon">☁️</span><span class="dock-label">STAKING</span></a>
-      <a href="/rewards" class="${isRewards ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
+      <a href="/rewards" class="${isRewards || isAdmin ? 'active' : ''}" title="Rewards" aria-label="Rewards"><span class="dock-icon">🎟️</span><span class="dock-label">REWARDS</span></a>`;
     document.body.appendChild(dock);
   }
 
   function loadHomeEarnings() {
     if (!isHome || document.querySelector('script[data-home-earnings]')) return;
     const script = document.createElement('script');
-    script.src = 'home-earnings.js';
+    script.src = '/home-earnings.js';
     script.dataset.homeEarnings = '1';
     document.head.appendChild(script);
   }
@@ -164,18 +168,21 @@
   installTopAccent();
   installSectionDock();
   loadHomeEarnings();
-  rewrite(document.body);
+
+  if (enableBrandTextRewrite) rewrite(document.body);
 
   if (isStaking) {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(silentStakingConnect, 0), { once:true });
     else setTimeout(silentStakingConnect, 0);
   }
 
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === 'characterData') rewriteTextNode(mutation.target);
-      for (const node of mutation.addedNodes || []) rewrite(node);
-    }
-  });
-  observer.observe(document.body, { childList:true, subtree:true, characterData:true });
+  if (enableBrandTextRewrite) {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') rewriteTextNode(mutation.target);
+        for (const node of mutation.addedNodes || []) rewrite(node);
+      }
+    });
+    observer.observe(document.body, { childList:true, subtree:true, characterData:true });
+  }
 })();
