@@ -16,6 +16,7 @@
   const style = document.createElement('style');
   style.textContent = `
     .totz-top-accent{position:relative;left:50%;transform:translateX(-50%);width:100vw;height:6px;margin:0;background:linear-gradient(90deg,var(--coral,#FF715F) 0 26%,var(--lime,#CBDB2A) 26% 50%,var(--sky2,var(--sky-deep,#8ED2E2)) 50% 74%,var(--ink,#2B2140) 74% 100%);box-shadow:0 2px 0 rgba(43,33,64,.06);z-index:3}
+    .totz-top-accent.totz-top-accent-fixed{position:fixed;top:0;left:0;transform:none;z-index:9999}
     ${isRewards ? `
       .prize-media{aspect-ratio:1/1!important}
       .prize-media img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important}
@@ -79,7 +80,10 @@
     accent.className = 'totz-top-accent';
     accent.setAttribute('aria-hidden', 'true');
     if (nav) nav.insertAdjacentElement('afterend', accent);
-    else document.body.prepend(accent);
+    else {
+      accent.classList.add('totz-top-accent-fixed');
+      document.body.appendChild(accent);
+    }
   }
 
   function installSectionDock() {
@@ -164,7 +168,7 @@
     nodes.forEach(rewriteTextNode);
   }
 
-  document.title = (document.title || '').replace(/\s*—\s*/g, ' | ');
+  if (enableBrandTextRewrite) document.title = (document.title || '').replace(/\s*—\s*/g, ' | ');
   installTopAccent();
   installSectionDock();
   loadHomeEarnings();
