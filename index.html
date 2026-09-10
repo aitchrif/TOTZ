@@ -3,223 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TOTZ — Stake. Earn. Play.</title>
+<meta name="theme-color" content="#FFF3DC">
+<title>TOTZ | The Official Ecosystem</title>
+<meta name="description" content="The official home of the TOTZ ecosystem. Collection, FORGE, staking, rewards and community.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --cream:#FFF3DC;
-    --cream-2:#FFEAC2;
-    --cloud:#FFFFFF;
-    --sky:#BFE6EE;
-    --sky-deep:#8ED2E2;
-    --lime:#CBDB2A;
-    --ink:#2B2140;
-    --ink-soft:#5B5270;
-    --coral:#FF7A66;
-    --coral-deep:#F0533D;
-    --shadow: 0 14px 32px rgba(43,33,64,0.12);
-  }
-  *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
-  body{
-    margin:0;
-    background:var(--cream);
-    color:var(--ink);
-    font-family:'Nunito',sans-serif;
-    overflow-x:hidden;
-  }
-  h1,h2,h3,.display{
-    font-family:'Baloo 2',cursive;
-    margin:0;
-  }
-  a{color:inherit;text-decoration:none;}
-
-  .cloud-field{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
-  .cloud-field img{position:absolute;opacity:0.8;filter:brightness(0.75) contrast(1.4);}
-  .cloud-field .puff1{width:110px;top:8%;left:-10%;animation:drift 46s linear infinite;}
-  .cloud-field .puff2{width:70px;top:18%;left:-15%;animation:drift 32s linear infinite;animation-delay:-8s;}
-  .cloud-field .puff3{width:150px;top:55%;left:-20%;animation:drift 60s linear infinite;animation-delay:-20s;}
-  .cloud-field .puff4{width:90px;top:75%;left:-12%;animation:drift 38s linear infinite;animation-delay:-14s;}
-  .cloud-field .puff5{width:60px;top:35%;left:-8%;animation:drift 26s linear infinite;animation-delay:-4s;}
-  @keyframes drift{from{transform:translateX(0)}to{transform:translateX(130vw)}}
-  @media (prefers-reduced-motion:reduce){.cloud-field img{animation:none!important}}
-
-  .wrap{position:relative;z-index:1;}
-  nav{display:flex;align-items:center;justify-content:space-between;padding:22px 6vw;}
-  .logo{display:flex;align-items:center;gap:10px;font-size:1.6rem;font-weight:800;letter-spacing:.5px;}
-  .logo .dot{width:14px;height:14px;border-radius:50%;background:var(--coral);display:inline-block;}
-  .nav-x{display:flex;align-items:center;gap:8px;background:var(--ink);color:var(--cream);padding:10px 18px;border-radius:999px;font-weight:700;font-size:.9rem;box-shadow:var(--shadow);transition:transform .18s ease;}
-  .nav-x:hover{transform:translateY(-2px) rotate(-1deg)}
-  .nav-x svg{width:16px;height:16px}
-
-  header.hero{display:flex;align-items:center;justify-content:center;text-align:center;padding:60px 6vw 90px;max-width:1280px;margin:0 auto;}
-  .hero-copy{max-width:820px}
-  .hero-ctas{justify-content:center}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--lime);color:var(--ink);font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:7px 14px;border-radius:999px;margin-bottom:22px;}
-  .hero-copy h1{font-size:clamp(2.2rem,4.2vw,3.4rem);line-height:1.1;font-weight:800;color:var(--ink);}
-  .hero-copy h1 .accent{color:var(--coral-deep)}
-  .hero-copy p{margin-top:22px;font-size:1.15rem;line-height:1.6;color:var(--ink-soft);font-weight:600;}
-  .hero-ctas{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;}
-  .btn-primary,.btn-ghost{font-family:'Baloo 2',cursive;font-weight:700;font-size:1.05rem;padding:15px 28px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;transition:transform .18s ease,box-shadow .18s ease;}
-  .btn-primary{background:var(--coral);color:var(--cream);box-shadow:0 10px 0 var(--coral-deep);}
-  .btn-primary:hover{transform:translateY(-3px);box-shadow:0 13px 0 var(--coral-deep)}
-  .btn-primary:active{transform:translateY(3px);box-shadow:0 5px 0 var(--coral-deep)}
-  .btn-ghost{background:transparent;color:var(--ink);border:2.5px solid var(--ink);}
-  .btn-ghost:hover{background:var(--ink);color:var(--cream)}
-
-  section{max-width:1100px;margin:0 auto;padding:70px 6vw;}
-  .section-head{text-align:center;max-width:620px;margin:0 auto 48px;}
-  .section-head .eyebrow{background:var(--sky)}
-  .section-head h2{font-size:clamp(2rem,4vw,2.8rem);font-weight:800;}
-  .section-head p{margin-top:14px;color:var(--ink-soft);font-weight:600;font-size:1.05rem;}
-
-  .totz-marquee{position:relative;z-index:2;overflow:hidden;width:100%;margin:0 0 18px;padding:12px 0;background:var(--ink);color:#fff;border-top:2px solid rgba(255,255,255,.08);border-bottom:2px solid rgba(255,255,255,.08);}
-  .totz-marquee::before,.totz-marquee::after{content:"";position:absolute;top:0;bottom:0;width:90px;z-index:2;pointer-events:none;}
-  .totz-marquee::before{left:0;background:linear-gradient(90deg,var(--ink),transparent)}
-  .totz-marquee::after{right:0;background:linear-gradient(-90deg,var(--ink),transparent)}
-  .marquee-track{width:max-content;display:flex;align-items:center;gap:12px;animation:totzTicker 34s linear infinite;will-change:transform;}
-  .marquee-group{display:flex;align-items:center;gap:12px;padding-right:12px}
-  .marquee-pill{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 14px;border-radius:999px;white-space:nowrap;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.13);font-weight:900;font-size:.78rem;letter-spacing:.045em;}
-  .marquee-pill b{color:var(--lime)}
-  .marquee-dot{width:8px;height:8px;border-radius:50%;background:var(--coral);flex:none}
-  @keyframes totzTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-  .staking-home{padding-top:56px;padding-bottom:58px}
-  .staking-shell{background:rgba(255,255,255,.93);border:2.5px solid var(--sky-deep);border-radius:30px;padding:32px;box-shadow:var(--shadow);}
-  .staking-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px;}
-  .staking-intro .section-head{text-align:left;margin:0;max-width:650px}
-  .staking-intro .section-head p{margin-bottom:0}
-  .staking-mini-rate{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--lime);border-radius:999px;padding:9px 13px;font-weight:900;font-size:.78rem;}
-  .staking-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:22px;}
-  .staking-step{position:relative;overflow:hidden;min-height:175px;padding:20px;border-radius:21px;background:var(--cream);border:1.5px solid rgba(43,33,64,.08);}
-  .staking-step .step-num{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:11px;background:var(--ink);color:#fff;font-family:'Baloo 2',cursive;font-weight:800;margin-bottom:12px;}
-  .staking-step h3{font-size:1.25rem;line-height:1.1;margin-bottom:7px}
-  .staking-step p{margin:0;color:var(--ink-soft);font-weight:700;line-height:1.5;font-size:.9rem}
-  .staking-step strong{color:var(--ink)}
-  .staking-actions{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:24px;}
-  .staking-note{margin:18px auto 0;max-width:760px;text-align:center;color:var(--ink-soft);font-size:.82rem;font-weight:800;line-height:1.5;}
-
-  footer{text-align:center;padding:50px 6vw 60px;color:var(--ink-soft);font-weight:700;font-size:.9rem;}
-  footer .foot-x{display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;background:var(--ink);color:var(--cream);padding:10px 20px;border-radius:999px;}
-  footer .foot-x svg{width:14px;height:14px}
-
-  @media (prefers-reduced-motion:reduce){.marquee-track{animation:none}}
-  @media (max-width:860px){
-    header.hero{flex-direction:column;text-align:center;padding-top:10px}
-    .hero-copy{max-width:100%}
-    .hero-ctas{justify-content:center}
-    .staking-intro{flex-direction:column;align-items:flex-start}
-    .staking-grid{grid-template-columns:1fr}
-    .staking-shell{padding:22px}
-  }
+:root{
+  --cream:#FFF3DC;
+  --cream-2:#FFEAC2;
+  --white:#FFFFFF;
+  --sky:#BFE6EE;
+  --sky-deep:#8ED2E2;
+  --lime:#CBDB2A;
+  --ink:#2B2140;
+  --ink-soft:#5B5270;
+  --coral:#FF7A66;
+  --coral-deep:#F0533D;
+  --shadow:0 16px 36px rgba(43,33,64,.13);
+  --shadow-soft:0 10px 24px rgba(43,33,64,.09);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button,a{-webkit-tap-highlight-color:transparent}
+h1,h2,h3,.display{font-family:'Baloo 2',cursive;margin:0}
+.wrap{position:relative;z-index:1}
+.cloud-field{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.cloud-field img{position:absolute;opacity:.18;filter:brightness(.9) contrast(1.2)}
+.cloud-field .puff1{width:120px;top:7%;left:-12%;animation:drift 45s linear infinite}
+.cloud-field .puff2{width:75px;top:24%;left:-14%;animation:drift 34s linear infinite;animation-delay:-9s}
+.cloud-field .puff3{width:160px;top:58%;left:-20%;animation:drift 62s linear infinite;animation-delay:-22s}
+.cloud-field .puff4{width:90px;top:80%;left:-12%;animation:drift 40s linear infinite;animation-delay:-15s}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(132vw)}}
+.site-nav{max-width:1240px;margin:0 auto;padding:22px 5vw;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo{display:flex;align-items:center;gap:10px;font-size:1.65rem;font-weight:900;letter-spacing:.02em}
+.logo-dot{width:14px;height:14px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 5px rgba(255,122,102,.14)}
+.nav-links{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.nav-link{padding:9px 13px;border-radius:999px;font-weight:900;font-size:.88rem;color:var(--ink-soft);transition:.18s ease}
+.nav-link:hover{background:rgba(255,255,255,.75);color:var(--ink)}
+.nav-x{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:var(--cream);padding:10px 16px;border-radius:999px;font-weight:900;font-size:.87rem;box-shadow:var(--shadow-soft);transition:.18s ease}
+.nav-x:hover{transform:translateY(-2px)}
+.nav-x svg{width:15px;height:15px}
+.hero{max-width:1180px;margin:0 auto;padding:72px 5vw 82px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(290px,.9fr);gap:46px;align-items:center}
+.hero-copy{max-width:720px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--lime);padding:8px 14px;border-radius:999px;font-weight:900;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;margin-bottom:22px}
+.hero h1{font-size:clamp(3rem,7vw,6.2rem);line-height:.92;letter-spacing:-.045em;font-weight:800}
+.hero h1 .accent{color:var(--coral-deep)}
+.hero p{max-width:690px;margin:24px 0 0;color:var(--ink-soft);font-size:1.15rem;line-height:1.65;font-weight:700}
+.hero-actions{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:32px}
+.btn-primary,.btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:14px 24px;font-family:'Baloo 2',cursive;font-size:1rem;font-weight:800;transition:.18s ease}
+.btn-primary{background:var(--coral);color:#fff;box-shadow:0 8px 0 var(--coral-deep)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 0 var(--coral-deep)}
+.btn-secondary{background:rgba(255,255,255,.72);border:2px solid var(--ink);color:var(--ink)}
+.btn-secondary:hover{background:var(--ink);color:#fff}
+.hero-card{background:rgba(255,255,255,.88);border:2px solid rgba(43,33,64,.08);border-radius:32px;padding:28px;box-shadow:var(--shadow);transform:rotate(2deg)}
+.hero-card-inner{background:linear-gradient(150deg,var(--sky),#fff 58%,var(--cream-2));border-radius:24px;padding:28px;min-height:330px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.hero-logo{width:min(210px,65%);align-self:center;filter:drop-shadow(0 12px 22px rgba(43,33,64,.14))}
+.hero-stamp{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;background:var(--ink);color:#fff;padding:9px 13px;border-radius:999px;font-weight:900;font-size:.76rem;letter-spacing:.04em}
+.hero-card-copy h3{font-size:1.55rem;line-height:1.05}
+.hero-card-copy p{font-size:.9rem;line-height:1.5;margin:8px 0 0;color:var(--ink-soft)}
+section{max-width:1180px;margin:0 auto;padding:84px 5vw}
+.section-head{max-width:700px;margin-bottom:34px}
+.section-head.center{text-align:center;margin-left:auto;margin-right:auto}
+.section-head .eyebrow{background:var(--sky);margin-bottom:14px}
+.section-head h2{font-size:clamp(2.2rem,5vw,4rem);line-height:1;font-weight:800;letter-spacing:-.03em}
+.section-head p{color:var(--ink-soft);font-size:1.04rem;line-height:1.6;font-weight:700;margin:14px 0 0}
+.ecosystem-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.eco-card{position:relative;overflow:hidden;border-radius:28px;padding:26px;min-height:270px;background:rgba(255,255,255,.84);border:2px solid rgba(43,33,64,.08);box-shadow:var(--shadow-soft);display:flex;flex-direction:column;justify-content:space-between;transition:.2s ease}
+.eco-card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+.eco-card.featured{grid-column:span 2;min-height:315px;background:linear-gradient(135deg,var(--ink),#403558);color:#fff;border-color:transparent}
+.eco-card.featured p{color:rgba(255,255,255,.72)}
+.eco-card.featured .card-tag{background:var(--lime);color:var(--ink)}
+.eco-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.card-tag{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;background:var(--cream-2);border-radius:999px;font-size:.72rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+.card-arrow{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(43,33,64,.08);font-size:1.2rem;font-weight:900}
+.featured .card-arrow{background:rgba(255,255,255,.11)}
+.eco-card h3{font-size:clamp(1.8rem,3vw,2.5rem);line-height:1;margin-top:44px}
+.eco-card p{margin:10px 0 0;color:var(--ink-soft);font-weight:700;line-height:1.55;max-width:700px}
+.card-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:20px}
+.meta-pill{font-size:.75rem;font-weight:900;padding:7px 10px;border-radius:999px;background:rgba(43,33,64,.07)}
+.featured .meta-pill{background:rgba(255,255,255,.1)}
+.community-shell{background:var(--sky);border:2px solid var(--sky-deep);border-radius:34px;padding:42px;display:grid;grid-template-columns:1.15fr .85fr;gap:30px;align-items:center;box-shadow:var(--shadow-soft)}
+.community-shell h2{font-size:clamp(2.2rem,5vw,4.1rem);line-height:.98}
+.community-shell p{color:var(--ink-soft);font-weight:700;line-height:1.65;max-width:620px}
+.community-actions{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+.footer{max-width:1180px;margin:0 auto;padding:34px 5vw 54px;border-top:1px solid rgba(43,33,64,.1);display:flex;align-items:center;justify-content:space-between;gap:20px;color:var(--ink-soft);font-weight:800;font-size:.86rem}
+.footer-links{display:flex;gap:12px;flex-wrap:wrap}
+.footer a:hover{color:var(--ink)}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:42px;text-align:center}.hero-copy{margin:0 auto}.hero p{margin-left:auto;margin-right:auto}.hero-actions{justify-content:center}.hero-card{max-width:540px;margin:0 auto;transform:none}.community-shell{grid-template-columns:1fr;text-align:center}.community-actions{justify-content:center}}
+@media(max-width:700px){.site-nav{padding-top:16px}.nav-link{display:none}.hero{padding-bottom:54px}.hero h1{font-size:clamp(2.8rem,16vw,4.5rem)}section{padding-top:64px;padding-bottom:64px}.ecosystem-grid{grid-template-columns:1fr}.eco-card.featured{grid-column:auto}.community-shell{padding:28px 20px}.footer{flex-direction:column;text-align:center}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.cloud-field img{animation:none!important}}
 </style>
 </head>
 <body>
-
-<div class="cloud-field">
+<div class="cloud-field" aria-hidden="true">
   <img class="puff1" src="assets/totz-logo.png" alt="">
   <img class="puff2" src="assets/totz-logo.png" alt="">
   <img class="puff3" src="assets/totz-logo.png" alt="">
   <img class="puff4" src="assets/totz-logo.png" alt="">
-  <img class="puff5" src="assets/totz-logo.png" alt="">
 </div>
-
 <div class="wrap">
-  <nav>
-    <a class="logo" href="index.html"><span class="dot"></span>TOTZ</a>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-      <a class="btn-ghost" style="padding:9px 16px;font-size:.9rem" href="staking.html">Stake TOTZ</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a class="logo" href="/"><span class="logo-dot"></span>TOTZ</a>
+    <div class="nav-links">
+      <a class="nav-link" href="#ecosystem">Ecosystem</a>
+      <a class="nav-link" href="/forge">FORGE</a>
+      <a class="nav-link" href="staking.html">Staking</a>
+      <a class="nav-link" href="rewards.html">Rewards</a>
       <a class="nav-x" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-6.9L4.5 22H1.3l8.1-9.3L1 2h7.2l5 6.3L18.9 2Zm-1.2 18h1.7L7.4 4H5.6l12.1 16Z"/></svg>
-        Follow
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-6.9L4.5 22H1.3l8.1-9.3L1 2h7.2l5 6.3L18.9 2Zm-1.2 18h1.7L7.4 4H5.6l12.1 16Z"/></svg>
+        Community
       </a>
     </div>
   </nav>
-
   <header class="hero">
     <div class="hero-copy">
-      <span class="eyebrow">☁️ THE TOTZ ARE OUT</span>
-      <h1>Naptime's over. <span class="accent">TOTZ</span> is awake.</h1>
-      <p>Cloud-born characters, weird little traits, and a community that keeps moving. Hold your TOTZ, soft stake them without transferring the NFT, earn $TOTZ, and use it across rewards.</p>
-      <div class="hero-ctas">
-        <a class="btn-primary" href="staking.html">Stake TOTZ →</a>
-        <a class="btn-ghost" href="rewards.html">Explore Rewards</a>
+      <span class="eyebrow">☁️ THE OFFICIAL TOTZ ECOSYSTEM</span>
+      <h1>More than a PFP.<br><span class="accent">TOTZ keeps moving.</span></h1>
+      <p>TOTZ is a growing holder ecosystem built around the collection, on-chain tools, soft staking, rewards and community experiences. Everything connects through one official home.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="/forge">Enter TOTZ FORGE →</a>
+        <a class="btn-secondary" href="#ecosystem">Explore Ecosystem</a>
       </div>
     </div>
-  </header>
-
-  <div class="totz-marquee" aria-label="TOTZ art and ecosystem highlights">
-    <div class="marquee-track">
-      <div class="marquee-group">
-        <span class="marquee-pill"><span class="marquee-dot"></span><b>TOTZ ART</b> CLOUD-BORN CHARACTERS</span>
-        <span class="marquee-pill">🎨 HAND-DRAWN TRAITS</span>
-        <span class="marquee-pill">☁️ SOFT STAKING</span>
-        <span class="marquee-pill">💚 NFT STAYS IN YOUR WALLET</span>
-        <span class="marquee-pill">⚡ 1 $TOTZ / DAY BASE</span>
-        <span class="marquee-pill">📈 LOYALTY BOOSTS</span>
-        <span class="marquee-pill">🎟️ REWARDS & RAFFLES</span>
-        <span class="marquee-pill">🍼 MADE FOR NAPTIME</span>
-      </div>
-      <div class="marquee-group" aria-hidden="true">
-        <span class="marquee-pill"><span class="marquee-dot"></span><b>TOTZ ART</b> CLOUD-BORN CHARACTERS</span>
-        <span class="marquee-pill">🎨 HAND-DRAWN TRAITS</span>
-        <span class="marquee-pill">☁️ SOFT STAKING</span>
-        <span class="marquee-pill">💚 NFT STAYS IN YOUR WALLET</span>
-        <span class="marquee-pill">⚡ 1 $TOTZ / DAY BASE</span>
-        <span class="marquee-pill">📈 LOYALTY BOOSTS</span>
-        <span class="marquee-pill">🎟️ REWARDS & RAFFLES</span>
-        <span class="marquee-pill">🍼 MADE FOR NAPTIME</span>
-      </div>
-    </div>
-  </div>
-
-  <section class="staking-home" id="staking-info">
-    <div class="staking-shell">
-      <div class="staking-intro">
-        <div class="section-head">
-          <span class="eyebrow">☁️ TOTZ SOFT STAKING</span>
-          <h2>Stake. Earn. Use.</h2>
-          <p>A simple holder loop built around your TOTZ. No NFT transfer, no custody — your NFT stays where it belongs.</p>
+    <aside class="hero-card" aria-label="TOTZ ecosystem card">
+      <div class="hero-card-inner">
+        <span class="hero-stamp">LIVE ECOSYSTEM</span>
+        <img class="hero-logo" src="assets/totz-logo.png" alt="TOTZ">
+        <div class="hero-card-copy">
+          <h3>Built around holders.</h3>
+          <p>One collection. Multiple ways to participate. New chapters plug into the same TOTZ world.</p>
         </div>
-        <div class="staking-mini-rate">⚡ 1 $TOTZ / DAY BASE</div>
       </div>
-
-      <div class="staking-grid">
-        <article class="staking-step">
-          <span class="step-num">1</span>
-          <h3>Soft stake</h3>
-          <p>Choose the TOTZ you want to stake. <strong>Nothing is transferred</strong> and the NFT stays in your wallet.</p>
-        </article>
-        <article class="staking-step">
-          <span class="step-num">2</span>
-          <h3>Earn $TOTZ</h3>
-          <p>Each staked TOTZ starts at <strong>1 $TOTZ per day</strong>. Longer continuous streaks can earn a little more.</p>
-        </article>
-        <article class="staking-step">
-          <span class="step-num">3</span>
-          <h3>Use rewards</h3>
-          <p>Your earned $TOTZ stays with your wallet and can be used across <strong>raffles, perks and future holder rewards</strong>.</p>
-        </article>
+    </aside>
+  </header>
+  <section id="ecosystem">
+    <div class="section-head center">
+      <span class="eyebrow">TOTZ ECOSYSTEM</span>
+      <h2>Everything TOTZ, in one place.</h2>
+      <p>The homepage is the front door. Each product keeps its own focused experience while the ecosystem stays connected.</p>
+    </div>
+    <div class="ecosystem-grid">
+      <a class="eco-card featured" href="/forge">
+        <div class="eco-top"><span class="card-tag">⚙️ Core Tool</span><span class="card-arrow">↗</span></div>
+        <div><h3>TOTZ FORGE</h3><p>Explore the production FORGE: holder X-RAY, epochs and wallet-linked ecosystem tooling on Robinhood Chain.</p><div class="card-meta"><span class="meta-pill">X-RAY</span><span class="meta-pill">EPOCHS</span><span class="meta-pill">MY EPOCHS</span></div></div>
+      </a>
+      <a class="eco-card" href="staking.html">
+        <div class="eco-top"><span class="card-tag">☁️ Holder Utility</span><span class="card-arrow">↗</span></div>
+        <div><h3>Soft Staking</h3><p>Stake your TOTZ without transferring custody. Keep the NFT in your wallet while participating in the holder reward loop.</p><div class="card-meta"><span class="meta-pill">NON-CUSTODIAL</span></div></div>
+      </a>
+      <a class="eco-card" href="rewards.html">
+        <div class="eco-top"><span class="card-tag">🎟️ Rewards</span><span class="card-arrow">↗</span></div>
+        <div><h3>Rewards</h3><p>A dedicated home for holder perks, reward mechanics and community activations tied to the TOTZ ecosystem.</p><div class="card-meta"><span class="meta-pill">HOLDER PERKS</span></div></div>
+      </a>
+      <a class="eco-card" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">
+        <div class="eco-top"><span class="card-tag">💬 Community</span><span class="card-arrow">↗</span></div>
+        <div><h3>Stay close.</h3><p>Follow official TOTZ updates, product drops, ecosystem changes and community announcements from the source.</p><div class="card-meta"><span class="meta-pill">@WeAreTOTZ</span></div></div>
+      </a>
+      <div class="eco-card">
+        <div class="eco-top"><span class="card-tag">🧩 Growing World</span><span class="card-arrow">+</span></div>
+        <div><h3>More chapters ahead.</h3><p>TOTZ is designed to expand without turning every new product into a separate identity. New experiences stay part of one recognizable ecosystem.</p><div class="card-meta"><span class="meta-pill">BUILT TO EXPAND</span></div></div>
       </div>
-
-      <div class="staking-actions">
-        <a class="btn-primary" href="staking.html">Start Staking →</a>
-        <a class="btn-ghost" href="rewards.html">Open Rewards</a>
-      </div>
-      <p class="staking-note">Unstaking keeps the $TOTZ already earned. Restaking starts a new loyalty streak for that NFT.</p>
     </div>
   </section>
-
-  <footer>
-    <a class="foot-x" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-6.9L4.5 22H1.3l8.1-9.3L1 2h7.2l5 6.3L18.9 2Zm-1.2 18h1.7L7.4 4H5.6l12.1 16Z"/></svg>
-      @WeAreTOTZ
-    </a>
-    <div>© 2026 TOTZ. Made for naptime.</div>
+  <section>
+    <div class="community-shell">
+      <div><span class="eyebrow">COMMUNITY FIRST</span><h2>The world grows with the holders.</h2><p>Collection, utility and future releases all lead back to the same thing: making TOTZ more useful, more connected and more fun to hold.</p></div>
+      <div class="community-actions"><a class="btn-primary" href="/forge">Open FORGE →</a><a class="btn-secondary" href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">Follow on X</a></div>
+    </div>
+  </section>
+  <footer class="footer">
+    <div>© 2026 TOTZ. Official ecosystem home.</div>
+    <div class="footer-links"><a href="/forge">FORGE</a><a href="staking.html">Staking</a><a href="rewards.html">Rewards</a><a href="https://x.com/WeAreTOTZ" target="_blank" rel="noopener">X / Twitter</a></div>
   </footer>
 </div>
-
+<script data-home-art-slider></script>
 <script src="totz-ui-brand.js"></script>
 </body>
 </html>
