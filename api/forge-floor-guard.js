@@ -1,3 +1,4 @@
+// Public FLOOR GUARD proxy. Marketplace credentials and scoring stay in the persistent data broker.
 const FLOOR_GUARD_DATA = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-floor-guard-data';
 
 function safeSlug(value) {
