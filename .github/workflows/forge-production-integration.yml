@@ -7,9 +7,10 @@ on:
       - 'forge*'
       - 'artifacts/ForgeMerkleClaim.json'
       - 'api/forge-holders.js'
+      - 'api/forge-floor-guard.js'
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
-      - 'tests/forge-tools-integration.mjs'
+      - 'tests/forge-floor-guard-integration.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
 
@@ -27,5 +28,5 @@ jobs:
           node-version: '22'
       - name: Verify locked Mainnet direct-claim integration
         run: node tests/forge-production-integration.mjs
-      - name: Verify live GTD CHECK and WL CLEANER tools
-        run: node tests/forge-tools-integration.mjs
+      - name: Verify FLOOR GUARD read-only market intelligence
+        run: node tests/forge-floor-guard-integration.mjs
