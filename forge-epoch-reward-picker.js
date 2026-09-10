@@ -22,6 +22,7 @@
   });
 
   const STOCKS_ENDPOINT = '/api/forge-stock-tokens';
+  const STOCK_RESULT_LIMIT = 12;
   const $ = id => document.getElementById(id);
   const isAddress = value => /^0x[a-fA-F0-9]{40}$/.test(String(value || ''));
   const lower = value => String(value || '').toLowerCase();
@@ -38,32 +39,32 @@
       .reward-quick-picks-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:8px}
       .reward-quick-picks-head b{font-family:'Baloo 2',cursive;font-size:.9rem}
       .reward-quick-picks-head span{color:var(--soft);font-size:.58rem;font-weight:900}
-      .reward-quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-      .reward-quick-card{appearance:none;border:2px solid rgba(43,33,64,.08);background:var(--cream);border-radius:16px;padding:11px;text-align:left;color:var(--ink);cursor:pointer;min-width:0;transition:.15s}
+      .reward-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:stretch}
+      .reward-quick-card{appearance:none;border:2px solid rgba(43,33,64,.08);background:var(--cream);border-radius:18px;padding:12px;text-align:left;color:var(--ink);cursor:pointer;min-width:0;min-height:140px;display:flex;flex-direction:column;justify-content:flex-start;gap:6px;transition:.15s;overflow:hidden}
       .reward-quick-card:hover{transform:translateY(-1px);border-color:var(--sky2)}
       .reward-quick-card.active{background:#fff;border-color:var(--ink);box-shadow:0 4px 0 rgba(43,33,64,.08)}
-      .reward-quick-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
-      .reward-quick-icon{font-size:1.05rem;font-weight:900}
-      .reward-quick-badge{border-radius:999px;padding:3px 6px;background:var(--lime);font-size:.46rem;font-weight:900;white-space:nowrap}
+      .reward-quick-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;min-width:0}
+      .reward-quick-icon{font-size:1rem;font-weight:900;line-height:1}
+      .reward-quick-badge{border-radius:999px;padding:3px 6px;background:var(--lime);font-size:.42rem;line-height:1;font-weight:900;white-space:nowrap;flex-shrink:0}
       .reward-quick-card[data-kind="other"] .reward-quick-badge{background:var(--sky)}
       .reward-quick-card[data-kind="stock"] .reward-quick-badge{background:#F4E8FF}
-      .reward-quick-card strong{display:block;font-family:'Baloo 2',cursive;font-size:.83rem;margin-top:5px}
-      .reward-quick-card small{display:block;color:var(--soft);font-size:.55rem;font-weight:800;line-height:1.35;margin-top:2px}
-      .reward-stock-picker{grid-column:1/-1;margin-top:8px;border:1px solid rgba(43,33,64,.1);background:#fff;border-radius:16px;padding:11px}
+      .reward-quick-card strong{display:block;font-family:'Baloo 2',cursive;font-size:.82rem;margin-top:2px;line-height:1.15}
+      .reward-quick-card small{display:block;color:var(--soft);font-size:.54rem;font-weight:800;line-height:1.35;margin-top:0}
+      .reward-stock-picker{grid-column:1/-1;margin-top:10px;border:1px solid rgba(43,33,64,.1);background:#fff;border-radius:16px;padding:11px}
       .reward-stock-picker[hidden]{display:none!important}
       .reward-stock-title{display:flex;justify-content:space-between;gap:8px;align-items:center}
       .reward-stock-title b{font-family:'Baloo 2',cursive;font-size:.82rem}
       .reward-stock-title a{font-size:.54rem;font-weight:900;color:var(--soft);text-decoration:underline}
       .reward-stock-note{margin:4px 0 8px;color:var(--soft);font-size:.57rem;font-weight:800;line-height:1.4}
       .reward-stock-search{width:100%;border:2px solid var(--sky2);border-radius:13px;background:var(--cream);padding:9px 11px;color:var(--ink);font-weight:800;outline:0}
-      .reward-stock-results{display:grid;gap:6px;margin-top:8px;max-height:240px;overflow:auto}
+      .reward-stock-results{display:grid;gap:6px;margin-top:8px;max-height:220px;overflow:auto}
       .reward-stock-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cream);border-radius:12px;padding:8px 9px}
       .reward-stock-item b{display:block;font-size:.66rem}
       .reward-stock-item span{display:block;color:var(--soft);font-size:.52rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
       .reward-stock-use{border:0;border-radius:999px;background:var(--ink);color:#fff;padding:7px 9px;font-size:.54rem;font-weight:900;cursor:pointer;white-space:nowrap}
       .reward-stock-warning{margin-top:8px;background:#FFF0C9;border-radius:11px;padding:8px 9px;color:#765616;font-size:.54rem;font-weight:900;line-height:1.4}
-      @media(max-width:820px){.reward-quick-grid{grid-template-columns:1fr 1fr}}
-      @media(max-width:520px){.reward-quick-grid{grid-template-columns:1fr}.reward-quick-picks-head{align-items:flex-start;flex-direction:column}.reward-stock-item{align-items:flex-start}.reward-stock-item span{max-width:210px}}
+      @media(max-width:820px){.reward-quick-grid{grid-template-columns:1fr 1fr}.reward-quick-card{min-height:126px}}
+      @media(max-width:520px){.reward-quick-grid{grid-template-columns:1fr}.reward-quick-card{min-height:0}.reward-quick-picks-head{align-items:flex-start;flex-direction:column}.reward-stock-item{align-items:flex-start}.reward-stock-item span{max-width:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -74,17 +75,35 @@
     });
   }
 
+  function hideStockPicker({ clearSearch = false } = {}) {
+    const picker = $('rewardStockPicker');
+    if (!picker) return;
+    picker.hidden = true;
+    if (clearSearch) {
+      const search = $('rewardStockSearch');
+      if (search) search.value = '';
+    }
+  }
+
   function syncActiveFromInput() {
     const value = lower($('rewardTokenInput')?.value);
-    if (value === lower(PRESETS.usdG.address)) return setActive('usdg');
-    if (value === lower(PRESETS.weth.address)) return setActive('weth');
+    if (value === lower(PRESETS.usdG.address)) {
+      hideStockPicker();
+      return setActive('usdg');
+    }
+    if (value === lower(PRESETS.weth.address)) {
+      hideStockPicker();
+      return setActive('weth');
+    }
     if (isAddress(value)) return setActive('other');
+    hideStockPicker();
     setActive('');
   }
 
   function applyAddress(address, kind) {
     const input = $('rewardTokenInput');
     if (!input || !isAddress(address)) return;
+    if (kind !== 'stock') hideStockPicker();
     input.value = address;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     setActive(kind);
@@ -93,8 +112,7 @@
 
   function chooseCustom() {
     setActive('other');
-    const stock = $('rewardStockPicker');
-    if (stock) stock.hidden = true;
+    hideStockPicker();
     const input = $('rewardTokenInput');
     input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => input?.focus(), 250);
@@ -125,7 +143,7 @@
       box.innerHTML = `<div class="reward-stock-item"><div><b>${emptyMessage}</b><span>Only Robinhood Chain · chain ID 4663 assets are shown.</span></div></div>`;
       return;
     }
-    box.innerHTML = list.slice(0, 40).map(asset => `
+    box.innerHTML = list.slice(0, STOCK_RESULT_LIMIT).map(asset => `
       <div class="reward-stock-item">
         <div><b>${String(asset.symbol || '').replace(/[<>]/g, '')}</b><span>${String(asset.name || 'Robinhood Stock Token').replace(/[<>]/g, '')}</span></div>
         <button class="reward-stock-use" type="button" data-stock-address="${asset.address}" data-stock-symbol="${String(asset.symbol || '').replace(/[^a-zA-Z0-9._-]/g, '')}">USE TOKEN</button>
@@ -133,8 +151,7 @@
     box.querySelectorAll('[data-stock-address]').forEach(button => {
       button.addEventListener('click', () => {
         applyAddress(button.dataset.stockAddress, 'stock');
-        const picker = $('rewardStockPicker');
-        if (picker) picker.hidden = true;
+        hideStockPicker();
       });
     });
   }
@@ -142,7 +159,7 @@
   function filterStocks() {
     const q = lower($('rewardStockSearch')?.value).trim();
     const assets = stockAssets || [];
-    if (!q) return renderStockResults(assets.slice(0, 20), assets.length ? '' : 'Search by ticker or company name.');
+    if (!q) return renderStockResults(assets.slice(0, STOCK_RESULT_LIMIT), assets.length ? '' : 'Search by ticker or company name.');
     const matches = assets.filter(asset => lower(`${asset.symbol} ${asset.name}`).includes(q));
     renderStockResults(matches, 'No official Robinhood Stock Token matched that search.');
   }
