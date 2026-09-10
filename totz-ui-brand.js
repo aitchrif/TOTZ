@@ -9,9 +9,10 @@
   const isStaking = page === 'staking';
   const isRewards = page === 'rewards';
   const isAdmin = page === 'rewards-admin' || page === 'admin';
-  const isForge = pathname === '/forge' || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
+  const isForgeRoot = pathname === '/forge' || page === 'forge';
+  const isForge = isForgeRoot || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
   const hasDock = true;
-  const enableBrandTextRewrite = isHome || isStaking || isRewards || isAdmin || pathname === '/forge' || page === 'forge';
+  const enableBrandTextRewrite = isHome || isStaking || isRewards || isAdmin || isForgeRoot;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -107,6 +108,15 @@
     document.head.appendChild(script);
   }
 
+  function loadForgeTablePagination() {
+    if (!isForgeRoot || document.querySelector('script[data-forge-table-pagination]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-table-pagination.js?v=1';
+    script.dataset.forgeTablePagination = '1';
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
   async function silentStakingConnect() {
     if (!isStaking || !window.ethereum) return;
     if (localStorage.getItem('totz_staking_disconnect') === '1') return;
@@ -172,6 +182,7 @@
   installTopAccent();
   installSectionDock();
   loadHomeEarnings();
+  loadForgeTablePagination();
 
   if (enableBrandTextRewrite) rewrite(document.body);
 
