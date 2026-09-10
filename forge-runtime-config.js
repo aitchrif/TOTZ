@@ -180,6 +180,15 @@
     else start();
   }
 
+  function installGlobalSiteShell() {
+    if (window.__TOTZ_UI_BRAND_ACTIVE__ || document.querySelector('script[data-totz-ui-brand]')) return;
+    const script = document.createElement('script');
+    script.src = '/totz-ui-brand.js?v=2';
+    script.dataset.totzUiBrand = '1';
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -198,4 +207,5 @@
   document.documentElement.dataset.forgeTestHelpers = config.testHelpersEnabled ? 'enabled' : 'locked';
   installTestHelperGuard();
   installLockedClaimUiGuard();
+  installGlobalSiteShell();
 })();
