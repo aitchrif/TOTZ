@@ -189,6 +189,17 @@
     document.head.appendChild(script);
   }
 
+  function installEpochRewardPicker() {
+    const path = String(location.pathname || '').replace(/\/+$/, '') || '/';
+    if (path !== '/forge/epochs' && path !== '/forge-epochs') return;
+    if (document.querySelector('script[data-forge-epoch-reward-picker]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-epoch-reward-picker.js?v=1';
+    script.dataset.forgeEpochRewardPicker = '1';
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -208,4 +219,5 @@
   installTestHelperGuard();
   installLockedClaimUiGuard();
   installGlobalSiteShell();
+  installEpochRewardPicker();
 })();
