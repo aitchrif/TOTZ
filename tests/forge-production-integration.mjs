@@ -64,9 +64,12 @@ assert(!/href="\/forge-claim-launcher(?:[?#"])/.test(epochsHtml), 'EPOCHS must u
 assert(!/TESTNET CLAIM|Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(epochsHtml), 'EPOCHS contains stale Testnet launch copy.');
 assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS must state the production write gate clearly.');
 assert(epochsHtml.includes('<a class="pill" href="/forge">X-RAY</a>'), 'EPOCHS must preserve the original pre-UI top action.');
-assert(epochsHtml.includes('rh_favicon_120.png'), 'EPOCHS must preserve the original Robinhood network logo.');
-assert(epochsHtml.includes('docs-logo-symbol.png'), 'EPOCHS must preserve the original Ink network logo.');
-assert(epochsHtml.includes('eth-diamond-glyph.svg'), 'EPOCHS must preserve the original Ethereum network logo.');
+assert(epochsHtml.includes('<span class="network-icon">RH</span>'), 'EPOCHS Robinhood mark must match X-RAY.');
+assert(epochsHtml.includes('<span class="network-icon">INK</span>'), 'EPOCHS Ink mark must match X-RAY.');
+assert(epochsHtml.includes('<span class="network-icon">Ξ</span>'), 'EPOCHS Ethereum mark must match X-RAY.');
+assert(!epochsHtml.includes('rh_favicon_120.png'), 'EPOCHS must not depend on the external Robinhood logo CDN.');
+assert(!epochsHtml.includes('docs-logo-symbol.png'), 'EPOCHS must not depend on the external Ink logo CDN.');
+assert(!epochsHtml.includes('eth-diamond-glyph.svg'), 'EPOCHS must not depend on the external Ethereum logo CDN.');
 assert(!epochsHtml.includes('epochs-xray-shell'), 'EPOCHS must not re-introduce the later X-RAY shell UI override.');
 assert(!epochsHtml.includes('forge-epochs-parity.css'), 'EPOCHS must not load the later parity stylesheet.');
 assert(!epochsHtml.includes('<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>'), 'Ethers must remain off the parser-blocking first-paint path.');
@@ -108,4 +111,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · original EPOCHS UI preserved · paint-safe nav sync');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · EPOCHS/X-RAY network marks aligned · paint-safe nav sync');
