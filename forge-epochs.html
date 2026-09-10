@@ -24,25 +24,21 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 .footer{text-align:center;margin-top:42px;color:var(--soft);font-size:.75rem;font-weight:800}.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 14px;border-radius:999px;font-size:.72rem;font-weight:900;opacity:0;pointer-events:none;transition:.18s;z-index:10}.toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:900px){.builder{grid-template-columns:1fr}.snapshot{grid-template-columns:1fr 1fr}.result-stats{grid-template-columns:repeat(3,1fr)}.merkle-grid{grid-template-columns:1fr 1fr}.merkle-grid .merkle-stat:first-child{grid-column:1/-1}}
 @media(max-width:650px){.wrap{padding-left:4vw;padding-right:4vw}.tool-nav{width:100%;border-radius:20px}.tool-nav a,.tool-nav span{flex:1;padding:9px 8px;font-size:.62rem}.tool-nav .soon{display:none}.network-row{grid-template-columns:1fr}.source-form{grid-template-columns:1fr}.snapshot{grid-template-columns:1fr 1fr}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.access{align-items:flex-start;flex-direction:column}.access-state{text-align:left}.result-stats{grid-template-columns:1fr 1fr}.actions .btn{width:100%}.card{padding:17px}.delivery-methods{grid-template-columns:1fr}.delivery-head{flex-direction:column}.merkle-grid{grid-template-columns:1fr}.merkle-grid .merkle-stat:first-child{grid-column:auto}}
-/* Static X-RAY shell baseline: no JS or CDN is required for the first paint. */
-.epochs-xray-shell .wrap{max-width:1190px;padding:0 4.5vw 84px}.epochs-xray-shell nav{gap:16px;padding:20px 0}.epochs-xray-shell .nav-actions{gap:9px;flex-wrap:wrap;justify-content:flex-end}.epochs-xray-shell .pill{font-size:.78rem}.epochs-xray-shell .tool-nav{gap:8px;margin:6px auto 0;padding:7px;border-radius:999px;width:max-content;max-width:100%}.epochs-xray-shell .tool-nav a{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 13px;border-radius:999px;font-size:.69rem;font-weight:900}.epochs-xray-shell .hero{padding:42px 0 22px}.epochs-xray-shell .eyebrow{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;font-size:.74rem;letter-spacing:.07em;text-transform:uppercase}.epochs-xray-shell .hero h1{font-size:clamp(2.55rem,6.5vw,5.6rem);line-height:.91;margin:18px auto 14px;max-width:970px}.epochs-xray-shell .hero p{max-width:790px;font-size:1.04rem;line-height:1.58}.epochs-xray-shell .safety{gap:8px;margin-top:17px}.epochs-xray-shell .safe{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;font-size:.76rem}.epochs-xray-shell .workspace{gap:13px}.epochs-xray-shell .workspace>.card.blue:first-child{border-radius:30px;padding:24px;box-shadow:var(--shadow)}.epochs-xray-shell .workspace>.card.blue:first-child .card-head{gap:18px;margin-bottom:16px}.epochs-xray-shell .workspace>.card.blue:first-child .card-head h2{font-size:1.68rem}.epochs-xray-shell .workspace>.card.blue:first-child .card-head p{font-size:.9rem;line-height:1.45}.epochs-xray-shell .workspace>.card.blue:first-child .tag{font-size:.65rem}.epochs-xray-shell .network-label{display:block;margin:18px 0 8px;color:var(--soft);font-size:.65rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.epochs-xray-shell .network-icon{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;background:#fff;font-family:'Baloo 2',cursive;font-size:.83rem;font-weight:900;border:1px solid rgba(43,33,64,.08);color:var(--ink);line-height:1;margin:0;padding:0;box-shadow:none}.epochs-xray-shell .network-btn{min-height:0}.epochs-xray-shell .network-btn.active .network-icon{background:var(--ink);color:#fff}.epochs-xray-shell .access{border-radius:25px;padding:19px 20px;box-shadow:var(--shadow-sm)}.epochs-xray-shell .access h3{font-size:1.28rem}.epochs-xray-shell .access p{font-size:.76rem;line-height:1.4}.epochs-xray-shell .access-state{min-width:185px;text-align:center;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:17px;padding:12px}.epochs-xray-shell .access-state b{font-family:'Baloo 2',cursive;font-size:.96rem}.epochs-xray-shell .access-state span{font-size:.63rem;font-weight:900;margin-top:3px}
-@media(max-width:760px){.epochs-xray-shell .tool-nav{width:100%;border-radius:20px}.epochs-xray-shell .tool-nav a{flex:1;padding:9px 8px;font-size:.62rem}.epochs-xray-shell .hero{padding-top:26px}}
 </style>
-<link rel="stylesheet" href="/forge-epochs-parity.css?v=1">
 </head>
-<body class="epochs-xray-shell">
+<body>
 <div class="wrap">
-<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill home-pill" href="/">HOME</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
-<div class="tool-nav" aria-label="FORGE tools" data-xray-shell="1"><a class="live" id="xrayNav" href="/forge">◉ X-RAY</a><a class="active" href="/forge/epochs">⚒ EPOCHS</a><a href="/forge/my-epochs">◫ MY EPOCHS</a></div>
+<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/forge">X-RAY</a><button id="connectBtn" class="pill dark" type="button">CONNECT WALLET</button></div></nav>
+<div class="tool-nav"><a class="live" id="xrayNav" href="/forge">◉ X-RAY</a><a class="active" href="/forge/epochs">⚒ EPOCHS</a><a href="/forge/my-epochs">◫ MY EPOCHS</a><span class="soon">🛡 WL CLEANER · SOON</span><span class="soon">✅ GTD CHECK · SOON</span></div>
 <section class="hero"><span class="eyebrow">⚒ TOTZ FORGE · EPOCHS V1</span><h1>REWARD YOUR <span>HOLDERS.</span></h1><p>Turn a pinned on-chain holder snapshot into an exact reward allocation, then prepare a direct drop or a verifiable Merkle claim package.</p><div class="safety"><span class="safe">👁 Read-only source</span><span class="safe">🧮 Exact allocation math</span><span class="safe">🌳 Merkle proofs</span><span class="safe">🔐 Genesis operator tools</span></div></section>
 <main class="workspace">
 <section class="card blue">
 <div class="card-head"><div><h2>1 · Source snapshot</h2><p>Select a network and load the collection you want to reward. EPOCHS pins the holder set to one on-chain snapshot.</p></div><span class="tag">UP TO 20K NFTs</span></div>
 <span class="network-label">NETWORK</span>
-<div class="network-row" id="networkRow" data-xray-parity="1">
-<button class="network-btn active" data-chain="robinhood" type="button"><span class="network-icon">RH</span><span><b>Robinhood Chain</b><span>Chain ID 4663</span></span></button>
-<button class="network-btn" data-chain="ink" type="button"><span class="network-icon">INK</span><span><b>Ink</b><span>Chain ID 57073</span></span></button>
-<button class="network-btn" data-chain="ethereum" type="button"><span class="network-icon">Ξ</span><span><b>Ethereum</b><span>Chain ID 1</span></span></button>
+<div class="network-row">
+<button class="network-btn active" data-chain="robinhood" type="button"><span class="network-icon"><img src="https://cdn.robinhood.com/assets/generated_assets/hoodchain_docsite/rh_favicon_120.png" alt=""></span><span><b>Robinhood Chain</b><span>Chain ID 4663</span></span></button>
+<button class="network-btn" data-chain="ink" type="button"><span class="network-icon"><img src="https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png" alt=""></span><span><b>Ink</b><span>Chain ID 57073</span></span></button>
+<button class="network-btn" data-chain="ethereum" type="button"><span class="network-icon"><img src="https://ethereum.org/images/assets/svgs/eth-diamond-glyph.svg" alt=""></span><span><b>Ethereum</b><span>Chain ID 1</span></span></button>
 </div>
 <div class="source-form"><input id="contractInput" placeholder="0x NFT contract…" spellcheck="false"><button id="loadBtn" class="btn primary" type="button">LOAD SNAPSHOT</button></div>
 <div id="sourceStatus" class="status"></div>
@@ -80,7 +76,7 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 </div>
 <div id="toast" class="toast"></div>
 <script src="/forge-runtime-config.js?v=1"></script>
-<script src="/forge-nav-state.js?v=4"></script>
+<script src="/forge-nav-state.js?v=5"></script>
 <script src="/forge-epochs-page.js?v=3"></script>
 <script>
 (() => {
