@@ -16,7 +16,13 @@ const CHAINS = {
   },
   ethereum: {
     key: 'ethereum', name: 'Ethereum', chainId: 1, confirmations: 3,
-    rpcs: [process.env.ETHEREUM_RPC_URL, 'https://ethereum-rpc.publicnode.com', 'https://cloudflare-eth.com'].filter(Boolean)
+    rpcs: [
+      process.env.ETHEREUM_RPC_URL,
+      'https://public.1rpc.io/eth',
+      'https://eth.drpc.org',
+      'https://ethereum-rpc.publicnode.com',
+      'https://cloudflare-eth.com'
+    ].filter(Boolean)
   }
 };
 
@@ -52,7 +58,10 @@ async function rpc(chain, method, params, { timeoutMs = 18000, retries = 2 } = {
         if (response.status === 429) throw new Error(`RATE_LIMIT:${endpoint}`);
         if (!response.ok) throw new Error(`RPC_HTTP_${response.status}:${endpoint}`);
         const json = await response.json();
-        if (json?.error) throw new Error(json.error.message || 'RPC error');
+        if (json?.error) {
+          const detail = String(json.error.message || 'RPC error');
+          throw new Error(`RPC_ERROR:${detail}`);
+        }
         return json?.result;
       } catch (error) { lastError = error; }
       finally { clearTimeout(timer); }
@@ -285,6 +294,7 @@ export default async function handler(req, res) {
     let publicMessage = message;
     if (/RATE_LIMIT|429/i.test(message)) { status = 503; publicMessage = `${chain.name} RPC is rate-limiting this scan. Please retry in a moment.`; }
     if (/aborted|timeout/i.test(message)) { status = 504; publicMessage = 'The on-chain scan timed out. Please retry.'; }
+    if (/RPC_ERROR/i.test(message)) { status = 503; publicMessage = `${chain.name} RPC could not complete this read. Please retry in a moment.`; }
     return res.status(status).json({ error: publicMessage });
   }
 }
