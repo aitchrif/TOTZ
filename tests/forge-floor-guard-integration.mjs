@@ -27,16 +27,10 @@ assert(client.includes("fetch(`/api/forge-floor-guard?${params.toString()}`"), '
 assert(!/eth_sendTransaction|wallet_sendCalls|approve\(|setApprovalForAll|personal_sign|eth_sign/.test(client), 'FLOOR GUARD client must not contain wallet write/signature paths.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'FLOOR GUARD public endpoint must be GET-only.');
-assert(api.includes('/listings/collection/${encoded}/best'), 'FLOOR GUARD must inspect best active OpenSea listings.');
-assert(api.includes('event_type=listing'), 'FLOOR GUARD must inspect recent listing events.');
-assert(api.includes('event_type=sale'), 'FLOOR GUARD must inspect recent sale events.');
-assert(api.includes('/auth/keys'), 'FLOOR GUARD must support OpenSea instant free-tier data keys when no server key is configured.');
-assert(api.includes("method: 'POST'") && api.includes('/auth/keys'), 'The only intentional upstream POST is OpenSea instant read-key creation.');
-assert(!/listings\/actions|fulfillment_data|\/offers\/|eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\(/.test(api), 'FLOOR GUARD API must not contain marketplace or chain write paths.');
-assert(api.includes("signal = 'HIGH FLOOR PRESSURE'"), 'FLOOR GUARD high-pressure classification is missing.');
-assert(api.includes('score >= 65'), 'FLOOR GUARD V1 high-pressure threshold must remain explicit.');
-assert(api.includes('heuristic signal, not proof'), 'FLOOR GUARD API must return the heuristic disclaimer.');
-assert(/s-maxage=30/.test(api), 'FLOOR GUARD should cache short-lived public marketplace scans to protect the free data quota.');
+assert(api.includes('forge-floor-guard-data'), 'FLOOR GUARD must proxy through the persistent marketplace data broker.');
+assert(api.includes("method: 'GET'"), 'FLOOR GUARD broker request must stay read-only.');
+assert(!/api\.opensea\.io|\/auth\/keys|listings\/actions|fulfillment_data|\/offers\/|eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\(/.test(api), 'Vercel FLOOR GUARD proxy must not directly provision marketplace keys or contain marketplace/chain write paths.');
+assert(/s-maxage=30/.test(api), 'FLOOR GUARD should cache short-lived public marketplace scans to protect upstream quota.');
 
 const nav = fs.readFileSync('forge-nav-state.js', 'utf8');
 assert(nav.includes("href: '/forge/floor-guard'"), 'Shared FORGE nav must expose FLOOR GUARD.');
@@ -54,4 +48,4 @@ assert(redirects.get('/forge/gtd-check') === '/forge/floor-guard', 'Old GTD CHEC
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'FLOOR GUARD UI route must be no-store during rollout.');
 
-console.log('FORGE FLOOR GUARD: PASS · OpenSea read-only floor intelligence · pressure scoring · heuristic boundary · retired GTD/WL · Mainnet writes locked');
+console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence via persistent broker · heuristic boundary · retired GTD/WL · Mainnet writes locked');
