@@ -28,13 +28,18 @@
     const selectors = {
       xray: '[data-forge-nav="xray"], .tool-nav a[href^="/forge"]',
       epochs: '[data-forge-nav="epochs"], .tool-nav a[href^="/forge-epochs"], .tool-nav a[href^="/forge/epochs"]',
-      myEpochs: '[data-forge-nav="my-epochs"], .tool-nav a[href^="/forge-my-epochs"], .tool-nav a[href^="/forge/my-epochs"]'
+      myEpochs: '[data-forge-nav="my-epochs"], .tool-nav a[href^="/forge-my-epochs"], .tool-nav a[href^="/forge/my-epochs"]',
+      wlCleaner: '[data-forge-nav="wl-cleaner"], .tool-nav a[href^="/forge/wl-cleaner"]',
+      gtdCheck: '[data-forge-nav="gtd-check"], .tool-nav a[href^="/forge/gtd-check"]'
     };
     return [...document.querySelectorAll(selectors[kind] || '')].filter((link) => {
       const href = link.getAttribute('href') || '';
       if (kind === 'xray') return /^\/forge(?:\?|$)/.test(href);
       if (kind === 'epochs') return href.startsWith('/forge-epochs') || href.startsWith('/forge/epochs');
-      return href.startsWith('/forge-my-epochs') || href.startsWith('/forge/my-epochs');
+      if (kind === 'myEpochs') return href.startsWith('/forge-my-epochs') || href.startsWith('/forge/my-epochs');
+      if (kind === 'wlCleaner') return href.startsWith('/forge/wl-cleaner');
+      if (kind === 'gtdCheck') return href.startsWith('/forge/gtd-check');
+      return false;
     });
   }
 
@@ -95,22 +100,28 @@
     }
   }
 
+  function ensureToolLink(nav, { key, href, label }) {
+    let link = nav.querySelector(`[data-forge-nav="${key}"]`) || nav.querySelector(`a[href^="${href}"]`);
+    if (!link) {
+      link = document.createElement('a');
+      const badge = nav.querySelector('[data-forge-environment]');
+      nav.insertBefore(link, badge || null);
+    }
+    link.dataset.forgeNav = key;
+    if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+    if (link.textContent !== label) link.textContent = label;
+    const currentPath = location.pathname.replace(/\.html$/, '');
+    link.classList.toggle('active', currentPath === href);
+    return link;
+  }
+
   function normalizeToolNav() {
     document.querySelectorAll('.tool-nav').forEach((nav) => {
       if (nav.getAttribute('aria-label') !== 'FORGE tools') nav.setAttribute('aria-label', 'FORGE tools');
-      const labels = [...nav.children].map((node) => node.textContent.trim().toUpperCase());
-      if (!labels.some((label) => label.includes('WL CLEANER'))) {
-        const item = document.createElement('span');
-        item.className = 'soon';
-        item.textContent = '🛡 WL CLEANER · SOON';
-        nav.appendChild(item);
-      }
-      if (!labels.some((label) => label.includes('GTD CHECK'))) {
-        const item = document.createElement('span');
-        item.className = 'soon';
-        item.textContent = '✅ GTD CHECK · SOON';
-        nav.appendChild(item);
-      }
+      nav.querySelectorAll('.soon').forEach((item) => item.remove());
+      ensureToolLink(nav, { key: 'wl-cleaner', href: '/forge/wl-cleaner', label: '🛡 WL CLEANER' });
+      ensureToolLink(nav, { key: 'gtd-check', href: '/forge/gtd-check', label: '✅ GTD CHECK' });
+
       const env = window.TOTZ_FORGE_CONFIG?.environment;
       if (env === 'testnet' && !nav.querySelector('[data-forge-environment]')) {
         const badge = document.createElement('span');
@@ -164,6 +175,13 @@
       });
       toolLinks('myEpochs').forEach((link) => {
         if (link.getAttribute('href') !== '/forge/my-epochs') link.setAttribute('href', '/forge/my-epochs');
+      });
+      toolLinks('wlCleaner').forEach((link) => {
+        if (link.getAttribute('href') !== '/forge/wl-cleaner') link.setAttribute('href', '/forge/wl-cleaner');
+      });
+      toolLinks('gtdCheck').forEach((link) => {
+        const next = withContext('/forge/gtd-check');
+        if (link.getAttribute('href') !== next) link.setAttribute('href', next);
       });
       installEpochCard();
     } finally {

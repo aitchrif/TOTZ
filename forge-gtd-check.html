@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOTZ FORGE — GTD CHECK</title>
+<meta name="description" content="Check NFT-based GTD eligibility across Robinhood Chain, Ink and Ethereum with read-only on-chain balance rules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF3DC;--cream2:#FFEAC2;--sky:#BFE6EE;--sky2:#8ED2E2;--lime:#CBDB2A;--ink:#2B2140;--soft:#5B5270;--coral:#FF715F;--coral2:#E9503D;--mint:#E7F4EF;--white:#fff;--shadow:0 14px 34px rgba(43,33,64,.12);--shadow-sm:0 8px 20px rgba(43,33,64,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:'Nunito',sans-serif}h1,h2,h3,.logo{font-family:'Baloo 2',cursive}a{text-decoration:none;color:inherit}button,input,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:0 4.5vw 80px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;gap:14px}.logo{display:flex;align-items:center;gap:10px;font-size:1.62rem;font-weight:800}.dot{width:14px;height:14px;border-radius:50%;background:var(--coral)}.nav-actions{display:flex;gap:8px;align-items:center}.pill{border:2px solid var(--ink);border-radius:999px;padding:9px 14px;background:transparent;color:var(--ink);font-weight:900;font-size:.76rem;cursor:pointer}.pill.dark{background:var(--ink);color:var(--cream)}
+.tool-nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px auto 0;padding:7px;background:rgba(255,255,255,.7);border:1px solid rgba(43,33,64,.08);border-radius:999px;width:max-content;max-width:100%;box-shadow:var(--shadow-sm)}.tool-nav a,.tool-nav span{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 13px;border-radius:999px;font-size:.69rem;font-weight:900}.tool-nav .active{background:var(--ink);color:#fff}.tool-nav .live{background:var(--lime)}
+.hero{text-align:center;padding:38px 0 22px}.eyebrow{display:inline-flex;background:var(--lime);border-radius:999px;padding:7px 14px;font-size:.73rem;font-weight:900;letter-spacing:.06em}.hero h1{font-size:clamp(2.5rem,6vw,5.3rem);line-height:.92;margin:17px auto 12px;letter-spacing:-.045em}.hero h1 span{color:var(--coral2)}.hero p{max-width:780px;margin:auto;color:var(--soft);font-weight:800;line-height:1.55}.safety{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:17px}.safe{background:#fff;border-radius:999px;padding:8px 11px;font-size:.72rem;font-weight:900;box-shadow:var(--shadow-sm)}
+.workspace{display:grid;gap:14px}.card{background:#fff;border-radius:27px;padding:22px;box-shadow:var(--shadow-sm)}.card.blue{border:2.5px solid var(--sky2)}.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}.card-head h2{font-size:1.55rem;margin:0}.card-head p{margin:4px 0 0;color:var(--soft);font-weight:800;font-size:.8rem;line-height:1.42}.tag{background:var(--sky);border-radius:999px;padding:6px 9px;font-size:.62rem;font-weight:900;white-space:nowrap}
+.wallet-row{display:grid;grid-template-columns:1fr auto;gap:10px}.wallet-row input{min-width:0;border:2px solid var(--sky2);border-radius:999px;background:var(--cream);padding:13px 16px;font-family:monospace;font-weight:800;color:var(--ink);outline:0}.btn{border:0;border-radius:999px;padding:12px 18px;cursor:pointer;font-family:'Baloo 2',cursive;font-size:.88rem;font-weight:800;white-space:nowrap}.btn.primary{background:var(--coral);color:#fff;box-shadow:0 6px 0 var(--coral2)}.btn.dark{background:var(--ink);color:#fff}.btn.soft{background:var(--sky);color:var(--ink)}.btn.good{background:var(--lime);color:var(--ink)}.btn.ghost{background:var(--cream);border:2px solid var(--ink);color:var(--ink)}.btn:disabled{opacity:.48;cursor:not-allowed}
+.mode-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:17px 0 10px}.mode-copy b{display:block;font-size:.82rem}.mode-copy span{display:block;color:var(--soft);font-size:.64rem;font-weight:800;margin-top:2px}.mode-toggle{display:flex;background:var(--cream);padding:4px;border-radius:999px;gap:4px}.mode-btn{border:0;background:transparent;color:var(--soft);border-radius:999px;padding:8px 13px;font-size:.68rem;font-weight:900;cursor:pointer}.mode-btn.active{background:var(--ink);color:#fff}
+.rules{display:grid;gap:9px}.rule{display:grid;grid-template-columns:150px 1fr 110px auto;gap:8px;align-items:center;background:var(--cream);border:1px solid rgba(43,33,64,.07);border-radius:18px;padding:10px}.rule select,.rule input{width:100%;min-width:0;border:2px solid transparent;border-radius:13px;background:#fff;padding:10px 11px;color:var(--ink);font-weight:800;outline:0}.rule input.contract{font-family:monospace;font-size:.7rem}.rule input.min{font-variant-numeric:tabular-nums}.rule select:focus,.rule input:focus{border-color:var(--sky2)}.remove-rule{width:38px;height:38px;border:0;border-radius:12px;background:#FFDEDA;color:#8D2B1F;font-weight:900;cursor:pointer}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.hint{margin:10px 0 0;color:var(--soft);font-size:.65rem;font-weight:800;line-height:1.4}
+.status{display:none;margin-top:12px;padding:11px 13px;border-radius:15px;background:var(--cream);font-size:.78rem;font-weight:900}.status.show{display:block}.status.error{background:#FFDEDA;color:#8D2B1F}.status.warn{background:#FFF0C9;color:#765616}
+.result{display:none}.result.show{display:block}.result-hero{border-radius:24px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:18px;background:var(--cream)}.result-hero.pass{background:#EDF5C8}.result-hero.fail{background:#FFDEDA}.result-hero.incomplete{background:#FFF0C9}.result-kicker{font-size:.62rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}.result-title{font-family:'Baloo 2',cursive;font-size:2rem;font-weight:800;line-height:1;margin-top:5px}.result-sub{margin-top:6px;color:var(--soft);font-size:.72rem;font-weight:800}.result-mark{width:70px;height:70px;border-radius:23px;background:#fff;display:grid;place-items:center;font-size:2rem;box-shadow:var(--shadow-sm)}.rule-results{display:grid;gap:8px;margin-top:12px}.rule-result{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid rgba(43,33,64,.08);border-radius:17px;padding:12px 13px}.rule-result b{display:block;font-size:.76rem}.rule-result code{display:block;color:var(--soft);font-size:.59rem;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:690px}.rule-meta{text-align:right}.rule-meta strong{display:block;font-family:'Baloo 2',cursive;font-size:1.05rem}.rule-meta span{display:block;font-size:.58rem;font-weight:900;margin-top:2px}.rule-result.pass .rule-meta span{color:#3C6B2E}.rule-result.fail .rule-meta span{color:#9A382B}.rule-result.error .rule-meta span{color:#8A6417}.footer{text-align:center;margin-top:42px;color:var(--soft);font-size:.75rem;font-weight:800}
+@media(max-width:800px){.rule{grid-template-columns:1fr 1fr}.rule .contract{grid-column:1/-1}.remove-rule{width:100%}.wallet-row{grid-template-columns:1fr}.result-hero{align-items:flex-start}.rule-result code{max-width:420px}}
+@media(max-width:650px){.wrap{padding-left:4vw;padding-right:4vw}.tool-nav{width:100%;border-radius:20px}.tool-nav a,.tool-nav span{flex:1;padding:9px 8px;font-size:.62rem}.card{padding:17px}.mode-row{align-items:flex-start;flex-direction:column}.rule{grid-template-columns:1fr}.rule .contract{grid-column:auto}.actions .btn{width:100%}.result-mark{width:56px;height:56px;border-radius:18px}.rule-result{grid-template-columns:1fr}.rule-meta{text-align:left}.rule-result code{max-width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a class="logo" href="/"><span class="dot"></span>TOTZ</a><div class="nav-actions"><a class="pill" href="/forge">X-RAY</a></div></nav>
+<div class="tool-nav" aria-label="FORGE tools"><a class="live" href="/forge">◉ X-RAY</a><a href="/forge/epochs">⚒ EPOCHS</a><a href="/forge/my-epochs">◫ MY EPOCHS</a><a href="/forge/wl-cleaner">🛡 WL CLEANER</a><a class="active" href="/forge/gtd-check">✅ GTD CHECK</a></div>
+<section class="hero"><span class="eyebrow">✅ TOTZ FORGE · GTD CHECK V1</span><h1>VERIFY THE <span>SPOT.</span></h1><p>Check whether one wallet satisfies up to four NFT holding rules across Robinhood Chain, Ink and Ethereum. No signature, approval or transaction required.</p><div class="safety"><span class="safe">👁 balanceOf only</span><span class="safe">🔐 No wallet signature</span><span class="safe">⚡ ANY / ALL rules</span><span class="safe">🔗 Shareable setup</span></div></section>
+<main class="workspace">
+<section class="card blue">
+<div class="card-head"><div><h2>1 · Wallet to check</h2><p>Paste the wallet that wants to verify its GTD eligibility.</p></div><span class="tag">READ ONLY</span></div>
+<div class="wallet-row"><input id="walletInput" placeholder="0x wallet address…" spellcheck="false" autocomplete="off"><button id="checkBtn" class="btn primary" type="button">CHECK ELIGIBILITY</button></div>
+<div id="status" class="status"></div>
+</section>
+<section class="card">
+<div class="card-head"><div><h2>2 · Eligibility rules</h2><p>Create one to four collection rules. Each rule checks the wallet's live ERC-721 balance on the selected network.</p></div><span id="ruleCount" class="tag">1 RULE</span></div>
+<div class="mode-row"><div class="mode-copy"><b>How should the rules combine?</b><span>ANY = one passing rule is enough. ALL = every rule must pass.</span></div><div class="mode-toggle"><button class="mode-btn active" data-mode="any" type="button">ANY</button><button class="mode-btn" data-mode="all" type="button">ALL</button></div></div>
+<div id="rules" class="rules"></div>
+<div class="actions"><button id="addRuleBtn" class="btn soft" type="button">＋ ADD RULE</button><button id="shareBtn" class="btn ghost" type="button">COPY SETUP LINK</button><button id="clearBtn" class="btn dark" type="button">CLEAR</button></div>
+<p class="hint">The setup link contains only the rule configuration—not the wallet being checked. This keeps the checker reusable for public campaign links.</p>
+</section>
+<section id="result" class="card result">
+<div id="resultHero" class="result-hero"><div><div class="result-kicker">GTD ELIGIBILITY</div><div id="resultTitle" class="result-title">—</div><div id="resultSub" class="result-sub">—</div></div><div id="resultMark" class="result-mark">✓</div></div>
+<div id="ruleResults" class="rule-results"></div>
+</section>
+</main>
+<div class="footer">© 2026 TOTZ FORGE · GTD CHECK · Read-only eligibility verification.</div>
+</div>
+<script src="/forge-runtime-config.js?v=1"></script>
+<script src="/forge-nav-state.js?v=6"></script>
+<script src="/forge-gtd-check.js?v=1"></script>
+</body>
+</html>

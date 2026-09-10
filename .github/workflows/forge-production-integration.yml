@@ -9,6 +9,7 @@ on:
       - 'api/forge-holders.js'
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
+      - 'tests/forge-tools-integration.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
 
@@ -26,3 +27,5 @@ jobs:
           node-version: '22'
       - name: Verify locked Mainnet direct-claim integration
         run: node tests/forge-production-integration.mjs
+      - name: Verify live GTD CHECK and WL CLEANER tools
+        run: node tests/forge-tools-integration.mjs
