@@ -46,6 +46,9 @@ assert(/function claim\(\)[\s\S]*?interactionEnabled\(\)/.test(claimJs), 'Direct
 
 const holdersApi = fs.readFileSync('api/forge-holders.js', 'utf8');
 assert(/from ['"]ethers['"]/.test(holdersApi), 'FORGE holder snapshot API must declare its ethers runtime import.');
+assert(/maxDuration:\s*60/.test(holdersApi), 'FORGE holder snapshot API server window must remain 60 seconds.');
+const forgeJs = fs.readFileSync('forge.js', 'utf8');
+assert(/function fetchForgeData\(contract\)[\s\S]*?65000/.test(forgeJs), 'X-RAY client scan timeout must stay above the 60s holder API window.');
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 assert(packageJson?.dependencies?.ethers === '6.15.0', 'FORGE holder snapshot runtime must pin ethers 6.15.0.');
 
@@ -108,4 +111,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · clean routes/copy · claim routes no-store · original EPOCHS UI preserved · paint-safe nav sync');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · X-RAY scan timeout aligned · clean routes/copy · claim routes no-store · original EPOCHS UI preserved · paint-safe nav sync');

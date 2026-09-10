@@ -135,7 +135,8 @@
   }
 
   function fetchForgeData(contract) {
-    return fetchJson(`/api/forge-holders?chain=${encodeURIComponent(selectedChain)}&contract=${encodeURIComponent(contract)}`, {}, 55000);
+    // The API may legitimately use its full 60s server window for discovery scans.
+    return fetchJson(`/api/forge-holders?chain=${encodeURIComponent(selectedChain)}&contract=${encodeURIComponent(contract)}`, {}, 65000);
   }
 
   function scoreMetrics(holders, supply) {
@@ -157,7 +158,6 @@
       share: holders.slice(0, count).reduce((sum, h) => sum + Number(h.balance || 0), 0) / total * 100
     }));
   }
-
   function snapshotKey(chain, contract) { return `totz_forge_snapshot_v2_${chain}_${contract.toLowerCase()}`; }
 
   function compareSnapshot(chain, contract, holders) {
