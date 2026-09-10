@@ -33,6 +33,7 @@
     const style = document.createElement('style');
     style.id = 'forge-reward-picker-style';
     style.textContent = `
+      .reward-token-step > .reward-token-guide{display:none!important}
       .reward-quick-picks{grid-column:1/-1;margin:0 0 10px}
       .reward-quick-picks-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:8px}
       .reward-quick-picks-head b{font-family:'Baloo 2',cursive;font-size:.9rem}
