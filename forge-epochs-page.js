@@ -5,6 +5,12 @@
     ink: { name:'Ink', chainId:57073 },
     ethereum: { name:'Ethereum', chainId:1 }
   };
+  const NETWORK_LOGOS = {
+    robinhood: 'https://cdn.robinhood.com/assets/generated_assets/hoodchain_docsite/rh_favicon_120.png',
+    ink: 'https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png',
+    ethereum: 'https://ethereum.org/images/assets/svgs/eth-diamond-glyph.svg'
+  };
+  const NETWORK_FALLBACKS = { robinhood: 'RH', ink: 'INK', ethereum: 'Ξ' };
   const $ = (id) => document.getElementById(id);
   const isAddress = (v) => /^0x[a-fA-F0-9]{40}$/.test(String(v || ''));
   const fmt = (n, max=0) => Number(n || 0).toLocaleString(undefined,{maximumFractionDigits:max});
@@ -26,6 +32,49 @@
   }
   function clearStatus(id){const el=$(id); if(!el)return; el.textContent=''; el.className='status';}
   function setBusy(busy){$('loadBtn').disabled=busy; document.querySelectorAll('.network-btn').forEach(b=>b.disabled=busy); $('loadBtn').textContent=busy?'LOADING…':'LOAD SNAPSHOT';}
+
+  function installNetworkLogos(){
+    if(!document.getElementById('forge-network-logo-style')){
+      const style=document.createElement('style');
+      style.id='forge-network-logo-style';
+      style.textContent=`
+        .network-icon{
+          width:38px!important;height:38px!important;flex:0 0 38px!important;
+          border-radius:12px!important;background:#fff!important;color:var(--ink)!important;
+          border:1px solid rgba(43,33,64,.09)!important;display:grid!important;place-items:center!important;
+          padding:0!important;overflow:hidden!important;box-shadow:0 2px 7px rgba(43,33,64,.05);
+        }
+        .network-btn.active .network-icon{background:#fff!important;color:var(--ink)!important}
+        .network-icon img{display:block;object-fit:contain;object-position:center;margin:auto}
+        .network-btn[data-chain="robinhood"] .network-icon img{width:30px;height:30px;border-radius:8px}
+        .network-btn[data-chain="ink"] .network-icon img{width:28px;height:28px;border-radius:7px}
+        .network-btn[data-chain="ethereum"] .network-icon img{width:22px;height:28px}
+        .network-icon.logo-fallback{font-family:'Baloo 2',cursive;font-size:.72rem;font-weight:900}
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.querySelectorAll('.network-btn').forEach((btn)=>{
+      const chain=btn.dataset.chain;
+      const icon=btn.querySelector('.network-icon');
+      const src=NETWORK_LOGOS[chain];
+      if(!icon||!src)return;
+
+      icon.classList.remove('logo-fallback');
+      icon.textContent='';
+      const img=document.createElement('img');
+      img.src=src;
+      img.alt=`${CHAINS[chain]?.name||chain} network logo`;
+      img.loading='eager';
+      img.decoding='async';
+      img.referrerPolicy='no-referrer';
+      img.onerror=()=>{
+        icon.textContent=NETWORK_FALLBACKS[chain]||'';
+        icon.classList.add('logo-fallback');
+      };
+      icon.appendChild(img);
+    });
+  }
 
   async function fetchJson(url, timeout=55000){
     const c=new AbortController(); const t=setTimeout(()=>c.abort(),timeout);
@@ -268,6 +317,7 @@
   async function copyRoot(){if(!merklePackage)return;await copyText(merklePackage.root,'Copied Merkle root');}
   function exportClaims(){if(!requireGenesis()||!merklePackage)return;downloadText(JSON.stringify(merklePackage,null,2),'application/json;charset=utf-8',`forge-merkle-${slugFor(distribution)}-${distribution.source.snapshotBlock||'snapshot'}.json`);toast(`Exported ${fmt(distribution.rows.length)} Merkle claims`);}
 
+  installNetworkLogos();
   document.querySelectorAll('.network-btn').forEach(b=>b.addEventListener('click',()=>setNetwork(b.dataset.chain)));
   $('loadBtn').addEventListener('click',loadSnapshot); $('contractInput').addEventListener('keydown',e=>{if(e.key==='Enter')loadSnapshot();}); $('contractInput').addEventListener('input',syncLinks);
   $('connectBtn').addEventListener('click',connectWallet); $('buildBtn').addEventListener('click',build); $('copyBtn').addEventListener('click',copyAllocations); $('exportBtn').addEventListener('click',exportDistribution); $('weightMode').addEventListener('change',applyAccess);
