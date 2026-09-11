@@ -37,6 +37,8 @@ assert(nav.includes("href: '/forge/floor-guard'"), 'Shared FORGE nav must expose
 assert(!nav.includes("href: '/forge/wl-cleaner'"), 'WL CLEANER must not remain in the shared nav.');
 assert(!nav.includes("href: '/forge/gtd-check'"), 'GTD CHECK must not remain in the shared nav.');
 assert(nav.includes('[data-forge-nav="wl-cleaner"]') && nav.includes('[data-forge-nav="gtd-check"]'), 'Shared nav must remove stale retired-tool DOM if an old page is cached.');
+assert(nav.includes('let syncScheduled = false;') && nav.includes('function scheduleSync()'), 'Shared FORGE nav must coalesce MutationObserver sync work.');
+assert(nav.includes('requestAnimationFrame(run)') && nav.includes('finally {\n      syncing = false;'), 'Shared FORGE nav must preserve the observer-race guards.');
 
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const rewrites = new Map((vercel.rewrites || []).map((rule) => [rule.source, rule.destination]));
@@ -48,4 +50,4 @@ assert(redirects.get('/forge/gtd-check') === '/forge/floor-guard', 'Old GTD CHEC
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'FLOOR GUARD UI route must be no-store during rollout.');
 
-console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence via persistent broker · heuristic boundary · retired GTD/WL · Mainnet writes locked');
+console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence via persistent broker · observer-race guard · retired GTD/WL · Mainnet writes locked');
