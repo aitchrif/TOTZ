@@ -87,7 +87,7 @@ contract ForgeMerkleClaim {
     }
 
     function isFullyFunded() external view returns (bool) {
-        uint256 required = totalClaimed < totalAllocated ? totalAllocated - totalClaimed : 0;
+        uint256 required = totalClaimed >= totalAllocated ? 0 : totalAllocated - totalClaimed;
         return token.balanceOf(address(this)) >= required;
     }
 }
