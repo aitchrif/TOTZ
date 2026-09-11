@@ -40,6 +40,7 @@
   let tokenMeta = null;
   let deadlineUnix = 0;
   let uploadToken = null;
+  let activeUploadSession = null;
   let publishedSlug = null;
   let deployedTuple = null;
 
@@ -153,7 +154,7 @@
     ].join('\n'));
   }
 
-  async function assertServerLaunchReady(sponsor){
+  async function assertServerLaunchReady(sponsor,{resumeSession=false}={}){
     if(CLAIM_NETWORK.environment!=='mainnet')return true;
     if(!isAddress(sponsor))throw new Error('A valid sponsor wallet is required for the Mainnet release preflight.');
     const params=new URLSearchParams({route:'status',wallet:sponsor.toLowerCase()});
@@ -171,7 +172,10 @@
       const decimals=Number(pkg?.reward?.decimals),total=BigInt(pkg?.reward?.totalUnits||0);let maxUnits;
       try{maxUnits=ethers.parseUnits(String(state.canaryMaxTokenAmount||''),decimals);}catch{throw new Error('FORGE Mainnet Canary funding cap is invalid for this reward token. No transaction was sent.');}
       if(total>maxUnits)throw new Error(`FORGE Mainnet Canary allocation exceeds the configured funding cap (${state.canaryMaxTokenAmount} tokens). No transaction was sent.`);
-      if(state.canarySlotAvailable!==true)throw new Error('FORGE Mainnet Canary already has an active epoch. No transaction was sent.');
+      if(state.canarySlotAvailable!==true){
+        const ownsProtectedSession=resumeSession&&activeUploadSession&&uploadToken&&activeUploadSession.claimContract===String(claimAddress||'').toLowerCase();
+        if(!ownsProtectedSession||Number(state.canaryActiveEpochs)!==1)throw new Error('FORGE Mainnet Canary already has an active epoch. If this is your protected upload session, return to the original browser tab and resume it; do not deploy or fund again.');
+      }
     }
     return true;
   }
@@ -237,6 +241,7 @@
   }
 
   async function verifyPackage(data){
+    if(activeUploadSession&&uploadToken){status('verifyStatus','A protected upload session is still in progress. Resume publication in this browser tab before loading another package.','warn');return;}
     verified=false;pkg=null;claimAddress=null;deployedTuple=null;publishedSlug=null;lockDeploymentInputs(false);$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
     clearStatus('deployStatus');clearStatus('fundStatus');clearStatus('publishStatus');
     try{
@@ -382,6 +387,20 @@
   }
 
   async function api(route, body){const r=await fetch(`${CLAIM_SERVICE}?route=${encodeURIComponent(route)}`,{method:'POST',headers:{'Content-Type':'application/json','x-forge-upload-token':uploadToken||''},body:JSON.stringify(body),cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Publish service error (${r.status}).`);return d;}
+  async function getPublishedClaim(slug){
+    const params=new URLSearchParams({route:'get',slug});
+    const r=await fetch(`${CLAIM_SERVICE}?${params}`,{cache:'no-store'});
+    if(r.status===404)return null;
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||`Could not verify existing claim publication (${r.status}).`);
+    return d?.epoch?.status==='published'?d.epoch:null;
+  }
+  function finishPublished(slug,entriesCount){
+    publishedSlug=slug;
+    const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;
+    $('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entriesCount)} server-verified proofs. The holder claim page is live.`,'ok');
+    uploadToken=null;activeUploadSession=null;
+  }
   async function publish(){
     if(!claimAddress||!pkg||!deployedTuple)return;
     if(!writesEnabled()){status('publishStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
@@ -391,31 +410,46 @@
       const signer=await provider.getSigner();
       wallet=(await signer.getAddress()).toLowerCase();
       const live=await assertDeploymentIdentity(provider,{requireSigner:wallet});
-      await assertServerLaunchReady(live.sponsor);
+      const resuming=Boolean(activeUploadSession&&uploadToken);
+      await assertServerLaunchReady(live.sponsor,{resumeSession:resuming});
       if(!await refreshFunding(provider))throw new Error('Claim contract is not fully funded.');
       tokenMeta=await inspectToken(provider,live.token);
       if(tokenMeta.decimals!==Number(pkg.reward.decimals))throw new Error('Deployed reward token decimals do not match the verified package.');
-      const slug=makeSlug();uploadToken=randomHex(32);const uploadTokenHash=await sha256Hex(uploadToken);
-      const createBody={
-        slug,uploadToken,uploadTokenHash,creatorWallet:wallet,
-        sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
-        sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
-        snapshotBlock:pkg.source?.snapshotBlock??null,
-        snapshotBlockHash:String(pkg.source?.snapshotBlockHash||'').toLowerCase(),snapshotComplete:pkg.source?.snapshotComplete===true,
-        snapshotSource:pkg.source?.snapshotSource||null,snapshotProvenance:pkg.source?.snapshotProvenance||null,
-        rewardToken:live.token,rewardSymbol:tokenMeta.symbol||pkg.reward.symbol,
-        rewardDecimals:Number(pkg.reward.decimals),merkleRoot:live.root,totalAllocatedUnits:live.totalAllocated.toString(),
-        eligibleWallets:Number(pkg.eligibleWallets),claimChainId:CLAIM_NETWORK.chainId,claimContract:live.claimAddress,
-        deadline:live.deadline,packageFingerprint:pkg.publicationFingerprint,distributionFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
-      };
-      status('publishStatus','Sponsor signature required to authorize this exact claim package fingerprint and protected upload session. No gas is used.','warn');
-      createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
-      status('publishStatus','Authorization verified locally. Creating the protected upload session…');
-      await api('create',createBody);
+
+      let slug,createBody;
+      if(resuming){
+        if(activeUploadSession.claimContract!==live.claimAddress||activeUploadSession.packageFingerprint!==pkg.publicationFingerprint)throw new Error('Protected upload session no longer matches this verified deployment/package. Do not deploy or fund again.');
+        slug=activeUploadSession.slug;
+        createBody={snapshotBlockHash:activeUploadSession.snapshotBlockHash,packageFingerprint:activeUploadSession.packageFingerprint};
+        status('publishStatus','Resuming the existing protected upload session. No new deployment, funding transfer or publication session will be created.','warn');
+        const existing=await getPublishedClaim(slug);
+        if(existing){finishPublished(slug,Number(existing.uploaded_entries||pkg.eligibleWallets||0));return;}
+      }else{
+        slug=makeSlug();uploadToken=randomHex(32);const uploadTokenHash=await sha256Hex(uploadToken);
+        createBody={
+          slug,uploadToken,uploadTokenHash,creatorWallet:wallet,
+          sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
+          sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
+          snapshotBlock:pkg.source?.snapshotBlock??null,
+          snapshotBlockHash:String(pkg.source?.snapshotBlockHash||'').toLowerCase(),snapshotComplete:pkg.source?.snapshotComplete===true,
+          snapshotSource:pkg.source?.snapshotSource||null,snapshotProvenance:pkg.source?.snapshotProvenance||null,
+          rewardToken:live.token,rewardSymbol:tokenMeta.symbol||pkg.reward.symbol,
+          rewardDecimals:Number(pkg.reward.decimals),merkleRoot:live.root,totalAllocatedUnits:live.totalAllocated.toString(),
+          eligibleWallets:Number(pkg.eligibleWallets),claimChainId:CLAIM_NETWORK.chainId,claimContract:live.claimAddress,
+          deadline:live.deadline,packageFingerprint:pkg.publicationFingerprint,distributionFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
+        };
+        status('publishStatus','Sponsor signature required to authorize this exact claim package fingerprint and protected upload session. No gas is used.','warn');
+        createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
+        status('publishStatus','Authorization verified locally. Creating the protected upload session…');
+        await api('create',createBody);
+        activeUploadSession={slug,claimContract:live.claimAddress,packageFingerprint:createBody.packageFingerprint,snapshotBlockHash:createBody.snapshotBlockHash};
+      }
+
       const entries=Object.entries(pkg.claims).map(([wallet,c])=>({wallet:wallet.toLowerCase(),amountUnits:String(c.amountUnits),leaf:c.leaf,proof:c.proof}));
       for(let i=0;i<entries.length;i+=200){status('publishStatus',`Uploading verified proofs… ${Math.min(i+200,entries.length)}/${entries.length}`);await api('upload',{slug,uploadToken,entries:entries.slice(i,i+200)});}
       status('publishStatus','Server is re-checking the exact allocation total, approved claim runtime and live contract…');
-      await api('publish',{slug,uploadToken,snapshotBlockHash:createBody.snapshotBlockHash,snapshotComplete:true,packageFingerprint:createBody.packageFingerprint});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
+      await api('publish',{slug,uploadToken,snapshotBlockHash:createBody.snapshotBlockHash,snapshotComplete:true,packageFingerprint:createBody.packageFingerprint});
+      finishPublished(slug,entries.length);
     }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');if(writesEnabled()&&deployedTuple)$('publishBtn').disabled=false;}
   }
 
