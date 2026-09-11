@@ -6,7 +6,6 @@
     ethereum: { key: 'ethereum', name: 'Ethereum', short: 'ETHEREUM', chainId: 1, explorer: 'https://etherscan.io' }
   };
 
-  // Stable public brand assets. Robinhood uses the Chain icon published on Robinhood's CDN.
   const NETWORK_LOGOS = {
     robinhood: 'https://cdn.robinhood.com/assets/generated_assets/hoodchain_docsite/rh_favicon_120.png',
     ink: 'https://docs.inkonchain.com/images/brand-kit/docs-logo-symbol.png',
@@ -87,7 +86,6 @@
       const icon = btn.querySelector('.network-icon');
       const src = NETWORK_LOGOS[chain];
       if (!icon || !src) return;
-
       icon.classList.remove('logo-fallback');
       icon.textContent = '';
       const img = document.createElement('img');
@@ -122,9 +120,7 @@
     const changed = selectedChain !== chainKey;
     selectedChain = chainKey;
     document.querySelectorAll('.network-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.chain === chainKey));
-
     if (changed) invalidateCurrentResult({ clearMessage: true });
-
     if (updateUrl) {
       const url = new URL(location.href);
       url.searchParams.set('chain', chainKey);
@@ -135,7 +131,6 @@
   }
 
   function fetchForgeData(contract) {
-    // The API may legitimately use its full 60s server window for discovery scans.
     return fetchJson(`/api/forge-holders?chain=${encodeURIComponent(selectedChain)}&contract=${encodeURIComponent(contract)}`, {}, 65000);
   }
 
@@ -165,7 +160,6 @@
     try { previous = JSON.parse(localStorage.getItem(snapshotKey(chain, contract)) || 'null'); } catch (_) {}
     const balances = Object.fromEntries(holders.map((h) => [h.address.toLowerCase(), Number(h.balance || 0)]));
     const result = { first: !previous?.balances, previousAt: previous?.timestamp || null, newHolders: 0, accumulating: 0, reducing: 0, exits: 0 };
-
     if (previous?.balances) {
       for (const [address, balance] of Object.entries(balances)) {
         const before = Number(previous.balances[address] || 0);
@@ -177,12 +171,16 @@
         if (Number(balance) > 0 && !balances[address]) result.exits++;
       }
     }
-
     try { localStorage.setItem(snapshotKey(chain, contract), JSON.stringify({ timestamp: Date.now(), balances })); } catch (_) {}
     return result;
   }
 
   function renderMovements(movement) {
+    if (movement?.partial) {
+      $('newMove').textContent = '—'; $('upMove').textContent = '—'; $('downMove').textContent = '—'; $('exitMove').textContent = '—';
+      $('baselineNote').textContent = 'Partial discovery is not used as a movement baseline because collection coverage is not provably complete.';
+      return;
+    }
     if (movement.first) {
       $('newMove').textContent = '—'; $('upMove').textContent = '—'; $('downMove').textContent = '—'; $('exitMove').textContent = '—';
       $('baselineNote').textContent = 'Baseline created in this browser. Scan this collection again later to compare holder movement.';
@@ -195,7 +193,12 @@
     $('baselineNote').textContent = `Compared with your previous local scan from ${new Date(movement.previousAt).toLocaleString()}. Baseline updated.`;
   }
 
-  function renderConcentration(holders, supply) {
+  function renderConcentration(holders, supply, complete = true) {
+    if (!complete) {
+      $('concentrationList').innerHTML = '<div class="empty-row" style="padding:18px">Collection-wide concentration is hidden because this scan is a best-effort partial discovery.</div>';
+      $('concLabel').textContent = 'PARTIAL';
+      return;
+    }
     const rows = concentrationRows(holders, supply);
     $('concentrationList').innerHTML = rows.map(({ count, share }) => `<div class="conc-row"><span>TOP ${count}</span><div class="conc-bar"><i style="width:${Math.min(100, share).toFixed(2)}%"></i></div><b>${pct(share)}</b></div>`).join('');
     $('concLabel').textContent = `${fmt(holders.length)} HOLDERS`;
@@ -219,11 +222,14 @@
     const rows = filteredHolders();
     const min = getMinHolding();
     const query = $('holderSearch').value.trim();
-    $('resultCountTag').textContent = `${fmt(rows.length)} WALLET${rows.length === 1 ? '' : 'S'}`;
+    $('resultCountTag').textContent = `${fmt(rows.length)} WALLET${rows.length === 1 ? '' : 'S'}${current.complete ? '' : ' · PARTIAL'}`;
     const parts = [];
+    if (!current.complete) parts.push('partial discovery');
     if (min > 1) parts.push(`${min}+ NFTs`);
     if (query) parts.push(`wallet search "${query}"`);
     $('filterSummary').textContent = parts.length ? `Filtered by ${parts.join(' · ')}` : 'Showing all holders';
+    const shareHeader = document.querySelector('.holders-table thead th:nth-child(4)');
+    if (shareHeader) shareHeader.textContent = current.complete ? 'Supply %' : 'Discovered %';
 
     if (!rows.length) {
       $('holderRows').innerHTML = '<tr><td class="empty-row" colspan="5">No wallets match this filter.</td></tr>';
@@ -249,7 +255,9 @@
     const holder = current.holderByAddress[address];
     if (!holder) {
       $('lookupBalance').textContent = '0'; $('lookupRank').textContent = '—'; $('lookupPercentile').textContent = '—';
-      $('lookupMessage').textContent = `${shortAddress(address)} does not hold this collection at snapshot block #${fmt(current.snapshotBlock)}.`;
+      $('lookupMessage').textContent = current.complete
+        ? `${shortAddress(address)} does not hold this collection at snapshot block #${fmt(current.snapshotBlock)}.`
+        : `${shortAddress(address)} was not found in the discovered token range. This partial scan cannot prove the wallet holds zero NFTs.`;
       return;
     }
     const rank = current.rankByAddress[address];
@@ -257,7 +265,28 @@
     $('lookupBalance').textContent = fmt(holder.balance);
     $('lookupRank').textContent = `#${fmt(rank)}`;
     $('lookupPercentile').textContent = `${Math.max(.1, percentile).toFixed(percentile < 10 ? 1 : 0)}%`;
-    $('lookupMessage').textContent = `${shortAddress(address)} holds ${fmt(holder.balance)} NFT${Number(holder.balance) === 1 ? '' : 's'} · ${pct(Number(holder.balance) / current.supply * 100)} of supply.`;
+    const shareLabel = current.complete ? 'of supply' : 'of discovered NFTs';
+    $('lookupMessage').textContent = `${shortAddress(address)} holds ${fmt(holder.balance)} NFT${Number(holder.balance) === 1 ? '' : 's'} · ${pct(Number(holder.balance) / current.supply * 100)} ${shareLabel}.`;
+  }
+
+  function updateCoverageLabels(complete) {
+    const supplyCard = $('supplyStat')?.closest('.stat');
+    const holdersCard = $('holdersStat')?.closest('.stat');
+    const ratioCard = $('holderRatioStat')?.closest('.stat');
+    if (supplyCard) {
+      const label = supplyCard.querySelector('small'); const hint = supplyCard.querySelector('span');
+      if (label) label.textContent = complete ? 'On-chain supply' : 'Discovered NFTs';
+      if (hint) hint.textContent = complete ? 'Live ERC-721 tokens at snapshot block' : 'Best-effort tokens found in the supported range';
+    }
+    if (holdersCard) {
+      const label = holdersCard.querySelector('small'); const hint = holdersCard.querySelector('span');
+      if (label) label.textContent = complete ? 'On-chain holders' : 'Discovered holders';
+      if (hint) hint.textContent = complete ? 'Unique owner addresses' : 'Unique owners found; collection coverage is partial';
+    }
+    if (ratioCard) {
+      const hint = ratioCard.querySelector('span');
+      if (hint) hint.textContent = complete ? 'Holders / supply' : 'Hidden for partial discovery';
+    }
   }
 
   function renderDashboard(contract, data) {
@@ -266,46 +295,71 @@
       .map((h) => ({ address: String(h.address || '').toLowerCase(), balance: Number(h.balance || 0) }))
       .filter((h) => isAddress(h.address) && h.balance > 0)
       .sort((a, b) => b.balance - a.balance || a.address.localeCompare(b.address));
-    const supply = Number(info.totalSupply || holders.reduce((sum, h) => sum + h.balance, 0));
+    const complete = data.complete === true && data.partial !== true;
+    const discoveredSupply = holders.reduce((sum, h) => sum + h.balance, 0);
+    const reportedSupply = Number(info.totalSupply || 0);
+    const supply = complete && Number.isFinite(reportedSupply) && reportedSupply > 0 ? reportedSupply : discoveredSupply;
     const metrics = scoreMetrics(holders, supply);
     const chain = CHAINS[selectedChain];
-    const movement = compareSnapshot(selectedChain, contract, holders);
+    const movement = complete ? compareSnapshot(selectedChain, contract, holders) : { partial: true };
     const rankByAddress = {};
     const holderByAddress = {};
     holders.forEach((h, index) => { rankByAddress[h.address] = index + 1; holderByAddress[h.address] = h; });
 
-    current = { contract, info, holders, supply, metrics, chain, rankByAddress, holderByAddress, snapshotBlock: Number(data.snapshotBlock || 0), fetchedAt: data.fetchedAt || new Date().toISOString(), source: data.source || '' };
+    current = {
+      contract, info, holders, supply, discoveredSupply, metrics, chain, rankByAddress, holderByAddress,
+      complete, partial: !complete,
+      snapshotBlock: Number(data.snapshotBlock || 0),
+      snapshotBlockHash: String(data.snapshotBlockHash || data.provenance?.blockHash || '').toLowerCase(),
+      provenance: data.provenance || null,
+      fetchedAt: data.fetchedAt || new Date().toISOString(), source: data.source || ''
+    };
 
+    updateCoverageLabels(complete);
     $('collectionName').textContent = `${info.name || 'NFT Collection'}${info.symbol ? ` · ${info.symbol}` : ''}`;
     $('collectionContract').textContent = contract;
-    $('chainBadge').textContent = `${chain.name.toUpperCase()} · ${chain.chainId}`;
+    $('chainBadge').textContent = `${chain.name.toUpperCase()} · ${chain.chainId}${complete ? '' : ' · PARTIAL'}`;
     $('scanTime').textContent = new Date(current.fetchedAt).toLocaleString();
-    $('scanBlock').textContent = current.snapshotBlock ? `Block #${fmt(current.snapshotBlock)}` : 'Block pinned';
+    $('scanBlock').textContent = current.snapshotBlock ? `Block #${fmt(current.snapshotBlock)}${current.snapshotBlockHash ? ` · ${current.snapshotBlockHash.slice(0, 10)}…` : ''}` : 'Block pinned';
     $('supplyStat').textContent = fmt(supply);
     $('holdersStat').textContent = fmt(holders.length);
-    $('holderRatioStat').textContent = pct(metrics.ratio);
-    $('top10Stat').textContent = pct(metrics.top10);
-    $('largestStat').textContent = pct(metrics.largest);
     $('whalesStat').textContent = fmt(holders.filter((h) => h.balance >= 10).length);
 
-    $('scoreRing').style.setProperty('--score', metrics.score);
-    $('scoreStat').textContent = metrics.score;
-    $('distributionScore').textContent = metrics.distribution;
-    $('whaleScore').textContent = metrics.whale;
-    $('spreadScore').textContent = metrics.spread;
-    $('distributionMeter').style.width = `${metrics.distribution}%`;
-    $('whaleMeter').style.width = `${metrics.whale}%`;
-    $('spreadMeter').style.width = `${metrics.spread}%`;
+    if (complete) {
+      $('holderRatioStat').textContent = pct(metrics.ratio);
+      $('top10Stat').textContent = pct(metrics.top10);
+      $('largestStat').textContent = pct(metrics.largest);
+      $('scoreRing').style.setProperty('--score', metrics.score);
+      $('scoreStat').textContent = metrics.score;
+      $('distributionScore').textContent = metrics.distribution;
+      $('whaleScore').textContent = metrics.whale;
+      $('spreadScore').textContent = metrics.spread;
+      $('distributionMeter').style.width = `${metrics.distribution}%`;
+      $('whaleMeter').style.width = `${metrics.whale}%`;
+      $('spreadMeter').style.width = `${metrics.spread}%`;
+    } else {
+      $('holderRatioStat').textContent = '—';
+      $('top10Stat').textContent = '—';
+      $('largestStat').textContent = '—';
+      $('scoreRing').style.setProperty('--score', 0);
+      $('scoreStat').textContent = '—';
+      $('distributionScore').textContent = '—';
+      $('whaleScore').textContent = '—';
+      $('spreadScore').textContent = '—';
+      $('distributionMeter').style.width = '0%';
+      $('whaleMeter').style.width = '0%';
+      $('spreadMeter').style.width = '0%';
+    }
 
     renderMovements(movement);
-    renderConcentration(holders, supply);
+    renderConcentration(holders, supply, complete);
     $('holderSearch').value = '';
     $('minHoldings').value = '1';
     $('customMin').value = '';
     $('customMin').classList.remove('show');
     $('lookupInput').value = '';
     $('lookupBalance').textContent = '—'; $('lookupRank').textContent = '—'; $('lookupPercentile').textContent = '—';
-    $('lookupMessage').textContent = 'Paste a wallet to inspect its current position.';
+    $('lookupMessage').textContent = complete ? 'Paste a wallet to inspect its current position.' : 'Partial discovery preview: wallet absence cannot prove zero ownership.';
     renderTable();
     $('dashboard').hidden = false;
     requestAnimationFrame(() => $('dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -322,13 +376,17 @@
     $('contractInput').value = contract;
     invalidateCurrentResult();
     setBusy(true);
-    showStatus(`Reading ${CHAINS[selectedChain].name} at one pinned block…`);
+    showStatus(`Reading ${CHAINS[selectedChain].name} at one hash-bound pinned block…`);
     try {
       const data = await fetchForgeData(contract);
       if (!Array.isArray(data.holders) || !data.holders.length) throw new Error('No current holders found for this contract.');
       renderDashboard(contract, data);
       const blockText = data.snapshotBlock ? ` at block #${fmt(data.snapshotBlock)}` : '';
-      showStatus(`Snapshot complete · ${fmt(data.holders.length)} holders${blockText} · ${CHAINS[selectedChain].name}.`, 'ok');
+      if (data.complete === true && data.partial !== true) {
+        showStatus(`Snapshot complete · ${fmt(data.holders.length)} holders${blockText} · ${CHAINS[selectedChain].name}.`, 'ok');
+      } else {
+        showStatus(`Partial discovery · ${fmt(data.holders.length)} discovered holders${blockText}. Collection-wide metrics and allocation use are disabled for this result.`, 'warn');
+      }
       const url = new URL(location.href);
       url.searchParams.set('chain', selectedChain);
       url.searchParams.set('contract', contract);
@@ -355,10 +413,15 @@
       ['TOTZ FORGE HOLDER SNAPSHOT', ''],
       ['Collection', current.info.name || 'NFT Collection'], ['Symbol', current.info.symbol || ''],
       ['Network', current.chain.name], ['Chain ID', current.chain.chainId], ['Contract', current.contract],
-      ['Snapshot Block', current.snapshotBlock || ''], ['Snapshot UTC', new Date(current.fetchedAt).toISOString()],
-      ['On-chain Supply', current.supply], ['On-chain Holders', current.holders.length],
+      ['Snapshot Block', current.snapshotBlock || ''], ['Snapshot Block Hash', current.snapshotBlockHash || ''],
+      ['Snapshot Completeness', current.complete ? 'COMPLETE' : 'PARTIAL / BEST-EFFORT'],
+      ['Snapshot Source', current.source || ''], ['Snapshot UTC', new Date(current.fetchedAt).toISOString()],
+      ['On-chain Supply', current.complete ? current.supply : 'UNPROVEN'],
+      ['Discovered NFTs', current.discoveredSupply],
+      ['On-chain Holders', current.complete ? current.holders.length : 'UNPROVEN'],
+      ['Discovered Holders', current.holders.length],
       ['Exported Wallets', filtered.length], ['Minimum Holdings', min], ['Wallet Search', query || 'None'],
-      [], ['Rank', 'Wallet', 'NFTs Held', 'Supply %']
+      [], ['Rank', 'Wallet', 'NFTs Held', current.complete ? 'Supply %' : 'Discovered %']
     ];
     filtered.forEach((h) => rows.push([current.rankByAddress[h.address], h.address, Number(h.balance || 0), current.supply ? (Number(h.balance || 0) / current.supply * 100).toFixed(4) : '0.0000']));
     const csv = '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
@@ -367,13 +430,14 @@
     link.href = URL.createObjectURL(blob);
     const collectionSlug = (current.info.symbol || current.info.name || 'collection').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const filterSlug = min > 1 ? `-${min}plus` : '';
-    link.download = `forge-${current.chain.key}-${collectionSlug || 'collection'}${filterSlug}-holders.csv`;
+    const coverageSlug = current.complete ? '' : '-partial';
+    link.download = `forge-${current.chain.key}-${collectionSlug || 'collection'}${filterSlug}${coverageSlug}-holders.csv`;
     document.body.appendChild(link);
     link.click();
     const href = link.href;
     link.remove();
     setTimeout(() => URL.revokeObjectURL(href), 1000);
-    toast(`Exported ${fmt(filtered.length)} wallets`);
+    toast(`Exported ${fmt(filtered.length)} ${current.complete ? 'wallets' : 'discovered wallets · PARTIAL'}`);
   }
 
   async function copyWallets() {
@@ -388,7 +452,7 @@
       area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
       document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
     }
-    toast(`Copied ${fmt(rows.length)} wallets`);
+    toast(current.complete ? `Copied ${fmt(rows.length)} wallets` : `Copied ${fmt(rows.length)} discovered wallets · PARTIAL`);
   }
 
   function checkGenesisBalance(wallet) {
