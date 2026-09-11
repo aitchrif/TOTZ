@@ -1,4 +1,4 @@
-name: FORGE Solidity Reproducibility
+name: FORGE Solidity Runtime Reconstruction
 
 on:
   pull_request:
@@ -10,13 +10,14 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/forge-solidity-reproducibility.yml'
+      - 'docs/forge-claim-runtime-reconstruction.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  reproduce-claim-artifact:
+  verify-deployed-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
@@ -26,5 +27,5 @@ jobs:
           node-version: '22'
       - name: Install pinned compiler dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Verify ForgeMerkleClaim executable reproducibility
+      - name: Verify ForgeMerkleClaim deployed runtime reconstruction
         run: node scripts/verify-forge-claim-build.mjs
