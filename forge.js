@@ -254,7 +254,7 @@
     }
     const holder = current.holderByAddress[address];
     if (!holder) {
-      $('lookupBalance').textContent = '0'; $('lookupRank').textContent = '—'; $('lookupPercentile').textContent = '—';
+      $('lookupBalance').textContent = current.complete ? '0' : '—'; $('lookupRank').textContent = '—'; $('lookupPercentile').textContent = '—';
       $('lookupMessage').textContent = current.complete
         ? `${shortAddress(address)} does not hold this collection at snapshot block #${fmt(current.snapshotBlock)}.`
         : `${shortAddress(address)} was not found in the discovered token range. This partial scan cannot prove the wallet holds zero NFTs.`;
