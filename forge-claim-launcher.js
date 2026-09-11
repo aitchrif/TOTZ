@@ -167,6 +167,11 @@
       if(state.sponsorAllowed!==true)throw new Error('This wallet is not the configured FORGE Mainnet Canary sponsor. No transaction was sent.');
       const max=Number(state.canaryMaxWallets||0),eligible=Number(pkg?.eligibleWallets||0);
       if(!Number.isInteger(max)||max<1||!Number.isInteger(eligible)||eligible<1||eligible>max)throw new Error(`FORGE Mainnet Canary is limited to ${max||0} eligible wallets. No transaction was sent.`);
+      if(state.canaryFundingCapConfigured!==true)throw new Error('FORGE Mainnet Canary funding cap is not configured. No transaction was sent.');
+      const decimals=Number(pkg?.reward?.decimals),total=BigInt(pkg?.reward?.totalUnits||0);let maxUnits;
+      try{maxUnits=ethers.parseUnits(String(state.canaryMaxTokenAmount||''),decimals);}catch{throw new Error('FORGE Mainnet Canary funding cap is invalid for this reward token. No transaction was sent.');}
+      if(total>maxUnits)throw new Error(`FORGE Mainnet Canary allocation exceeds the configured funding cap (${state.canaryMaxTokenAmount} tokens). No transaction was sent.`);
+      if(state.canarySlotAvailable!==true)throw new Error('FORGE Mainnet Canary already has an active epoch. No transaction was sent.');
     }
     return true;
   }

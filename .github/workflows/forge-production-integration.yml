@@ -12,12 +12,14 @@ on:
       - 'supabase/functions/forge-claims/**'
       - 'supabase/functions/forge-claims-gateway/**'
       - 'supabase/migrations/*forge_claim*'
+      - 'supabase/migrations/*forge_canary*'
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
       - 'tests/forge-floor-guard-integration.mjs'
       - 'tests/forge-security-regression.mjs'
       - 'tests/forge-backend-provenance-integration.mjs'
       - 'tests/forge-runtime-attestation-regression.mjs'
+      - 'tests/forge-canary-guardrails.mjs'
       - 'tests/forge-csp-regression.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
@@ -44,6 +46,8 @@ jobs:
         run: node tests/forge-backend-provenance-integration.mjs
       - name: Verify runtime immutable occurrence attestation
         run: node tests/forge-runtime-attestation-regression.mjs
+      - name: Verify Mainnet Canary funding and single-epoch guardrails
+        run: node tests/forge-canary-guardrails.mjs
       - name: Verify FLOOR GUARD read-only market intelligence
         run: node tests/forge-floor-guard-integration.mjs
       - name: Verify FORGE browser CSP and external scripts
