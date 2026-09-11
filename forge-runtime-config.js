@@ -41,7 +41,7 @@
     claimNetwork,
     networks,
     services: Object.freeze({
-      claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims',
+      claims: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-claims-gateway',
       epochIndex: 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-epoch-index',
       // Direct-claim production mode: holder pays the network gas.
       // Keep the gasless relay unreachable from the public claim UI/runtime.
