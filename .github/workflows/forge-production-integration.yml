@@ -6,8 +6,10 @@ on:
     paths:
       - 'forge*'
       - 'artifacts/ForgeMerkleClaim.json'
+      - 'artifacts/ForgeMerkleClaim.release.json'
       - 'api/forge-holders.js'
       - 'api/forge-floor-guard.js'
+      - 'supabase/functions/forge-claims/**'
       - 'supabase/functions/forge-claims-gateway/**'
       - 'supabase/migrations/*forge_claim_provenance*'
       - 'vercel.json'
@@ -37,7 +39,7 @@ jobs:
         run: node tests/forge-production-integration.mjs
       - name: Verify snapshot security regressions
         run: node tests/forge-security-regression.mjs
-      - name: Verify backend provenance enforcement source
+      - name: Verify backend and release provenance enforcement
         run: node tests/forge-backend-provenance-integration.mjs
       - name: Verify FLOOR GUARD read-only market intelligence
         run: node tests/forge-floor-guard-integration.mjs
