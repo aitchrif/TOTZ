@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import vm from 'node:vm';
 import { Interface } from 'ethers';
 
 function assert(condition, message) {
@@ -22,6 +23,7 @@ const multicall = new Interface([
 
 const CONTRACT = '0x1111111111111111111111111111111111111111';
 const OWNER = '0x2222222222222222222222222222222222222222';
+const MISSING_WALLET = '0x3333333333333333333333333333333333333333';
 const HASH_A = `0x${'aa'.repeat(32)}`;
 const HASH_B = `0x${'bb'.repeat(32)}`;
 
@@ -135,6 +137,7 @@ async function invoke(query, mock) {
   assert(res.body?.snapshotBlockHash === HASH_A, 'Stable snapshot must retain the exact pinned block hash.');
   assert(res.body?.provenance?.readBinding === 'eip-1898-blockhash-requireCanonical', 'Snapshot must declare hash-bound read provenance.');
   assert(observedSelectors.length >= 3, 'Expected multiple block-hash-bound contract reads.');
+  assert(String(res.headers['cache-control'] || '').includes('s-maxage=60'), 'Ordinary discovery scans may retain short shared caching.');
 }
 
 {
@@ -155,12 +158,25 @@ async function invoke(query, mock) {
 
 {
   const { fetchMock } = makeRpcMock();
+  const res = await invoke({
+    chain: 'robinhood', contract: CONTRACT,
+    snapshotBlock: '100', snapshotBlockHash: HASH_A
+  }, fetchMock);
+  assert(res.statusCode === 200, `Exact provenance revalidation should succeed, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+  assert(String(res.headers['cache-control'] || '').startsWith('no-store'), 'Exact provenance success responses must be uncached.');
+  assert(String(res.headers['cdn-cache-control'] || '') === 'no-store', 'Exact provenance must disable shared CDN caching.');
+  assert(String(res.headers['vercel-cdn-cache-control'] || '') === 'no-store', 'Exact provenance must disable Vercel CDN caching.');
+}
+
+{
+  const { fetchMock } = makeRpcMock();
   const wrongHash = `0x${'cc'.repeat(32)}`;
   const res = await invoke({
     chain: 'robinhood', contract: CONTRACT,
     snapshotBlock: '100', snapshotBlockHash: wrongHash
   }, fetchMock);
   assert(res.statusCode === 503, 'Requested snapshot provenance with the wrong block hash must fail closed.');
+  assert(String(res.headers['cache-control'] || '').startsWith('no-store'), 'Exact provenance error responses must also be uncached.');
 }
 
 const forgeJs = fs.readFileSync('forge.js', 'utf8');
@@ -169,10 +185,41 @@ assert(forgeJs.includes('PARTIAL / BEST-EFFORT'), 'X-RAY CSV must preserve parti
 assert(forgeJs.includes("current.complete ? 'Supply %' : 'Discovered %'"), 'X-RAY table/export must distinguish discovered share from supply share.');
 assert(!/showStatus\(`Snapshot complete[^`]*`[^\n]*\);/.test(forgeJs) || forgeJs.includes('data.complete === true'), 'X-RAY completion copy must be conditional on API completeness.');
 
+{
+  const start = forgeJs.indexOf('function lookupWallet');
+  const end = forgeJs.indexOf('\n  function updateCoverageLabels', start);
+  assert(start >= 0 && end > start, 'Could not isolate the real X-RAY lookupWallet implementation for behavioral testing.');
+  const lookupSource = forgeJs.slice(start, end);
+
+  function runLookup(complete) {
+    const elements = {
+      lookupInput: { value: MISSING_WALLET }, lookupBalance: { textContent: '' }, lookupRank: { textContent: '' },
+      lookupPercentile: { textContent: '' }, lookupMessage: { textContent: '' }
+    };
+    const sandbox = {
+      elements,
+      current: { complete, holderByAddress: {}, snapshotBlock: 100, holders: [], supply: 1 },
+      $: (id) => elements[id],
+      isAddress: (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || '')),
+      shortAddress: (address) => `${address.slice(0, 6)}…${address.slice(-4)}`,
+      fmt: (n) => String(n),
+      result: null
+    };
+    vm.runInNewContext(`${lookupSource}\nlookupWallet();\nresult = { balance: elements.lookupBalance.textContent, message: elements.lookupMessage.textContent };`, sandbox);
+    return sandbox.result;
+  }
+
+  const partialMiss = runLookup(false);
+  assert(partialMiss.balance === '—', `Partial wallet miss must display unknown/—, got ${JSON.stringify(partialMiss.balance)}.`);
+  assert(/cannot prove.*zero/i.test(partialMiss.message), 'Partial wallet miss must explain that zero ownership is unproven.');
+  const completeMiss = runLookup(true);
+  assert(completeMiss.balance === '0', 'Provably complete wallet miss should still display 0.');
+}
+
 const launcher = fs.readFileSync('forge-claim-launcher.js', 'utf8');
 assert(launcher.includes('assertSnapshotProvenance'), 'Claim launcher must independently revalidate source snapshot provenance.');
 assert(launcher.includes('snapshotBlockHash'), 'Claim launcher must forward snapshot block hash metadata.');
 assert(launcher.includes('publicationFingerprint'), 'Publication authorization must bind a provenance-aware package fingerprint.');
 assert(launcher.includes('TOTZ_FORGE_PACKAGE_PROVENANCE_V1'), 'Publication package fingerprint must use the provenance-bound schema.');
 
-console.log('FORGE SECURITY REGRESSION: PASS · hash-bound reads · mid-scan reorg rejection · partial discovery labeling · exact provenance revalidation');
+console.log('FORGE SECURITY REGRESSION: PASS · hash-bound reads · uncached exact provenance · mid-scan reorg rejection · partial wallet lookup behavior · exact provenance revalidation');
