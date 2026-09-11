@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const fail = (message) => { throw new Error(message); };
 const assert = (condition, message) => { if (!condition) fail(message); };
 
+const ETHERS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.15.0/ethers.umd.min.js';
+const ETHERS_SRI = 'sha512-UXYETj+vXKSURF1UlgVRLzWRS9ZiQTv3lcL4rbeLyqTXCPNZC6PTLF/Ik3uxm2Zo+E109cUpJPZfLxJsCgKSng==';
 const config = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const headers = Array.isArray(config.headers) ? config.headers : [];
 
@@ -42,7 +44,7 @@ requireDirective('base-uri', ["'self'"]);
 requireDirective('object-src', ["'none'"]);
 requireDirective('frame-ancestors', ["'none'"]);
 requireDirective('form-action', ["'self'"]);
-const scriptSrc = requireDirective('script-src', ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']);
+const scriptSrc = requireDirective('script-src', ["'self'", 'https://cdnjs.cloudflare.com']);
 requireDirective('script-src-attr', ["'none'"]);
 requireDirective('style-src', ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com']);
 requireDirective('font-src', ["'self'", 'https://fonts.gstatic.com']);
@@ -55,8 +57,10 @@ requireDirective('connect-src', [
 ]);
 requireDirective('frame-src', ["'none'"]);
 assert(directives.has('upgrade-insecure-requests'), 'CSP must upgrade insecure requests.');
-assert(!scriptSrc.includes("'unsafe-eval'"), 'CSP must not allow unsafe-eval.');
+assert(!scriptSrc.includes("'unsafe-inline'"), 'CSP script-src must not allow unsafe-inline.');
+assert(!scriptSrc.includes("'unsafe-eval'"), 'CSP script-src must not allow unsafe-eval.');
 assert(!scriptSrc.includes('*'), 'CSP script-src must not contain wildcard sources.');
+assert(!scriptSrc.includes('https://cdn.jsdelivr.net'), 'CSP must not trust the old jsDelivr script origin.');
 
 const htmlFiles = [
   'forge.html',
@@ -68,35 +72,37 @@ const htmlFiles = [
   'forge-claim.html'
 ];
 
-const allowedExternalScripts = new Set([
-  'https://cdn.jsdelivr.net/npm/ethers@6.15.0/dist/ethers.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js'
-]);
-
-let totalInlineScripts = 0;
+let externalEthersCount = 0;
 for (const file of htmlFiles) {
   assert(fs.existsSync(file), `Expected FORGE page is missing: ${file}`);
   const html = fs.readFileSync(file, 'utf8');
 
   const insecureActiveResource = [...html.matchAll(/\b(?:src|href)=["'](http:\/\/[^"']+)["']/gi)];
   assert(!insecureActiveResource.length, `${file} contains an insecure http:// resource: ${insecureActiveResource[0]?.[1] || ''}`);
-
-  const externalScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["'](https:\/\/[^"']+)["'][^>]*>/gi)].map((match) => match[1]);
-  for (const url of externalScripts) {
-    assert(allowedExternalScripts.has(url), `${file} loads an unapproved external script: ${url}`);
-    assert(/@\d+\.\d+\.\d+\//.test(url), `${file} external dependency is not pinned to an exact version: ${url}`);
-  }
+  assert(!html.includes('cdn.jsdelivr.net/npm/ethers'), `${file} still references the old ethers CDN.`);
 
   const inlineScripts = [...html.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
     .filter((match) => match[1].trim().length > 0);
-  totalInlineScripts += inlineScripts.length;
-  if (inlineScripts.length) {
-    assert(file === 'forge-epochs.html', `${file} contains unexpected inline executable JavaScript.`);
-    assert(inlineScripts.length === 1, `${file} contains more than the one currently-reviewed inline bootstrap.`);
+  assert(inlineScripts.length === 0, `${file} contains inline executable JavaScript.`);
+
+  const externalTags = [...html.matchAll(/<script\b[^>]*\bsrc=["'](https:\/\/[^"']+)["'][^>]*><\/script>/gi)];
+  for (const match of externalTags) {
+    const tag = match[0];
+    const url = match[1];
+    assert(url === ETHERS_URL, `${file} loads an unapproved external script: ${url}`);
+    assert(tag.includes(`integrity="${ETHERS_SRI}"`), `${file} ethers script is missing the approved SRI hash.`);
+    assert(/crossorigin=["']anonymous["']/i.test(tag), `${file} ethers script must use crossorigin="anonymous".`);
+    externalEthersCount++;
   }
 }
 
-assert(totalInlineScripts === 1, `Expected exactly one reviewed inline FORGE bootstrap, found ${totalInlineScripts}.`);
+assert(externalEthersCount === 4, `Expected four direct SRI-pinned ethers loads, found ${externalEthersCount}.`);
+
+const bootstrap = fs.readFileSync('forge-epochs-bootstrap.js', 'utf8');
+assert(bootstrap.includes(`const ETHERS_URL = '${ETHERS_URL}'`), 'EPOCHS bootstrap ethers URL drifted.');
+assert(bootstrap.includes(`const ETHERS_INTEGRITY = '${ETHERS_SRI}'`), 'EPOCHS bootstrap SRI hash drifted.');
+assert(bootstrap.includes("ethersScript.crossOrigin = 'anonymous'"), 'EPOCHS bootstrap must set crossOrigin=anonymous.');
+assert(bootstrap.includes("ethersScript.integrity = ETHERS_INTEGRITY"), 'EPOCHS bootstrap must apply SRI before insertion.');
 
 console.log('FORGE CSP REGRESSION: PASS');
-console.log(`Checked ${htmlFiles.length} FORGE pages, exact external script allowlist, transport headers and CSP directives.`);
+console.log(`Checked ${htmlFiles.length} FORGE pages, zero inline executable scripts, exact SRI-pinned ethers dependency and CSP directives.`);
