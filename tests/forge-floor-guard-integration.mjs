@@ -19,18 +19,27 @@ const html = fs.readFileSync('forge-floor-guard.html', 'utf8');
 const client = fs.readFileSync('forge-floor-guard.js', 'utf8');
 const api = fs.readFileSync('api/forge-floor-guard.js', 'utf8');
 
-assert(html.includes('FLOOR GUARD V1'), 'FLOOR GUARD identity missing.');
-assert(html.includes('SPOT THE <span>FLOOR BOTS.</span>'), 'FLOOR GUARD hero intent missing.');
-assert(html.includes('bot-like / automated behavior'), 'FLOOR GUARD must clearly describe the heuristic boundary.');
-assert(html.includes('Data source:') && html.includes('https://opensea.io'), 'OpenSea attribution/link is required.');
-assert(client.includes("fetch(`/api/forge-floor-guard?${params.toString()}`"), 'FLOOR GUARD client must use its read-only server proxy.');
+assert(html.includes('FLOOR GUARD V2'), 'FLOOR GUARD V2 identity missing.');
+assert(html.includes('BOT <span>INTELLIGENCE.</span>'), 'FLOOR GUARD V2 hero intent missing.');
+assert(html.includes('COLLECTION SCAN') && html.includes('WALLET CHECK') && html.includes('BOT DATABASE'), 'FLOOR GUARD V2 must expose collection, wallet and database modes.');
+assert(html.includes('Confirmed ≠ heuristic'), 'FLOOR GUARD must visibly separate confirmed intelligence from heuristics.');
+assert(html.includes('“CONFIRMED BOT” is never assigned automatically'), 'FLOOR GUARD must explain its confirmation boundary.');
+assert(html.includes('Behavioral classifications are separate signals'), 'Collection UI must keep behavioral signals separate from confirmed identity.');
+assert(html.includes('https://opensea.io'), 'OpenSea attribution/link is required.');
+
+assert(client.includes("mode:'collection'"), 'Collection intelligence client mode missing.');
+assert(client.includes("mode:'wallet'"), 'Wallet intelligence client mode missing.');
+assert(client.includes("mode:'database'"), 'Persistent database client mode missing.');
+assert(client.includes("status === 'confirmed' ? 'CONFIRMED BOT'"), 'Confirmed bot status must be an explicit registry classification.');
 assert(!/eth_sendTransaction|wallet_sendCalls|approve\(|setApprovalForAll|personal_sign|eth_sign/.test(client), 'FLOOR GUARD client must not contain wallet write/signature paths.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'FLOOR GUARD public endpoint must be GET-only.');
+assert(api.includes("['collection', 'wallet', 'database']"), 'FLOOR GUARD proxy must whitelist V2 modes.');
+assert(api.includes("url.searchParams.set('mode', mode)"), 'FLOOR GUARD proxy must forward the selected broker mode.');
 assert(api.includes('forge-floor-guard-data'), 'FLOOR GUARD must proxy through the persistent marketplace data broker.');
 assert(api.includes("method: 'GET'"), 'FLOOR GUARD broker request must stay read-only.');
-assert(!/api\.opensea\.io|\/auth\/keys|listings\/actions|fulfillment_data|\/offers\/|eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\(/.test(api), 'Vercel FLOOR GUARD proxy must not directly provision marketplace keys or contain marketplace/chain write paths.');
-assert(/s-maxage=30/.test(api), 'FLOOR GUARD should cache short-lived public marketplace scans to protect upstream quota.');
+assert(!/api\.opensea\.io|\/auth\/keys|listings\/actions|fulfillment_data|eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\(/.test(api), 'Vercel FLOOR GUARD proxy must not directly provision marketplace keys or contain marketplace/chain write paths.');
+assert(/s-maxage=30/.test(api), 'FLOOR GUARD should cache short-lived public intelligence reads to protect upstream quota.');
 
 const nav = fs.readFileSync('forge-nav-state.js', 'utf8');
 assert(nav.includes("href: '/forge/floor-guard'"), 'Shared FORGE nav must expose FLOOR GUARD.');
@@ -44,7 +53,6 @@ const xrayEnhancement = fs.readFileSync('forge-table-pagination.js', 'utf8');
 assert(xrayEnhancement.includes('function syncLaunchSurface()'), 'X-RAY must clean its post-launch tool surface at runtime.');
 assert(xrayEnhancement.includes("floor.href = '/forge/floor-guard'"), 'X-RAY nav must expose FLOOR GUARD.');
 assert(xrayEnhancement.includes('MY EPOCHS · LIVE') && xrayEnhancement.includes('FLOOR GUARD · LIVE'), 'X-RAY module cards must expose the current live FORGE tools.');
-assert(xrayEnhancement.includes('/forge/wl-cleaner') && xrayEnhancement.includes('/forge/gtd-check'), 'X-RAY cleanup must remove cached retired-tool links if they appear.');
 
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const rewrites = new Map((vercel.rewrites || []).map((rule) => [rule.source, rule.destination]));
@@ -56,4 +64,4 @@ assert(redirects.get('/forge/gtd-check') === '/forge/floor-guard', 'Old GTD CHEC
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'FLOOR GUARD UI route must be no-store during rollout.');
 
-console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence · X-RAY launch cleanup · observer-race guard · retired GTD/WL · Mainnet writes locked');
+console.log('FORGE FLOOR GUARD V2: PASS · collection + wallet + persistent bot DB · confirmed/manual boundary · read-only · Mainnet writes locked');

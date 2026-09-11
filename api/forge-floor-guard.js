@@ -17,6 +17,11 @@ function safeSlug(value) {
   return /^[a-zA-Z0-9_-]{1,120}$/.test(slug) ? slug : '';
 }
 
+function safeWallet(value) {
+  const wallet = String(value || '').trim().toLowerCase();
+  return /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : '';
+}
+
 export const config = { maxDuration: 30 };
 
 export default async function handler(req, res) {
@@ -25,19 +30,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const slug = safeSlug(req.query?.collection || req.query?.slug);
-  const hours = [1, 6, 24, 72, 168].includes(Number(req.query?.hours)) ? Number(req.query.hours) : 24;
-  if (!slug) return res.status(400).json({ error: 'Paste a valid OpenSea collection URL or collection slug.' });
+  const mode = String(req.query?.mode || 'collection').toLowerCase();
+  if (!['collection', 'wallet', 'database'].includes(mode)) {
+    return res.status(400).json({ error: 'Unsupported FLOOR GUARD mode.' });
+  }
+
+  const url = new URL(FLOOR_GUARD_DATA);
+  url.searchParams.set('mode', mode);
+
+  if (mode === 'collection') {
+    const slug = safeSlug(req.query?.collection || req.query?.slug);
+    const hours = [1, 6, 24, 72, 168].includes(Number(req.query?.hours)) ? Number(req.query.hours) : 24;
+    if (!slug) return res.status(400).json({ error: 'Paste a valid OpenSea collection URL or collection slug.' });
+    url.searchParams.set('collection', slug);
+    url.searchParams.set('hours', String(hours));
+  } else if (mode === 'wallet') {
+    const wallet = safeWallet(req.query?.wallet);
+    if (!wallet) return res.status(400).json({ error: 'Paste a valid EVM wallet address.' });
+    url.searchParams.set('wallet', wallet);
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 28000);
   try {
-    const url = new URL(FLOOR_GUARD_DATA);
-    url.searchParams.set('collection', slug);
-    url.searchParams.set('hours', String(hours));
     const response = await fetch(url, {
       method: 'GET',
-      headers: { accept: 'application/json', 'user-agent': 'TOTZ-FORGE-FLOOR-GUARD/1.0' },
+      headers: { accept: 'application/json', 'user-agent': 'TOTZ-FORGE-FLOOR-GUARD/2.0' },
       signal: controller.signal
     });
     const data = await response.json().catch(() => ({}));
@@ -46,7 +64,7 @@ export default async function handler(req, res) {
   } catch (error) {
     const message = error?.name === 'AbortError' ? 'Marketplace data broker timed out.' : String(error?.message || 'Marketplace data broker failed.');
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(502).json({ error: 'Could not read OpenSea marketplace data right now.', detail: message });
+    return res.status(502).json({ error: 'Could not read FLOOR GUARD intelligence right now.', detail: message });
   } finally {
     clearTimeout(timer);
   }
