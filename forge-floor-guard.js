@@ -8,6 +8,53 @@
   const statusLabel = (status) => status === 'confirmed' ? 'CONFIRMED BOT' : status === 'highly_suspected' ? 'HIGHLY SUSPECTED' : status === 'watch' ? 'WATCH' : status === 'low_signal' ? 'LOW SIGNAL' : 'UNREVIEWED';
   const sessionKey = () => state.scan ? `forgeSecurity:${state.scan.contract.chain}:${state.scan.contract.address}` : '';
 
+  function installPolishStyles() {
+    if (document.querySelector('style[data-floor-guard-polish]')) return;
+    const style = document.createElement('style');
+    style.dataset.floorGuardPolish = '1';
+    style.textContent = `
+      .owner-card.verified-compact{padding:14px 18px;background:linear-gradient(135deg,#2B2140,#403453)}
+      .owner-card.verified-compact .owner-grid{grid-template-columns:1fr auto;gap:12px}
+      .owner-card.verified-compact h2{font-size:1.05rem;margin:0}
+      .owner-card.verified-compact .owner-grid>div>p,.owner-card.verified-compact .micro{display:none}
+      .owner-card.verified-compact .owner-action small{display:none}
+      .owner-card.verified-compact .owner-action .btn{padding:9px 13px;box-shadow:none}
+      .owner-card.verified-compact .status{margin-top:8px;padding:8px 11px;font-size:.68rem}
+      .scan-delta{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+      .delta-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;font-size:.52rem;font-weight:900;background:#fff}
+      .delta-chip.up{background:#FFE2B8;color:#7B4C08}.delta-chip.down{background:#E7F4EF;color:#355642}.delta-chip.new{background:#FFDED9;color:#8B2D22}.delta-chip.neutral{background:#F1ECF7;color:#6A607B}
+      .scan-row{align-items:flex-start}.scan-row>span{white-space:nowrap;padding-top:2px}
+      .score{position:relative}.score[title]{cursor:help}
+      @media(max-width:650px){.owner-card.verified-compact .owner-grid{grid-template-columns:1fr}.owner-card.verified-compact .owner-action{text-align:left}.scan-row{align-items:flex-start;flex-direction:column}}
+    `;
+    document.head.appendChild(style);
+    const headers = Array.from(document.querySelectorAll('.table thead th'));
+    const confidenceHeader = headers.find((node) => String(node.textContent || '').trim().toUpperCase() === 'CONFIDENCE');
+    if (confidenceHeader) confidenceHeader.textContent = 'AUTOMATION SCORE';
+  }
+
+  function setOwnerCardVerified(workspace) {
+    const card = $('ownerCard');
+    if (!card) return;
+    card.classList.add('verified-compact');
+    const title = card.querySelector('h2');
+    if (title) title.textContent = '✓ Owner verified · security workspace active';
+    $('connectOwnerBtn').textContent = 'WORKSPACE ACTIVE';
+    $('connectOwnerBtn').disabled = true;
+    $('ownerHint').textContent = `${workspace.collection_name || workspace.collection_slug || 'Collection'} · verified by ${workspace.verification_method}`;
+  }
+
+  function resetOwnerCard() {
+    const card = $('ownerCard');
+    if (!card) return;
+    card.classList.remove('verified-compact');
+    const title = card.querySelector('h2');
+    if (title) title.textContent = 'Collection owner? Unlock the security workspace.';
+    $('connectOwnerBtn').disabled = !state.scan;
+    $('connectOwnerBtn').textContent = state.scan ? 'CONNECT OWNER WALLET' : 'SCAN A COLLECTION FIRST';
+    $('ownerHint').textContent = state.scan ? `Verify owner/admin control of ${state.scan.collection?.name || 'this collection'}.` : 'Public scanning does not require a wallet.';
+  }
+
   function setStatus(id, message, type = '') {
     const node = $(id); if (!node) return;
     node.textContent = message || '';
@@ -56,7 +103,7 @@
       return `<tr>
         <td><a class="wallet" href="https://opensea.io/${esc(row.wallet)}" target="_blank" rel="noopener noreferrer">${esc(short(row.wallet))} ↗</a></td>
         <td><span class="badge ${statusClass(row.status)}">${statusLabel(row.status)}</span></td>
-        <td><span class="score">${Number(row.confidence || 0)}</span></td>
+        <td><span class="score" title="Behavioral automation-risk score. It is not the probability that this wallet is a bot.">${Number(row.confidence || 0)}</span></td>
         <td><b>${Number(row.currentOffers || 0).toLocaleString()}</b></td>
         <td>${Number(row.activeOffersGlobal || 0).toLocaleString()}</td>
         <td><div class="reasons">${evidence.length ? evidence.map((x) => `<span class="reason">${esc(x)}</span>`).join('') : '<span class="reason">no strong evidence</span>'}</div></td>
@@ -82,7 +129,7 @@
     const v = verdict(s); const box = $('verdictBox'); box.className = `verdict-main${v.cls ? ` ${v.cls}` : ''}`; $('verdictTitle').textContent = v.title; $('verdictText').textContent = v.text;
     const flagged = state.rows.filter((r) => ['confirmed','highly_suspected','watch'].includes(r.status));
     $('copyFlaggedBtn').disabled = flagged.length === 0; $('exportBtn').disabled = state.rows.length === 0;
-    $('connectOwnerBtn').disabled = false; $('connectOwnerBtn').textContent = 'CONNECT OWNER WALLET'; $('ownerHint').textContent = `Verify owner/admin control of ${data.collection?.name || 'this collection'}.`;
+    if (!state.workspace) resetOwnerCard();
     renderRows();
     const url = new URL(location.href); url.searchParams.set('contract', data.contract.address); history.replaceState({}, '', url);
     restoreWorkspace();
@@ -105,40 +152,84 @@
 
   async function copyFlagged() {
     const rows = state.rows.filter((r) => ['confirmed','highly_suspected','watch'].includes(r.status)); if (!rows.length) return;
-    const text = rows.map((r) => `${r.wallet}\t${statusLabel(r.status)}\tconfidence=${r.confidence || 0}\toffers_here=${r.currentOffers || 0}`).join('\n');
+    const text = rows.map((r) => `${r.wallet}\t${statusLabel(r.status)}\tautomation_score=${r.confidence || 0}\toffers_here=${r.currentOffers || 0}`).join('\n');
     try { await navigator.clipboard.writeText(text); setStatus('scanStatus', `Copied ${rows.length} flagged wallet${rows.length === 1 ? '' : 's'}.`, 'ok'); } catch (_) { setStatus('scanStatus', 'Clipboard access was blocked by the browser.', 'error'); }
   }
   function exportCsv() {
     if (!state.rows.length) return;
-    const header = ['wallet','status','confidence','offers_here','global_active_offers','evidence'];
+    const header = ['wallet','status','automation_score','offers_here','global_active_offers','evidence'];
     const lines = state.rows.map((r) => [r.wallet,r.status,r.confidence,r.currentOffers,r.activeOffersGlobal,`"${String((r.evidence||[]).join('; ')).replace(/"/g,'""')}"`].join(','));
     const blob = new Blob([[header.join(','), ...lines].join('\n')], { type:'text/csv;charset=utf-8' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `totz-forge-security-${state.scan?.collection?.slug || 'scan'}.csv`; document.body.appendChild(link); link.click(); const href = link.href; link.remove(); setTimeout(() => URL.revokeObjectURL(href), 1000);
   }
 
+  function flaggedRows(scan) {
+    return Array.isArray(scan?.flagged) ? scan.flagged.filter((row) => row && row.wallet) : [];
+  }
+  function highRiskWallets(scan) {
+    return new Set(flaggedRows(scan).filter((row) => ['confirmed','highly_suspected'].includes(String(row.status || ''))).map((row) => String(row.wallet).toLowerCase()));
+  }
+  function scanDeltaChips(scan, previous) {
+    if (!previous) return '<span class="delta-chip neutral">BASELINE</span>';
+    const current = scan?.counts || {}; const older = previous?.counts || {};
+    const chips = [];
+    const metrics = [
+      ['activeOffers', 'offers'],
+      ['uniqueBidders', 'bidders'],
+      ['confirmedBotBidders', 'confirmed'],
+      ['highlySuspectedBidders', 'suspected']
+    ];
+    for (const [key, label] of metrics) {
+      const delta = Number(current[key] || 0) - Number(older[key] || 0);
+      if (!delta) continue;
+      chips.push(`<span class="delta-chip ${delta > 0 ? 'up' : 'down'}">${delta > 0 ? '+' : ''}${delta} ${label}</span>`);
+    }
+    const nowRisk = highRiskWallets(scan); const oldRisk = highRiskWallets(previous);
+    const newRisk = [...nowRisk].filter((wallet) => !oldRisk.has(wallet));
+    if (newRisk.length) chips.unshift(`<span class="delta-chip new">NEW HIGH-RISK ${newRisk.length}</span>`);
+
+    const currentRows = new Map(flaggedRows(scan).map((row) => [String(row.wallet).toLowerCase(), row]));
+    const olderRows = new Map(flaggedRows(previous).map((row) => [String(row.wallet).toLowerCase(), row]));
+    let biggest = null;
+    for (const [wallet, row] of currentRows) {
+      const old = olderRows.get(wallet); if (!old) continue;
+      const diff = Number(row.currentOffers || 0) - Number(old.currentOffers || 0);
+      if (!diff) continue;
+      if (!biggest || Math.abs(diff) > Math.abs(biggest.diff)) biggest = { wallet, diff };
+    }
+    if (biggest) chips.push(`<span class="delta-chip ${biggest.diff > 0 ? 'up' : 'down'}">${esc(short(biggest.wallet))} ${biggest.diff > 0 ? '+' : ''}${biggest.diff} offers</span>`);
+    return chips.length ? chips.join('') : '<span class="delta-chip neutral">NO MATERIAL CHANGE</span>';
+  }
+
   function renderWorkspace(bundle) {
     const workspace = bundle?.workspace; if (!workspace) return;
     state.workspace = bundle; $('ownerWorkspace').hidden = false;
+    setOwnerCardVerified(workspace);
     $('workspaceIdentity').textContent = `${workspace.collection_name || workspace.collection_slug || 'Collection'} · ${workspace.chain} · owner verified by ${workspace.verification_method}`;
-    const enabled = workspace.monitoring_enabled === true; $('monitorLabel').textContent = enabled ? 'Monitoring enabled' : 'Monitoring off'; $('monitorMeta').textContent = enabled ? 'Workspace is tracking scan history' : 'Manual scans only'; $('monitorBtn').textContent = enabled ? 'DISABLE' : 'ENABLE';
+    const enabled = workspace.monitoring_enabled === true;
+    $('monitorLabel').textContent = enabled ? 'Monitoring enabled' : 'Monitoring off';
+    $('monitorMeta').textContent = enabled ? 'Auto-scan active · about every 6 hours' : 'Manual scans only · scheduled scans paused';
+    $('monitorBtn').textContent = enabled ? 'DISABLE' : 'ENABLE';
     const watch = Array.isArray(bundle.watchlist) ? bundle.watchlist : [];
     $('watchList').innerHTML = watch.length ? watch.map((row) => `<div class="watch-row"><div><code>${esc(short(row.wallet))}</code><div class="watch-meta">${esc(String(row.status || 'watch').toUpperCase())}${row.note ? ` · ${esc(row.note)}` : ''}</div></div><button class="btn ghost small watch-remove" data-wallet="${esc(row.wallet)}" type="button">REMOVE</button></div>`).join('') : '<div class="empty">No wallets on the watchlist.</div>';
     document.querySelectorAll('.watch-remove').forEach((button) => button.addEventListener('click', () => removeWatch(button.dataset.wallet, button)));
     const scans = Array.isArray(bundle.recentScans) ? bundle.recentScans : [];
-    $('scanHistory').innerHTML = scans.length ? scans.map((scan) => { const c = scan.counts || {}; const when = scan.scanned_at ? new Date(scan.scanned_at).toLocaleString() : '—'; return `<div class="scan-row"><div><b>${Number(c.activeOffers || 0)} offers · ${Number(c.uniqueBidders || 0)} bidders</b><br><span>${Number(c.confirmedBotBidders || 0)} confirmed · ${Number(c.highlySuspectedBidders || 0)} suspected</span></div><span>${esc(when)}</span></div>`; }).join('') : '<div class="empty">No stored scans yet.</div>';
-    setStatus('ownerStatus', `Owner verified · workspace unlocked via ${workspace.verification_method}.`, 'ok');
+    $('scanHistory').innerHTML = scans.length ? scans.map((scan, index) => {
+      const c = scan.counts || {}; const when = scan.scanned_at ? new Date(scan.scanned_at).toLocaleString() : '—'; const previous = scans[index + 1] || null;
+      return `<div class="scan-row"><div><b>${Number(c.activeOffers || 0)} offers · ${Number(c.uniqueBidders || 0)} bidders</b><br><span>${Number(c.confirmedBotBidders || 0)} confirmed · ${Number(c.highlySuspectedBidders || 0)} suspected</span><div class="scan-delta">${scanDeltaChips(scan, previous)}</div></div><span>${esc(when)}</span></div>`;
+    }).join('') : '<div class="empty">No stored scans yet.</div>';
+    setStatus('ownerStatus', `Owner verified · workspace active via ${workspace.verification_method}.`, 'ok');
     renderRows();
   }
 
   async function restoreWorkspace() {
     if (!state.scan) return;
     const key = sessionKey(); const saved = key ? localStorage.getItem(key) : '';
-    if (!saved) { state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; renderRows(); return; }
+    if (!saved) { state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; resetOwnerCard(); renderRows(); return; }
     try {
       const bundle = await ownerApi({ action:'workspace' }, saved); state.session = saved; renderWorkspace(bundle);
-      $('connectOwnerBtn').textContent = 'WORKSPACE UNLOCKED'; $('connectOwnerBtn').disabled = true;
     } catch (_) {
-      localStorage.removeItem(key); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; renderRows();
+      localStorage.removeItem(key); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; resetOwnerCard(); renderRows();
     }
   }
 
@@ -152,7 +243,7 @@
       const challenge = await ownerApi({ action:'challenge', chain:state.scan.contract.chain, contract:state.scan.contract.address, wallet, slug:state.scan.collection?.slug || '' }, '', 20000);
       const signature = await signer.signMessage(challenge.message);
       const verified = await ownerApi({ action:'verify', challengeId:challenge.challengeId, signature, slug:state.scan.collection?.slug || '', collectionName:state.scan.collection?.name || state.scan.contract?.name || '' }, '', 30000);
-      state.session = verified.session; localStorage.setItem(sessionKey(), state.session); renderWorkspace(verified); button.textContent = 'WORKSPACE UNLOCKED'; button.disabled = true; $('ownerWorkspace').scrollIntoView({ behavior:'smooth', block:'start' });
+      state.session = verified.session; localStorage.setItem(sessionKey(), state.session); renderWorkspace(verified); $('ownerWorkspace').scrollIntoView({ behavior:'smooth', block:'start' });
     } catch (error) {
       setStatus('ownerStatus', error?.message || 'Owner verification failed.', 'error'); busy(button, false, '', 'CONNECT OWNER WALLET');
     }
@@ -171,13 +262,14 @@
   }
   async function toggleMonitoring() {
     if (!state.workspace) return; const enabled = state.workspace.workspace?.monitoring_enabled !== true; const button = $('monitorBtn'); busy(button, true, 'SAVING…', enabled ? 'ENABLE' : 'DISABLE');
-    try { const bundle = await ownerApi({ action:'monitoring', enabled }); renderWorkspace(bundle); }
+    try { const bundle = await ownerApi({ action:'monitoring', enabled }); renderWorkspace(bundle); setStatus('ownerStatus', enabled ? 'Monitoring enabled · automatic read-only scan runs about every 6 hours.' : 'Monitoring disabled · scheduled scans paused.', 'ok'); }
     catch (error) { setStatus('ownerStatus', error?.message || 'Could not update monitoring.', 'error'); }
   }
   function disconnectWorkspace() {
-    if (state.scan) localStorage.removeItem(sessionKey()); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; $('connectOwnerBtn').disabled = false; $('connectOwnerBtn').textContent = 'CONNECT OWNER WALLET'; setStatus('ownerStatus', 'Workspace session disconnected. Public scanner remains available.'); renderRows();
+    if (state.scan) localStorage.removeItem(sessionKey()); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; resetOwnerCard(); setStatus('ownerStatus', 'Workspace session disconnected. Public scanner remains available.'); renderRows();
   }
 
+  installPolishStyles();
   $('scanBtn').addEventListener('click', scanCollection); $('contractInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') scanCollection(); });
   $('copyFlaggedBtn').addEventListener('click', copyFlagged); $('exportBtn').addEventListener('click', exportCsv); $('connectOwnerBtn').addEventListener('click', connectOwner); $('monitorBtn').addEventListener('click', toggleMonitoring); $('disconnectWorkspaceBtn').addEventListener('click', disconnectWorkspace);
 
