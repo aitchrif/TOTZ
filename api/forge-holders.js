@@ -382,23 +382,33 @@ export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({ error: 'Method not allowed' }); }
-  const chainKey = String(req.query?.chain || 'robinhood').trim().toLowerCase();
+  const query = req.query || {};
+  const hasRequestedBlock = query.snapshotBlock !== undefined && query.snapshotBlock !== null && String(query.snapshotBlock) !== '';
+  const hasRequestedHash = query.snapshotBlockHash !== undefined && query.snapshotBlockHash !== null && String(query.snapshotBlockHash) !== '';
+  const explicitProvenance = hasRequestedBlock || hasRequestedHash;
+  if (explicitProvenance) {
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.setHeader('CDN-Cache-Control', 'no-store');
+    res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
+  }
+
+  const chainKey = String(query.chain || 'robinhood').trim().toLowerCase();
   const baseChain = CHAINS[chainKey];
   if (!baseChain) return res.status(400).json({ error: 'Unsupported network. Use robinhood, ink, or ethereum.' });
   const chain = requestChain(baseChain);
-  const contract = String(req.query?.contract || '').trim().toLowerCase();
+  const contract = String(query.contract || '').trim().toLowerCase();
   if (!isAddress(contract)) return res.status(400).json({ error: 'Invalid contract address' });
 
   try {
-    const snapshot = await resolveSnapshot(chain, req.query);
+    const snapshot = await resolveSnapshot(chain, query);
     const blockNumber = snapshot.number;
     const blockTag = snapshot.tag;
     await assertContract(chain, contract, blockTag);
 
-    if (String(req.query?.mode || '').toLowerCase() === 'balance') {
-      const wallet = String(req.query?.wallet || '').trim().toLowerCase();
+    if (String(query.mode || '').toLowerCase() === 'balance') {
+      const wallet = String(query.wallet || '').trim().toLowerCase();
       if (!isAddress(wallet)) return res.status(400).json({ error: 'Invalid wallet address' });
-      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
       const balance = await walletBalance(chain, contract, wallet, blockTag);
       await assertSnapshotCanonical(chain);
       return res.status(200).json({
@@ -408,7 +418,7 @@ export default async function handler(req, res) {
       });
     }
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    if (!explicitProvenance) res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     const info = await metadata(chain, contract, blockTag);
     let ownership;
     let source;
