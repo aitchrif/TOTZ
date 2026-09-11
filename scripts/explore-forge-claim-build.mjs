@@ -36,6 +36,34 @@ function commonSuffix(a,b){let i=0;while(i<a.length&&i<b.length&&a[a.length-1-i]
 function firstDiff(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return Math.floor(i/2);}
 function windowAt(hex, byte, radius=28){const from=Math.max(0,(byte-radius)*2);const to=Math.min(hex.length,(byte+radius)*2);return hex.slice(from,to);}
 
+const OPCODES = {
+  0x00:'STOP',0x01:'ADD',0x02:'MUL',0x03:'SUB',0x04:'DIV',0x05:'SDIV',0x06:'MOD',0x07:'SMOD',0x08:'ADDMOD',0x09:'MULMOD',0x0a:'EXP',0x0b:'SIGNEXTEND',
+  0x10:'LT',0x11:'GT',0x12:'SLT',0x13:'SGT',0x14:'EQ',0x15:'ISZERO',0x16:'AND',0x17:'OR',0x18:'XOR',0x19:'NOT',0x1a:'BYTE',0x1b:'SHL',0x1c:'SHR',0x1d:'SAR',
+  0x20:'KECCAK256',0x30:'ADDRESS',0x31:'BALANCE',0x32:'ORIGIN',0x33:'CALLER',0x34:'CALLVALUE',0x35:'CALLDATALOAD',0x36:'CALLDATASIZE',0x37:'CALLDATACOPY',0x38:'CODESIZE',0x39:'CODECOPY',0x3a:'GASPRICE',0x3b:'EXTCODESIZE',0x3c:'EXTCODECOPY',0x3d:'RETURNDATASIZE',0x3e:'RETURNDATACOPY',0x3f:'EXTCODEHASH',
+  0x40:'BLOCKHASH',0x41:'COINBASE',0x42:'TIMESTAMP',0x43:'NUMBER',0x44:'PREVRANDAO',0x45:'GASLIMIT',0x46:'CHAINID',0x47:'SELFBALANCE',0x48:'BASEFEE',0x49:'BLOBHASH',0x4a:'BLOBBASEFEE',
+  0x50:'POP',0x51:'MLOAD',0x52:'MSTORE',0x53:'MSTORE8',0x54:'SLOAD',0x55:'SSTORE',0x56:'JUMP',0x57:'JUMPI',0x58:'PC',0x59:'MSIZE',0x5a:'GAS',0x5b:'JUMPDEST',0x5f:'PUSH0',
+  0xf0:'CREATE',0xf1:'CALL',0xf2:'CALLCODE',0xf3:'RETURN',0xf4:'DELEGATECALL',0xf5:'CREATE2',0xfa:'STATICCALL',0xfd:'REVERT',0xfe:'INVALID',0xff:'SELFDESTRUCT'
+};
+function disassemble(hex) {
+  const bytes=Buffer.from(raw(hex),'hex'); const out=[];
+  for(let pc=0;pc<bytes.length;){
+    const op=bytes[pc], start=pc; pc++;
+    let name=OPCODES[op]||`OP_${op.toString(16).padStart(2,'0')}`, data='';
+    if(op>=0x60&&op<=0x7f){const n=op-0x5f;name=`PUSH${n}`;data=bytes.subarray(pc,Math.min(bytes.length,pc+n)).toString('hex');pc+=n;}
+    else if(op>=0x80&&op<=0x8f) name=`DUP${op-0x7f}`;
+    else if(op>=0x90&&op<=0x9f) name=`SWAP${op-0x8f}`;
+    else if(op>=0xa0&&op<=0xa4) name=`LOG${op-0x9f}`;
+    out.push({pc:start,op,name,data});
+  }
+  return out;
+}
+function opcodeShapeDiff(aHex,bHex) {
+  const a=disassemble(aHex),b=disassemble(bHex);
+  let i=0;while(i<a.length&&i<b.length&&a[i].name===b[i].name)i++;
+  const show=(arr,idx)=>arr.slice(Math.max(0,idx-12),Math.min(arr.length,idx+18)).map(x=>`${x.pc.toString(16).padStart(4,'0')}:${x.name}${x.data?`(${x.data})`:''}`).join(' ');
+  return {index:i,aInstructions:a.length,bInstructions:b.length,aAround:show(a,i),bAround:show(b,i)};
+}
+
 const legacyCore=stripMetadata(zero(legacy.deployedBytecode,legacy.immutableReferences));
 const variants=[];
 function add(name, source){variants.push([name,source]);}
@@ -70,4 +98,5 @@ if(best){
   console.log(`firstDiffByte=${byte}`);
   console.log(`candidateWindow=${windowAt(best.core,byte)}`);
   console.log(`legacyWindow=${windowAt(legacyCore,byte)}`);
+  console.log('OPCODE_SHAPE_DIFF',JSON.stringify(opcodeShapeDiff(best.core,legacyCore),null,2));
 }
