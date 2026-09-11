@@ -11,7 +11,7 @@ on:
       - 'api/forge-floor-guard.js'
       - 'supabase/functions/forge-claims/**'
       - 'supabase/functions/forge-claims-gateway/**'
-      - 'supabase/migrations/*forge_claim_provenance*'
+      - 'supabase/migrations/*forge_claim*'
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
       - 'tests/forge-floor-guard-integration.mjs'
