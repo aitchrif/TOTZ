@@ -33,6 +33,10 @@ assert(client.includes("mode:'security'"), 'Contract security scan client mode m
 assert(client.includes("action:'challenge'") && client.includes("action:'verify'"), 'Owner signature verification flow missing.');
 assert(client.includes("action:'watchlist_upsert'") && client.includes("action:'monitoring'"), 'Owner workspace controls missing.');
 assert(client.includes('signer.signMessage'), 'Owner login must use a message signature, not a transaction.');
+assert(client.includes('AUTOMATION SCORE') && client.includes('automation_score'), 'Behavioral score must be labeled as automation risk rather than bot probability.');
+assert(client.includes('Auto-scan active · about every 6 hours'), 'Monitoring cadence must be clear in the owner workspace.');
+assert(client.includes('function scanDeltaChips') && client.includes('NEW HIGH-RISK'), 'Scan-to-scan delta intelligence must stay enabled.');
+assert(client.includes('verified-compact') && client.includes('Owner verified · security workspace active'), 'Verified owner banner must collapse into a compact active state.');
 assert(!/eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\s*\(|sendTransaction\s*\(/.test(client), 'Collection Security client must not contain blockchain write/approval paths.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'Public Collection Security endpoint must stay GET-only.');
@@ -64,4 +68,4 @@ assert(redirects.get('/forge/wl-cleaner') === '/forge/floor-guard' && redirects.
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'Collection Security UI must stay no-store during rollout.');
 
-console.log('FORGE COLLECTION SECURITY: PASS · contract-first bidder scan · owner verification workspace · monitoring/watchlist · evidence-first · Mainnet writes locked');
+console.log('FORGE COLLECTION SECURITY: PASS · contract-first bidder scan · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');
