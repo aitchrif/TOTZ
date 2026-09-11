@@ -9,6 +9,7 @@ const required = [
   'forge.js',
   'forge-guide.html',
   'forge-epochs.html',
+  'forge-epochs-bootstrap.js',
   'forge-epochs-page.js',
   'forge-my-epochs.html',
   'forge-my-epochs.js',
@@ -21,6 +22,8 @@ const required = [
   'api/forge-holders.js',
   'package.json',
   'artifacts/ForgeMerkleClaim.json',
+  'artifacts/ForgeMerkleClaim.release.json',
+  'supabase/functions/forge-claims/index.ts',
   'tests/forge-security-regression.mjs'
 ];
 for (const file of required) assert(fs.existsSync(file), `Missing production FORGE file: ${file}`);
@@ -60,6 +63,7 @@ assert(packageJson?.type === 'module', 'FORGE Node runtime must use explicit ESM
 const launcherJs = fs.readFileSync('forge-claim-launcher.js', 'utf8');
 assert(launcherJs.includes('assertSnapshotProvenance'), 'Claim launcher must independently revalidate exact snapshot provenance.');
 assert(launcherJs.includes('TOTZ_FORGE_PACKAGE_PROVENANCE_V1'), 'Claim publication fingerprint must bind snapshot provenance.');
+assert(launcherJs.includes("fetch('/artifacts/ForgeMerkleClaim.release.json'"), 'Claim launcher must deploy from the source-controlled release artifact.');
 
 const guideHtml = fs.readFileSync('forge-guide.html', 'utf8');
 assert(/TOTZ FORGE · PUBLIC BETA/.test(guideHtml), 'Public Beta guide must identify the launch state.');
@@ -82,8 +86,11 @@ assert(epochsHtml.includes('eth-diamond-glyph.svg'), 'EPOCHS must preserve the o
 assert(!epochsHtml.includes('WL CLEANER · SOON') && !epochsHtml.includes('GTD CHECK · SOON'), 'EPOCHS tool nav must not expose page-only SOON placeholders.');
 assert(!epochsHtml.includes('epochs-xray-shell'), 'EPOCHS must not re-introduce the later X-RAY shell UI override.');
 assert(!epochsHtml.includes('forge-epochs-parity.css'), 'EPOCHS must not load the later parity stylesheet.');
-assert(!epochsHtml.includes('<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>'), 'Ethers must remain off the parser-blocking first-paint path.');
-assert(epochsHtml.includes('ethersScript.async = true;'), 'EPOCHS must keep ethers enhancement asynchronous.');
+assert(epochsHtml.includes('/forge-epochs-bootstrap.js?v=1'), 'EPOCHS must externalize the optional wallet dependency bootstrap.');
+assert(!/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/i.test(epochsHtml), 'EPOCHS must not contain inline executable JavaScript.');
+const epochsBootstrap = fs.readFileSync('forge-epochs-bootstrap.js', 'utf8');
+assert(epochsBootstrap.includes("ethersScript.async = true;"), 'EPOCHS must keep ethers enhancement asynchronous.');
+assert(epochsBootstrap.includes('ethersScript.integrity = ETHERS_INTEGRITY'), 'EPOCHS wallet dependency bootstrap must apply SRI.');
 
 const navState = fs.readFileSync('forge-nav-state.js', 'utf8');
 assert(!navState.includes('function normalizeEpochNetworkCards()'), 'Original EPOCHS network UI must not be replaced at runtime.');
@@ -121,4 +128,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · hash-bound provenance · X-RAY partial labeling · clean routes/copy · claim routes no-store · EPOCHS nav parity · original EPOCHS UI preserved · paint-safe nav sync');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · hash-bound provenance · X-RAY partial labeling · clean routes/copy · claim routes no-store · externalized EPOCHS wallet bootstrap · fresh claim artifact · original EPOCHS UI preserved · paint-safe nav sync');

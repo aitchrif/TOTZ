@@ -78,25 +78,6 @@ nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0
 <script src="/forge-runtime-config.js?v=1"></script>
 <script src="/forge-nav-state.js?v=5"></script>
 <script src="/forge-epochs-page.js?v=3"></script>
-<script>
-(() => {
-  const loadRewardTokenFeature = () => {
-    if (document.querySelector('script[data-forge-reward-token]')) return;
-    const feature = document.createElement('script');
-    feature.src = '/forge-epoch-reward-token.js?v=2';
-    feature.dataset.forgeRewardToken = '1';
-    feature.async = true;
-    document.body.appendChild(feature);
-  };
-  if (window.ethers) { loadRewardTokenFeature(); return; }
-  const ethersScript = document.createElement('script');
-  ethersScript.src = 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js';
-  ethersScript.async = true;
-  ethersScript.dataset.forgeEthers = '1';
-  ethersScript.onload = loadRewardTokenFeature;
-  ethersScript.onerror = () => console.warn('FORGE: ethers enhancement unavailable; core EPOCHS remains active.');
-  document.body.appendChild(ethersScript);
-})();
-</script>
+<script src="/forge-epochs-bootstrap.js?v=1"></script>
 </body>
 </html>

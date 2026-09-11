@@ -1,0 +1,43 @@
+name: FORGE Release Artifact
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contracts/ForgeMerkleClaim.sol'
+      - 'scripts/build-forge-claim-release.mjs'
+      - 'artifacts/ForgeMerkleClaim.release.json'
+      - 'package.json'
+      - '.github/workflows/forge-release-artifact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Generate fresh claim artifact from Solidity source
+        run: node scripts/build-forge-claim-release.mjs artifacts/ForgeMerkleClaim.release.generated.json
+      - name: Compare checked-in release artifact when present
+        run: |
+          if [ -f artifacts/ForgeMerkleClaim.release.json ]; then
+            cmp --silent artifacts/ForgeMerkleClaim.release.generated.json artifacts/ForgeMerkleClaim.release.json || {
+              echo 'Checked-in claim release artifact is not reproducible from source.' >&2
+              exit 1
+            }
+          fi
+      - name: Upload generated release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-claim-release-artifact
+          path: artifacts/ForgeMerkleClaim.release.generated.json
+          if-no-files-found: error

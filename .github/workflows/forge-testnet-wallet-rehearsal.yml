@@ -1,0 +1,35 @@
+name: FORGE Testnet Wallet Rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wallet-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: forge-testnet-rehearsal
+    env:
+      FORGE_TESTNET_PRIVATE_KEY: ${{ secrets.FORGE_TESTNET_PRIVATE_KEY }}
+      FORGE_TESTNET_RPC_URL: ${{ secrets.FORGE_TESTNET_RPC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require dedicated testnet wallet secret
+        run: |
+          if [ -z "$FORGE_TESTNET_PRIVATE_KEY" ]; then
+            echo 'FORGE_TESTNET_PRIVATE_KEY is required. Use a dedicated Robinhood testnet-only wallet.' >&2
+            exit 1
+          fi
+      - name: Install pinned dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Rebuild and compare fresh claim artifact
+        run: |
+          node scripts/build-forge-claim-release.mjs artifacts/ForgeMerkleClaim.release.rehearsal.json
+          cmp --silent artifacts/ForgeMerkleClaim.release.rehearsal.json artifacts/ForgeMerkleClaim.release.json
+      - name: Execute Robinhood testnet deploy → fund → claim rehearsal
+        run: node tests/forge-testnet-wallet-e2e.mjs

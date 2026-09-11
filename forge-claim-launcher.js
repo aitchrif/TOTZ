@@ -308,7 +308,18 @@
   async function currentChain(){if(!window.ethereum?.request)return null;const h=await window.ethereum.request({method:'eth_chainId'});return parseInt(h,16);}
   function updateDeployReady(){const token=$('tokenInput').value.trim();const sponsor=$('sponsorInput').value.trim();const deadline=$('deadlineInput').value;deadlineUnix=deadline?Math.floor(new Date(deadline).getTime()/1000):0;$('deployBtn').disabled=Boolean(deployedTuple)||!(writesEnabled()&&verified&&isAddress(token)&&isAddress(sponsor)&&deadlineUnix>Math.floor(Date.now()/1000)+60);}
 
-  async function loadArtifact(){if(artifact)return artifact;const r=await fetch('/artifacts/ForgeMerkleClaim.json',{cache:'no-store'});if(!r.ok)throw new Error('Claim contract artifact is unavailable.');artifact=await r.json();if(!artifact?.abi||!/^0x[0-9a-f]+$/i.test(artifact?.bytecode||''))throw new Error('Invalid claim contract artifact.');return artifact;}
+  async function loadArtifact(){
+    if(artifact)return artifact;
+    const r=await fetch('/artifacts/ForgeMerkleClaim.release.json',{cache:'no-store'});
+    if(!r.ok)throw new Error('Source-controlled claim release artifact is unavailable.');
+    const next=await r.json();
+    if(next?.artifactFormat!=='TOTZ_FORGE_CLAIM_RELEASE_V1')throw new Error('Unexpected claim release artifact format.');
+    if(String(next?.normalizedCoreHash||'').toLowerCase()!=='0xb90f55deac3bb7b4cc6743afb563abd27ac21e0df0ff02d7ce6ae289bb9b7e36')throw new Error('Claim release artifact executable core is not approved.');
+    if(String(next?.normalizedRuntimeHash||'').toLowerCase()!=='0x1623c3c1ef9fd939c30f02147c0b3d99e58ceaf86801717d1156bb58b8df376a')throw new Error('Claim release artifact runtime identity is not approved.');
+    if(next?.generatedFromSource!==true||!next?.abi||!/^0x[0-9a-f]+$/i.test(next?.bytecode||''))throw new Error('Invalid source-controlled claim release artifact.');
+    artifact=next;
+    return artifact;
+  }
   async function inspectToken(provider, token){const c=new ethers.Contract(token,ERC20_ABI,provider);const [symbol,decimals]=await Promise.all([c.symbol(),c.decimals()]);return{symbol:String(symbol),decimals:Number(decimals),contract:c};}
 
   async function deploy(){
