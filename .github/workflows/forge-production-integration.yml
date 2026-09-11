@@ -11,6 +11,7 @@ on:
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
       - 'tests/forge-floor-guard-integration.mjs'
+      - 'tests/forge-security-regression.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
 
@@ -20,13 +21,17 @@ permissions:
 jobs:
   locked-production-surface:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install pinned runtime dependency
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Verify locked Mainnet direct-claim integration
         run: node tests/forge-production-integration.mjs
+      - name: Verify snapshot security regressions
+        run: node tests/forge-security-regression.mjs
       - name: Verify FLOOR GUARD read-only market intelligence
         run: node tests/forge-floor-guard-integration.mjs

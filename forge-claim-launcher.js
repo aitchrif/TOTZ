@@ -41,6 +41,7 @@
   let deadlineUnix = 0;
   let uploadToken = null;
   let publishedSlug = null;
+  let deployedTuple = null;
 
   function writesEnabled(){
     if(window.ForgeRuntime?.canExecuteClaims)return window.ForgeRuntime.canExecuteClaims(CLAIM_NETWORK);
@@ -63,6 +64,94 @@
   async function sha256Hex(text){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return '0x'+[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');}
   function makeSlug(){const base=(pkg?.source?.collection||'claim').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'claim';return `${base}-${Date.now().toString(36)}-${randomHex(3).slice(2)}`;}
   function readProvider(){return window.ForgeRuntime?.createReadProvider?window.ForgeRuntime.createReadProvider(CLAIM_NETWORK):new ethers.JsonRpcProvider(CLAIM_NETWORK.rpc,CLAIM_NETWORK.chainId,{staticNetwork:true});}
+
+  function lockDeploymentInputs(locked){
+    ['tokenInput','sponsorInput','deadlineInput'].forEach(id=>{const el=$(id);if(el)el.disabled=Boolean(locked);});
+  }
+
+  async function readDeploymentTuple(provider){
+    if(!claimAddress)throw new Error('Claim contract address is missing.');
+    const claim=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);
+    const [token,sponsor,root,totalAllocated,deadline]=await Promise.all([
+      claim.token(),claim.sponsor(),claim.merkleRoot(),claim.totalAllocated(),claim.deadline()
+    ]);
+    return {
+      claimAddress:claimAddress.toLowerCase(),
+      token:String(token).toLowerCase(),
+      sponsor:String(sponsor).toLowerCase(),
+      root:String(root).toLowerCase(),
+      totalAllocated:BigInt(totalAllocated),
+      deadline:Number(deadline)
+    };
+  }
+
+  async function assertDeploymentIdentity(provider,{requireSigner=null}={}){
+    if(!pkg||!claimAddress||!deployedTuple)throw new Error('Deployment identity is not locked. Redeploy or reload the verified claim package.');
+    const live=await readDeploymentTuple(provider);
+    const expectedTotal=BigInt(pkg.reward.totalUnits);
+    if(
+      live.claimAddress!==deployedTuple.claimAddress||
+      live.token!==deployedTuple.token||
+      live.sponsor!==deployedTuple.sponsor||
+      live.root!==deployedTuple.root||
+      live.totalAllocated!==deployedTuple.totalAllocated||
+      live.deadline!==deployedTuple.deadline||
+      live.root!==String(pkg.root).toLowerCase()||
+      live.totalAllocated!==expectedTotal
+    ) throw new Error('Deployed claim identity changed or does not match the verified package. No funds were sent.');
+    if(requireSigner&&String(requireSigner).toLowerCase()!==live.sponsor)throw new Error('Connected wallet does not match the immutable claim sponsor. No funds were sent.');
+    return live;
+  }
+
+  async function assertSnapshotProvenance(data){
+    const source=data?.source||{};
+    const network=data?.network||{};
+    const chain=String(network.key||'').trim().toLowerCase();
+    const chainId=Number(network.chainId||0);
+    const contract=String(source.contract||'').trim().toLowerCase();
+    const block=Number(source.snapshotBlock||0);
+    const blockHash=String(source.snapshotBlockHash||'').trim().toLowerCase();
+    if(source.snapshotComplete!==true)throw new Error('This claim package declares an incomplete holder snapshot. Generate a new package from EPOCHS.');
+    if(!['robinhood','ink','ethereum'].includes(chain))throw new Error('Unsupported source network in claim package.');
+    if(!Number.isSafeInteger(chainId)||chainId<=0||!isAddress(contract)||!Number.isSafeInteger(block)||block<=0||!isBytes32(blockHash))throw new Error('Claim package snapshot provenance is incomplete or invalid.');
+    const params=new URLSearchParams({chain,contract,snapshotBlock:String(block),snapshotBlockHash:blockHash});
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),65000);
+    let response,dataOut;
+    try{
+      response=await fetch(`/api/forge-holders?${params}`,{cache:'no-store',signal:controller.signal});
+      dataOut=await response.json().catch(()=>({}));
+    }catch(e){
+      if(e?.name==='AbortError')throw new Error('Snapshot provenance revalidation timed out. No deployment is allowed.');
+      throw e;
+    }finally{clearTimeout(timer);}
+    if(!response.ok)throw new Error(dataOut.error||`Snapshot provenance revalidation failed (${response.status}).`);
+    if(
+      dataOut.complete!==true||dataOut.partial===true||
+      Number(dataOut.chainId)!==chainId||
+      String(dataOut.contract||'').toLowerCase()!==contract||
+      Number(dataOut.snapshotBlock)!==block||
+      String(dataOut.snapshotBlockHash||'').toLowerCase()!==blockHash
+    ) throw new Error('Snapshot provenance could not be independently revalidated. No deployment is allowed.');
+    return dataOut;
+  }
+
+  async function publicationFingerprint(data){
+    const source=data?.source||{};
+    return sha256Hex([
+      'TOTZ_FORGE_PACKAGE_PROVENANCE_V1',
+      `distribution=${String(data?.distributionFingerprint||'')}`,
+      `sourceChain=${String(data?.network?.key||'').toLowerCase()}`,
+      `sourceChainId=${Number(data?.network?.chainId||0)}`,
+      `sourceContract=${String(source.contract||'').toLowerCase()}`,
+      `snapshotBlock=${Number(source.snapshotBlock||0)}`,
+      `snapshotBlockHash=${String(source.snapshotBlockHash||'').toLowerCase()}`,
+      'snapshotComplete=true',
+      `merkleRoot=${String(data?.root||'').toLowerCase()}`,
+      `eligibleWallets=${Number(data?.eligibleWallets||0)}`,
+      `totalAllocatedUnits=${String(data?.reward?.totalUnits||'')}`
+    ].join('\n'));
+  }
 
   async function assertServerLaunchReady(sponsor){
     if(CLAIM_NETWORK.environment!=='mainnet')return true;
@@ -143,11 +232,13 @@
   }
 
   async function verifyPackage(data){
-    verified=false;pkg=null;claimAddress=null;publishedSlug=null;$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
+    verified=false;pkg=null;claimAddress=null;deployedTuple=null;publishedSlug=null;lockDeploymentInputs(false);$('checks').innerHTML='';$('summary').classList.remove('show');$('contractBox').classList.remove('show');$('publishBox').classList.remove('show');
     clearStatus('deployStatus');clearStatus('fundStatus');clearStatus('publishStatus');
     try{
       setCheck('Package format', null);
       if(!data||data.format!=='TOTZ_FORGE_MERKLE_V1')throw new Error('Unsupported claim package format.');
+      if(data.source?.snapshotComplete!==true)throw new Error('This claim package is not backed by a complete holder snapshot. Generate a new package from EPOCHS.');
+      if(!isBytes32(data.source?.snapshotBlockHash))throw new Error('Claim package is missing the pinned snapshot block hash.');
       if(!isBytes32(data.root))throw new Error('Invalid Merkle root.');
       if(!data.claims||typeof data.claims!=='object')throw new Error('Claim map missing.');
       const entries=Object.entries(data.claims);
@@ -173,19 +264,38 @@
       setCheck('Every leaf + proof',invalid===0,invalid?`${invalid} invalid`:`${fmt(entries.length)} verified`);
       setCheck('Exact pool total',total===expected,`${formatUnits(total,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`);
       if(invalid||dupes||total!==expected||expected<=0n)throw new Error('Package verification failed. Do not deploy it.');
-      pkg=data;verified=true;
-      $('sumCollection').textContent=data.source?.collection||'NFT Collection';$('sumEligible').textContent=fmt(entries.length);$('sumPool').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;$('sumSource').textContent=data.network?.name||`Chain ${data.network?.chainId||'—'}`;$('sumBlock').textContent=data.source?.snapshotBlock?`#${fmt(data.source.snapshotBlock)}`:'Pinned';$('sumRoot').textContent=`MERKLE ROOT · ${data.root}`;$('summary').classList.add('show');
-      $('fundRequired').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;
-      status('verifyStatus',writesEnabled()?'Package verified locally. Deployment controls are now available.':`Package verified locally. ${CLAIM_NETWORK.name} writes remain locked.`,'ok');
+
+      setCheck('Snapshot provenance',null,'revalidating exact block hash on-chain');
+      const attested=await assertSnapshotProvenance(data);
+      const boundFingerprint=await publicationFingerprint(data);
+      $('checks').lastElementChild?.remove();
+      setCheck('Snapshot provenance',true,`block #${fmt(data.source.snapshotBlock)} · hash-bound`);
+      setCheck('Complete snapshot',true,`${fmt(attested.info?.holdersCount||attested.holders?.length||0)} holders revalidated`);
+
+      pkg={
+        ...data,
+        publicationFingerprint:boundFingerprint,
+        source:{
+          ...data.source,
+          snapshotComplete:true,
+          snapshotBlockHash:String(attested.snapshotBlockHash).toLowerCase(),
+          snapshotSource:attested.source||data.source?.snapshotSource||'unknown',
+          snapshotProvenance:attested.provenance||data.source?.snapshotProvenance||null
+        }
+      };
+      verified=true;
+      $('sumCollection').textContent=pkg.source?.collection||'NFT Collection';$('sumEligible').textContent=fmt(entries.length);$('sumPool').textContent=`${pkg.reward?.total||formatUnits(expected,Number(pkg.reward?.decimals||0))} ${pkg.reward?.symbol||''}`;$('sumSource').textContent=pkg.network?.name||`Chain ${pkg.network?.chainId||'—'}`;$('sumBlock').textContent=`#${fmt(pkg.source.snapshotBlock)}`;$('sumRoot').textContent=`MERKLE ROOT · ${pkg.root}`;$('summary').classList.add('show');
+      $('fundRequired').textContent=`${pkg.reward?.total||formatUnits(expected,Number(pkg.reward?.decimals||0))} ${pkg.reward?.symbol||''}`;
+      status('verifyStatus',writesEnabled()?'Package and exact snapshot provenance verified. Deployment controls are now available.':`Package and exact snapshot provenance verified. ${CLAIM_NETWORK.name} writes remain locked.`,'ok');
       $('switchBtn').disabled=!writesEnabled();updateDeployReady();flow(1);
     }catch(e){status('verifyStatus',e?.message||'Package verification failed.','error');$('deployBtn').disabled=true;$('switchBtn').disabled=true;flow(0);}
   }
 
-  async function readFile(file){$('fileName').textContent=file.name;status('verifyStatus','Verifying every allocation and Merkle proof…');try{const txt=await file.text();const data=JSON.parse(txt);await verifyPackage(data);}catch(e){status('verifyStatus',e?.message||'Could not read claim JSON.','error');}}
+  async function readFile(file){$('fileName').textContent=file.name;status('verifyStatus','Verifying allocations, Merkle proofs and snapshot provenance…');try{const txt=await file.text();const data=JSON.parse(txt);await verifyPackage(data);}catch(e){status('verifyStatus',e?.message||'Could not read claim JSON.','error');}}
 
   async function ensureWallet(request=true){
     if(!window.ethereum?.request)throw new Error('No EVM browser wallet detected.');
-    const a=await window.ethereum.request({method:request?'eth_requestAccounts':'eth_accounts'});wallet=a?.[0]?String(a[0]).toLowerCase():null;if(wallet){$('connectBtn').textContent=short(wallet);if(!$('sponsorInput').value)$('sponsorInput').value=wallet;}return wallet;
+    const a=await window.ethereum.request({method:request?'eth_requestAccounts':'eth_accounts'});wallet=a?.[0]?String(a[0]).toLowerCase():null;if(wallet){$('connectBtn').textContent=short(wallet);if(!$('sponsorInput').value&&!deployedTuple)$('sponsorInput').value=wallet;}return wallet;
   }
   async function ensureClaimNetwork(){
     if(!writesEnabled())throw new Error(`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`);
@@ -196,13 +306,13 @@
     return new ethers.BrowserProvider(window.ethereum);
   }
   async function currentChain(){if(!window.ethereum?.request)return null;const h=await window.ethereum.request({method:'eth_chainId'});return parseInt(h,16);}
-  function updateDeployReady(){const token=$('tokenInput').value.trim();const sponsor=$('sponsorInput').value.trim();const deadline=$('deadlineInput').value;deadlineUnix=deadline?Math.floor(new Date(deadline).getTime()/1000):0;$('deployBtn').disabled=!(writesEnabled()&&verified&&isAddress(token)&&isAddress(sponsor)&&deadlineUnix>Math.floor(Date.now()/1000)+60);}
+  function updateDeployReady(){const token=$('tokenInput').value.trim();const sponsor=$('sponsorInput').value.trim();const deadline=$('deadlineInput').value;deadlineUnix=deadline?Math.floor(new Date(deadline).getTime()/1000):0;$('deployBtn').disabled=Boolean(deployedTuple)||!(writesEnabled()&&verified&&isAddress(token)&&isAddress(sponsor)&&deadlineUnix>Math.floor(Date.now()/1000)+60);}
 
   async function loadArtifact(){if(artifact)return artifact;const r=await fetch('/artifacts/ForgeMerkleClaim.json',{cache:'no-store'});if(!r.ok)throw new Error('Claim contract artifact is unavailable.');artifact=await r.json();if(!artifact?.abi||!/^0x[0-9a-f]+$/i.test(artifact?.bytecode||''))throw new Error('Invalid claim contract artifact.');return artifact;}
   async function inspectToken(provider, token){const c=new ethers.Contract(token,ERC20_ABI,provider);const [symbol,decimals]=await Promise.all([c.symbol(),c.decimals()]);return{symbol:String(symbol),decimals:Number(decimals),contract:c};}
 
   async function deploy(){
-    if(!verified)return;
+    if(!verified||deployedTuple)return;
     if(!writesEnabled()){status('deployStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
     const token=$('tokenInput').value.trim().toLowerCase(), sponsor=$('sponsorInput').value.trim().toLowerCase();updateDeployReady();if($('deployBtn').disabled)return;
     $('deployBtn').disabled=true;status('deployStatus',`Checking server release gate before ${CLAIM_NETWORK.name} deployment…`);
@@ -217,63 +327,80 @@
       const art=await loadArtifact();const factory=new ethers.ContractFactory(art.abi,art.bytecode,signer);
       status('deployStatus',`Wallet approval required to deploy the immutable claim contract on ${CLAIM_NETWORK.name}…`);
       const c=await factory.deploy(token,pkg.root,BigInt(pkg.reward.totalUnits),deadlineUnix,sponsor);await c.waitForDeployment();claimAddress=(await c.getAddress()).toLowerCase();
-      const deployed=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [r,t,total,d,s]=await Promise.all([deployed.merkleRoot(),deployed.token(),deployed.totalAllocated(),deployed.deadline(),deployed.sponsor()]);
-      if(String(r).toLowerCase()!==pkg.root.toLowerCase()||String(t).toLowerCase()!==token||BigInt(total)!==BigInt(pkg.reward.totalUnits)||Number(d)!==deadlineUnix||String(s).toLowerCase()!==sponsor)throw new Error('Deployed contract verification failed. Do not fund it.');
-      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus',`Claim contract deployed and verified on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
-    }catch(e){status('deployStatus',e?.shortMessage||e?.message||'Deployment failed.','error');updateDeployReady();}
+      const live=await readDeploymentTuple(provider);
+      if(live.root!==pkg.root.toLowerCase()||live.token!==token||live.totalAllocated!==BigInt(pkg.reward.totalUnits)||live.deadline!==deadlineUnix||live.sponsor!==sponsor)throw new Error('Deployed contract verification failed. Do not fund it.');
+      deployedTuple={...live};
+      lockDeploymentInputs(true);
+      $('claimContract').textContent=claimAddress;$('explorerContract').href=`${CLAIM_NETWORK.explorer}/address/${claimAddress}`;$('contractBox').classList.add('show');status('deployStatus',`Claim contract deployed and identity locked on ${CLAIM_NETWORK.name}.`,'ok');$('refreshFundBtn').disabled=false;flow(2);await refreshFunding(provider);
+    }catch(e){status('deployStatus',e?.shortMessage||e?.message||'Deployment failed.','error');if(!deployedTuple)updateDeployReady();}
   }
 
   async function refreshFunding(existingProvider=null){
-    if(!claimAddress||!pkg)return;
+    if(!claimAddress||!pkg||!deployedTuple)return false;
     try{
-      const provider=existingProvider||readProvider();const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full]=await Promise.all([c.contractBalance(),c.isFullyFunded()]);const required=BigInt(pkg.reward.totalUnits);const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full)||!writesEnabled();$('publishBtn').disabled=!full||!writesEnabled();$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
+      const provider=existingProvider||readProvider();const live=await assertDeploymentIdentity(provider);const c=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const [bal,full]=await Promise.all([c.contractBalance(),c.isFullyFunded()]);const required=live.totalAllocated;const b=BigInt(bal);$('fundBalance').textContent=`${formatUnits(b,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}`;$('fundState').textContent=full?'FULLY FUNDED':'NEEDS FUNDING';$('fundTag').textContent=full?'READY':'NEEDS FUNDS';$('fundProgress').style.width=`${Math.min(100,Number((b*10000n)/(required||1n))/100)}%`;$('fundBtn').disabled=Boolean(full)||!writesEnabled();$('publishBtn').disabled=!full||!writesEnabled();$('publishTag').textContent=full?'READY':'LOCKED';if(full){flow(3);status('fundStatus','Contract is fully funded. Publishing is unlocked.','ok');}else{flow(2);status('fundStatus',`Funding required: ${formatUnits(required>b?required-b:0n,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`,'warn');}
       return Boolean(full);
-    }catch(e){status('fundStatus',e?.message||'Could not read contract funding.','error');return false;}
+    }catch(e){status('fundStatus',e?.message||'Could not verify contract funding.','error');$('fundBtn').disabled=true;$('publishBtn').disabled=true;return false;}
   }
 
   async function fund(){
-    if(!claimAddress||!pkg)return;
+    if(!claimAddress||!pkg||!deployedTuple)return;
     if(!writesEnabled()){status('fundStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
-    $('fundBtn').disabled=true;status('fundStatus','Checking server release gate before transferring reward tokens…');
+    $('fundBtn').disabled=true;status('fundStatus','Verifying immutable deployment identity before transferring reward tokens…');
     try{
-      await assertServerLaunchReady($('sponsorInput').value.trim().toLowerCase());
-      const provider=await ensureClaimNetwork();const signer=await provider.getSigner();const token=$('tokenInput').value.trim().toLowerCase();const erc=new ethers.Contract(token,ERC20_ABI,signer);const owner=await signer.getAddress();const required=BigInt(pkg.reward.totalUnits);const claim=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);const current=BigInt(await claim.contractBalance());const missing=required>current?required-current:0n;if(missing===0n){await refreshFunding(provider);return;}const balance=BigInt(await erc.balanceOf(owner));if(balance<missing)throw new Error(`Wallet balance is too low. Need ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}.`);status('fundStatus',`Wallet approval required to transfer ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta?.symbol||pkg.reward.symbol}…`);const tx=await erc.transfer(claimAddress,missing);await tx.wait();await refreshFunding(provider);
-    }catch(e){status('fundStatus',e?.shortMessage||e?.message||'Funding failed.','error');if(writesEnabled())$('fundBtn').disabled=false;}
+      const provider=await ensureClaimNetwork();const signer=await provider.getSigner();const owner=(await signer.getAddress()).toLowerCase();
+      const live=await assertDeploymentIdentity(provider,{requireSigner:owner});
+      await assertServerLaunchReady(live.sponsor);
+      tokenMeta=await inspectToken(provider,live.token);
+      if(tokenMeta.decimals!==Number(pkg.reward.decimals))throw new Error('Deployed reward token decimals no longer match the verified package. No funds were sent.');
+      const erc=new ethers.Contract(live.token,ERC20_ABI,signer);
+      const claim=new ethers.Contract(claimAddress,CLAIM_VIEW_ABI,provider);
+      const current=BigInt(await claim.contractBalance());
+      const missing=live.totalAllocated>current?live.totalAllocated-current:0n;
+      if(missing===0n){await refreshFunding(provider);return;}
+      const balance=BigInt(await erc.balanceOf(owner));
+      if(balance<missing)throw new Error(`Wallet balance is too low. Need ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta.symbol||pkg.reward.symbol}.`);
+      status('fundStatus',`Wallet approval required to transfer ${formatUnits(missing,Number(pkg.reward.decimals))} ${tokenMeta.symbol||pkg.reward.symbol} to the verified claim contract…`);
+      const tx=await erc.transfer(claimAddress,missing);await tx.wait();await refreshFunding(provider);
+    }catch(e){status('fundStatus',e?.shortMessage||e?.message||'Funding failed.','error');if(writesEnabled()&&deployedTuple)$('fundBtn').disabled=false;}
   }
 
   async function api(route, body){const r=await fetch(`${CLAIM_SERVICE}?route=${encodeURIComponent(route)}`,{method:'POST',headers:{'Content-Type':'application/json','x-forge-upload-token':uploadToken||''},body:JSON.stringify(body),cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Publish service error (${r.status}).`);return d;}
   async function publish(){
-    if(!claimAddress||!pkg)return;
+    if(!claimAddress||!pkg||!deployedTuple)return;
     if(!writesEnabled()){status('publishStatus',`${CLAIM_NETWORK.name} writes are locked in this FORGE release.`,'warn');return;}
-    $('publishBtn').disabled=true;status('publishStatus','Checking server release gate before publication…');
+    $('publishBtn').disabled=true;status('publishStatus','Verifying immutable deployment identity before publication…');
     try{
-      await assertServerLaunchReady($('sponsorInput').value.trim().toLowerCase());
-      if(!await refreshFunding())throw new Error('Claim contract is not fully funded.');
       const provider=await ensureClaimNetwork();
       const signer=await provider.getSigner();
       wallet=(await signer.getAddress()).toLowerCase();
-      const sponsor=$('sponsorInput').value.trim().toLowerCase();
-      if(wallet!==sponsor)throw new Error('Connected wallet must match the claim sponsor before publication.');
+      const live=await assertDeploymentIdentity(provider,{requireSigner:wallet});
+      await assertServerLaunchReady(live.sponsor);
+      if(!await refreshFunding(provider))throw new Error('Claim contract is not fully funded.');
+      tokenMeta=await inspectToken(provider,live.token);
+      if(tokenMeta.decimals!==Number(pkg.reward.decimals))throw new Error('Deployed reward token decimals do not match the verified package.');
       const slug=makeSlug();uploadToken=randomHex(32);const uploadTokenHash=await sha256Hex(uploadToken);
       const createBody={
         slug,uploadToken,uploadTokenHash,creatorWallet:wallet,
         sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
         sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
         snapshotBlock:pkg.source?.snapshotBlock??null,
-        rewardToken:$('tokenInput').value.trim().toLowerCase(),rewardSymbol:tokenMeta?.symbol||pkg.reward.symbol,
-        rewardDecimals:Number(pkg.reward.decimals),merkleRoot:pkg.root,totalAllocatedUnits:String(pkg.reward.totalUnits),
-        eligibleWallets:Number(pkg.eligibleWallets),claimChainId:CLAIM_NETWORK.chainId,claimContract:claimAddress,
-        deadline:deadlineUnix,packageFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
+        snapshotBlockHash:String(pkg.source?.snapshotBlockHash||'').toLowerCase(),snapshotComplete:pkg.source?.snapshotComplete===true,
+        snapshotSource:pkg.source?.snapshotSource||null,snapshotProvenance:pkg.source?.snapshotProvenance||null,
+        rewardToken:live.token,rewardSymbol:tokenMeta.symbol||pkg.reward.symbol,
+        rewardDecimals:Number(pkg.reward.decimals),merkleRoot:live.root,totalAllocatedUnits:live.totalAllocated.toString(),
+        eligibleWallets:Number(pkg.eligibleWallets),claimChainId:CLAIM_NETWORK.chainId,claimContract:live.claimAddress,
+        deadline:live.deadline,packageFingerprint:pkg.publicationFingerprint,distributionFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
       };
-      status('publishStatus','Sponsor signature required to authorize this exact FORGE publication and protected upload session. No gas is used.','warn');
+      status('publishStatus','Sponsor signature required to authorize this exact claim package fingerprint and protected upload session. No gas is used.','warn');
       createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
       status('publishStatus','Authorization verified locally. Creating the protected upload session…');
       await api('create',createBody);
       const entries=Object.entries(pkg.claims).map(([wallet,c])=>({wallet:wallet.toLowerCase(),amountUnits:String(c.amountUnits),leaf:c.leaf,proof:c.proof}));
       for(let i=0;i<entries.length;i+=200){status('publishStatus',`Uploading verified proofs… ${Math.min(i+200,entries.length)}/${entries.length}`);await api('upload',{slug,uploadToken,entries:entries.slice(i,i+200)});}
       status('publishStatus','Server is re-checking the exact allocation total, approved claim runtime and live contract…');
-      await api('publish',{slug,uploadToken});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
-    }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');if(writesEnabled())$('publishBtn').disabled=false;}
+      await api('publish',{slug,uploadToken,snapshotBlockHash:createBody.snapshotBlockHash,snapshotComplete:true,packageFingerprint:createBody.packageFingerprint});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
+    }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');if(writesEnabled()&&deployedTuple)$('publishBtn').disabled=false;}
   }
 
   $('fileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)readFile(f);});
@@ -281,6 +408,6 @@
   $('switchBtn').addEventListener('click',async()=>{try{await ensureClaimNetwork();toast(`${CLAIM_NETWORK.name} ready`);}catch(e){status('deployStatus',e?.message||'Could not switch network.','error');}});
   ['tokenInput','sponsorInput','deadlineInput'].forEach(id=>$(id).addEventListener('input',updateDeployReady));
   $('deployBtn').addEventListener('click',deploy);$('fundBtn').addEventListener('click',fund);$('refreshFundBtn').addEventListener('click',()=>refreshFunding());$('publishBtn').addEventListener('click',publish);$('copyLinkBtn').addEventListener('click',async()=>{const u=$('claimLink').textContent;if(u){await navigator.clipboard.writeText(u);toast('Claim link copied');}});
-  if(window.ethereum?.on){window.ethereum.on('accountsChanged',a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet)$('sponsorInput').value=wallet;updateDeployReady();});}
+  if(window.ethereum?.on){window.ethereum.on('accountsChanged',a=>{wallet=a?.[0]?String(a[0]).toLowerCase():null;$('connectBtn').textContent=wallet?short(wallet):'CONNECT WALLET';if(wallet&&!deployedTuple)$('sponsorInput').value=wallet;updateDeployReady();if(deployedTuple){$('fundBtn').disabled=true;$('publishBtn').disabled=true;status('fundStatus','Wallet changed. Re-verify the deployed sponsor before funding.','warn');}});window.ethereum.on('chainChanged',()=>{if(deployedTuple){$('fundBtn').disabled=true;$('publishBtn').disabled=true;status('fundStatus','Network changed. Re-verify the claim network before funding.','warn');}});}
   renderNetworkUI();installHardWriteGuard();setDefaultDeadline();ensureWallet(false).catch(()=>{}).finally(updateDeployReady);flow(0);
 })();
