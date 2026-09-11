@@ -60,15 +60,13 @@ contract ForgeMerkleClaim {
         if (block.timestamp > deadline) revert ClaimClosed();
         if (claimed[msg.sender]) revert AlreadyClaimed();
         if (amount == 0) revert InvalidAmount();
-
-        uint256 nextClaimed = totalClaimed + amount;
-        if (nextClaimed > totalAllocated) revert AllocationExceeded();
+        if (amount > totalAllocated - totalClaimed) revert AllocationExceeded();
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, amount))));
         if (!MerkleProof.verifyCalldata(proof, merkleRoot, leaf)) revert InvalidProof();
 
         claimed[msg.sender] = true;
-        totalClaimed = nextClaimed;
+        totalClaimed += amount;
         claimCount += 1;
 
         token.safeTransfer(msg.sender, amount);
