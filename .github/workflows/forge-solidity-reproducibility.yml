@@ -6,6 +6,7 @@ on:
     paths:
       - 'contracts/ForgeMerkleClaim.sol'
       - 'artifacts/ForgeMerkleClaim.json'
+      - 'scripts/explore-forge-claim-build.mjs'
       - 'scripts/verify-forge-claim-build.mjs'
       - 'package.json'
       - 'package-lock.json'
@@ -26,5 +27,7 @@ jobs:
           node-version: '22'
       - name: Install pinned compiler dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Compare candidate codegen variants
+        run: node scripts/explore-forge-claim-build.mjs
       - name: Reproduce ForgeMerkleClaim artifact
         run: node scripts/verify-forge-claim-build.mjs
