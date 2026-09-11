@@ -119,6 +119,9 @@
     document.querySelectorAll('.tool-nav').forEach((nav) => {
       if (nav.getAttribute('aria-label') !== 'FORGE tools') nav.setAttribute('aria-label', 'FORGE tools');
       nav.querySelectorAll('.soon,[data-forge-nav="wl-cleaner"],[data-forge-nav="gtd-check"],a[href^="/forge/wl-cleaner"],a[href^="/forge/gtd-check"]').forEach((item) => item.remove());
+      ensureToolLink(nav, { key: 'xray', href: '/forge', label: '◉ X-RAY' });
+      ensureToolLink(nav, { key: 'epochs', href: '/forge/epochs', label: '⚒ EPOCHS' });
+      ensureToolLink(nav, { key: 'my-epochs', href: '/forge/my-epochs', label: '◫ MY EPOCHS' });
       ensureToolLink(nav, { key: 'floor-guard', href: '/forge/floor-guard', label: '⚠ FLOOR GUARD' });
 
       const env = window.TOTZ_FORGE_CONFIG?.environment;
@@ -144,9 +147,89 @@
       const style = document.createElement('style');
       style.id = 'forge-nav-runtime-style';
       style.textContent = `
-        .tool-nav .forge-env-badge{background:#F4E8FF;color:#603B82;border:1px solid rgba(96,59,130,.12)}
-        .tool-nav .forge-env-badge.mainnet{background:#E7F4EF;color:#2B5B49;border-color:rgba(43,91,73,.12)}
-        @media(max-width:650px){.tool-nav .forge-env-badge{display:none}}
+        .tool-nav{
+          display:inline-flex!important;
+          align-items:center!important;
+          justify-content:center!important;
+          gap:4px!important;
+          width:max-content!important;
+          max-width:calc(100% - 24px)!important;
+          margin-left:auto!important;
+          margin-right:auto!important;
+          padding:5px!important;
+          background:rgba(255,255,255,.92)!important;
+          border:1px solid rgba(43,33,64,.08)!important;
+          border-radius:999px!important;
+          box-shadow:0 9px 24px rgba(43,33,64,.10)!important;
+          backdrop-filter:blur(14px);
+          -webkit-backdrop-filter:blur(14px);
+          flex-wrap:nowrap!important;
+        }
+        .tool-nav>a,
+        .tool-nav .forge-env-badge{
+          display:inline-flex!important;
+          align-items:center!important;
+          justify-content:center!important;
+          box-sizing:border-box!important;
+          min-height:34px!important;
+          padding:0 12px!important;
+          border-radius:999px!important;
+          font-family:'Nunito',sans-serif!important;
+          font-size:.68rem!important;
+          font-weight:900!important;
+          line-height:1!important;
+          letter-spacing:.01em!important;
+          white-space:nowrap!important;
+        }
+        .tool-nav>a{
+          color:#2B2140!important;
+          background:transparent!important;
+          border:1px solid transparent!important;
+          box-shadow:none!important;
+          transition:background .14s ease,color .14s ease,transform .14s ease,box-shadow .14s ease!important;
+        }
+        .tool-nav>a:hover{
+          background:#FFF3DC!important;
+          transform:translateY(-1px);
+        }
+        .tool-nav>a.live:not(.active),
+        .tool-nav>a[data-forge-nav="xray"]:not(.active){
+          background:#CBDB2A!important;
+          color:#2B2140!important;
+        }
+        .tool-nav>a.active{
+          background:#2B2140!important;
+          color:#fff!important;
+          border-color:#2B2140!important;
+          box-shadow:0 4px 12px rgba(43,33,64,.18)!important;
+        }
+        .tool-nav .forge-env-badge{
+          margin-left:3px!important;
+          border:1px solid rgba(96,59,130,.12)!important;
+          background:#F4E8FF!important;
+          color:#603B82!important;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)!important;
+        }
+        .tool-nav .forge-env-badge.mainnet{
+          background:linear-gradient(180deg,#F0FAF6 0%,#E2F2EB 100%)!important;
+          color:#245743!important;
+          border-color:rgba(36,87,67,.16)!important;
+        }
+        @media(max-width:650px){
+          .tool-nav{
+            width:calc(100% - 16px)!important;
+            max-width:calc(100% - 16px)!important;
+            justify-content:flex-start!important;
+            overflow-x:auto!important;
+            scrollbar-width:none;
+          }
+          .tool-nav::-webkit-scrollbar{display:none}
+          .tool-nav>a,.tool-nav .forge-env-badge{
+            min-height:32px!important;
+            padding:0 10px!important;
+            font-size:.62rem!important;
+          }
+        }
       `;
       document.head.appendChild(style);
     }
