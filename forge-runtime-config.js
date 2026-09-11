@@ -25,12 +25,12 @@
     })
   });
 
-  // Production integration baseline: the public FORGE surface reads Robinhood
-  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
-  // explicit controlled release flips both the client and server gates.
-  // Already-published verified claims remain interactable after lockdown.
+  // Controlled Mainnet Canary preview only. The browser launch gate is open on
+  // this isolated release branch, while the server/DB release gates remain the
+  // authoritative fail-closed controls for sponsor, cap, wallet limit and expiry.
+  // Do not merge this Canary-only runtime flag into the public production baseline.
   const environment = 'mainnet';
-  const mainnetClaimsEnabled = false;
+  const mainnetClaimsEnabled = true;
   const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
