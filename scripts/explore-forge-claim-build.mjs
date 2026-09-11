@@ -33,19 +33,41 @@ function compile(source) {
 }
 function commonPrefix(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return Math.floor(i/2);}
 function commonSuffix(a,b){let i=0;while(i<a.length&&i<b.length&&a[a.length-1-i]===b[b.length-1-i])i++;return Math.floor(i/2);}
+function firstDiff(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return Math.floor(i/2);}
+function windowAt(hex, byte, radius=28){const from=Math.max(0,(byte-radius)*2);const to=Math.min(hex.length,(byte+radius)*2);return hex.slice(from,to);}
 
 const legacyCore=stripMetadata(zero(legacy.deployedBytecode,legacy.immutableReferences));
 const variants=[];
-function add(name, transform){variants.push([name,transform(base)]);}
-add('base',s=>s);
-add('verify-memory',s=>s.replace('MerkleProof.verifyCalldata(proof, merkleRoot, leaf)','MerkleProof.verify(proof, merkleRoot, leaf)'));
-add('balance-gt-zero',s=>s.replace('if (balance != 0) token.safeTransfer(sponsor, balance);','if (balance > 0) token.safeTransfer(sponsor, balance);'));
-add('verify-memory+balance-gt-zero',s=>s.replace('MerkleProof.verifyCalldata(proof, merkleRoot, leaf)','MerkleProof.verify(proof, merkleRoot, leaf)').replace('if (balance != 0) token.safeTransfer(sponsor, balance);','if (balance > 0) token.safeTransfer(sponsor, balance);'));
-add('direct-total-update',s=>s.replace('        uint256 nextClaimed = totalClaimed + amount;\n        if (nextClaimed > totalAllocated) revert AllocationExceeded();','        if (totalClaimed + amount > totalAllocated) revert AllocationExceeded();').replace('        totalClaimed = nextClaimed;','        totalClaimed += amount;'));
-add('verify-memory+direct-total-update',s=>s.replace('MerkleProof.verifyCalldata(proof, merkleRoot, leaf)','MerkleProof.verify(proof, merkleRoot, leaf)').replace('        uint256 nextClaimed = totalClaimed + amount;\n        if (nextClaimed > totalAllocated) revert AllocationExceeded();','        if (totalClaimed + amount > totalAllocated) revert AllocationExceeded();').replace('        totalClaimed = nextClaimed;','        totalClaimed += amount;'));
+function add(name, source){variants.push([name,source]);}
+
+const ozAliases=['oz500','oz501','oz502','oz510','oz520','oz530','oz540'];
+for (const alias of ozAliases) {
+  const s=base.replaceAll('@openzeppelin/contracts', alias);
+  add(`${alias}:base`,s);
+  add(`${alias}:claimCount++`,s.replace('claimCount += 1;','claimCount++;'));
+  add(`${alias}:++claimCount`,s.replace('claimCount += 1;','++claimCount;'));
+  add(`${alias}:balance>0`,s.replace('if (balance != 0) token.safeTransfer(sponsor, balance);','if (balance > 0) token.safeTransfer(sponsor, balance);'));
+}
 
 console.log(`legacy core bytes=${legacyCore.length/2} hash=${keccak256('0x'+legacyCore)}`);
+let best=null;
 for(const [name,src] of variants){
-  const c=compile(src); const runtime=c.evm.deployedBytecode.object; const core=stripMetadata(zero(runtime,c.evm.deployedBytecode.immutableReferences));
-  console.log(JSON.stringify({name,runtimeBytes:runtime.length/2,coreBytes:core.length/2,coreHash:keccak256('0x'+core),exact:core===legacyCore,prefixBytes:commonPrefix(core,legacyCore),suffixBytes:commonSuffix(core,legacyCore)}));
+  try {
+    const c=compile(src); const runtime=c.evm.deployedBytecode.object; const core=stripMetadata(zero(runtime,c.evm.deployedBytecode.immutableReferences));
+    const prefix=commonPrefix(core,legacyCore), suffix=commonSuffix(core,legacyCore), delta=(core.length-legacyCore.length)/2;
+    const row={name,runtimeBytes:runtime.length/2,coreBytes:core.length/2,deltaBytes:delta,coreHash:keccak256('0x'+core),exact:core===legacyCore,prefixBytes:prefix,suffixBytes:suffix};
+    console.log(JSON.stringify(row));
+    const score=Math.abs(delta)*100000-prefix-suffix;
+    if(!best||score<best.score) best={score,row,core};
+    if(row.exact){console.log(`EXACT CORE MATCH: ${name}`);break;}
+  } catch (error) {
+    console.log(JSON.stringify({name,error:String(error?.message||error).slice(0,500)}));
+  }
+}
+if(best){
+  const byte=firstDiff(best.core,legacyCore);
+  console.log('BEST',JSON.stringify(best.row));
+  console.log(`firstDiffByte=${byte}`);
+  console.log(`candidateWindow=${windowAt(best.core,byte)}`);
+  console.log(`legacyWindow=${windowAt(legacyCore,byte)}`);
 }
