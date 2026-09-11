@@ -4,6 +4,13 @@
   "dependencies": {
     "@openzeppelin/contracts": "5.0.2",
     "ethers": "6.15.0",
+    "oz500": "npm:@openzeppelin/contracts@5.0.0",
+    "oz501": "npm:@openzeppelin/contracts@5.0.1",
+    "oz502": "npm:@openzeppelin/contracts@5.0.2",
+    "oz510": "npm:@openzeppelin/contracts@5.1.0",
+    "oz520": "npm:@openzeppelin/contracts@5.2.0",
+    "oz530": "npm:@openzeppelin/contracts@5.3.0",
+    "oz540": "npm:@openzeppelin/contracts@5.4.0",
     "solc": "0.8.24"
   }
 }
