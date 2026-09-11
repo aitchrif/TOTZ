@@ -13,6 +13,8 @@ type ClaimNetwork = {
 type ClaimWriteContext = {
   creator?: string;
   eligibleWallets?: number;
+  totalAllocatedUnits?: string;
+  rewardDecimals?: number;
 };
 
 type MainnetReleasePolicy = {
@@ -20,6 +22,7 @@ type MainnetReleasePolicy = {
   mode: "locked" | "canary" | "public";
   canarySponsor: string;
   canaryMaxWallets: number;
+  canaryMaxTokenAmount: string;
   canaryExpiresAt: string;
 };
 
@@ -133,7 +136,7 @@ function claimNetwork(chainId: number) {
 async function mainnetReleasePolicy(supabase: any): Promise<MainnetReleasePolicy> {
   const { data: flag, error: flagError } = await supabase.from("forge_release_flags").select("enabled").eq("key", "mainnet_claims_enabled").maybeSingle();
   if (flagError) throw new Error("Could not read the FORGE mainnet master release gate.");
-  const { data: rows, error: configError } = await supabase.from("forge_release_config").select("key,value").in("key", ["mainnet_release_mode", "mainnet_canary_sponsor", "mainnet_canary_max_wallets", "mainnet_canary_expires_at"]);
+  const { data: rows, error: configError } = await supabase.from("forge_release_config").select("key,value").in("key", ["mainnet_release_mode", "mainnet_canary_sponsor", "mainnet_canary_max_wallets", "mainnet_canary_max_token_amount", "mainnet_canary_expires_at"]);
   if (configError) throw new Error("Could not read the FORGE mainnet release policy.");
   const values = new Map((rows || []).map((row: any) => [String(row.key), String(row.value ?? "")]));
   const modeRaw = clean(values.get("mainnet_release_mode") || "locked", 16).toLowerCase();
@@ -141,8 +144,9 @@ async function mainnetReleasePolicy(supabase: any): Promise<MainnetReleasePolicy
   const canarySponsor = clean(values.get("mainnet_canary_sponsor") || "", 42).toLowerCase();
   const maxRaw = Number(values.get("mainnet_canary_max_wallets") || 0);
   const canaryMaxWallets = Number.isInteger(maxRaw) && maxRaw >= 1 && maxRaw <= 100 ? maxRaw : 0;
+  const canaryMaxTokenAmount = clean(values.get("mainnet_canary_max_token_amount") || "", 80);
   const canaryExpiresAt = clean(values.get("mainnet_canary_expires_at") || "", 80);
-  return { enabled: flag?.enabled === true, mode, canarySponsor, canaryMaxWallets, canaryExpiresAt };
+  return { enabled: flag?.enabled === true, mode, canarySponsor, canaryMaxWallets, canaryMaxTokenAmount, canaryExpiresAt };
 }
 
 function canaryWindow(policy: MainnetReleasePolicy) {
@@ -156,18 +160,36 @@ function canaryWindow(policy: MainnetReleasePolicy) {
   };
 }
 
+function canaryFundingConfigured(raw: string) {
+  const value = String(raw || "").trim();
+  return /^[0-9]+(\.[0-9]{1,18})?$/.test(value) && /[1-9]/.test(value);
+}
+
+function decimalAmountToUnits(raw: string, decimals: number) {
+  const value = String(raw || "").trim();
+  if (!canaryFundingConfigured(value) || !Number.isInteger(decimals) || decimals < 0 || decimals > 36) throw new Error("FORGE mainnet Canary funding cap is invalid.");
+  const [whole, fraction = ""] = value.split(".");
+  if (fraction.length > decimals) throw new Error("FORGE mainnet Canary funding cap has more precision than the reward token.");
+  const scale = 10n ** BigInt(decimals);
+  const fractionUnits = fraction ? BigInt(fraction.padEnd(decimals, "0")) : 0n;
+  return BigInt(whole) * scale + fractionUnits;
+}
+
 function publicReleaseStatus(policy: MainnetReleasePolicy, wallet: string) {
   const checkedWallet = isAddr(wallet) ? wallet.toLowerCase() : "";
   const window = canaryWindow(policy);
-  const effectiveMode: MainnetReleasePolicy["mode"] = !policy.enabled ? "locked" : policy.mode === "canary" && !window.valid ? "locked" : policy.mode;
+  const fundingConfigured = canaryFundingConfigured(policy.canaryMaxTokenAmount);
+  const effectiveMode: MainnetReleasePolicy["mode"] = !policy.enabled ? "locked" : policy.mode === "canary" && (!window.valid || !fundingConfigured) ? "locked" : policy.mode;
   const sponsorMatch = checkedWallet ? (effectiveMode === "public" ? true : effectiveMode === "canary" ? checkedWallet === policy.canarySponsor : false) : null;
   return {
     chainId: 4663,
     masterEnabled: policy.enabled,
     mode: effectiveMode,
     rpcReady: Boolean(MAINNET_RPC_URL),
-    canaryActive: policy.enabled && effectiveMode === "canary" && window.valid,
+    canaryActive: policy.enabled && effectiveMode === "canary" && window.valid && fundingConfigured,
     canaryMaxWallets: policy.canaryMaxWallets,
+    canaryMaxTokenAmount: policy.canaryMaxTokenAmount,
+    canaryFundingCapConfigured: fundingConfigured,
     sponsorAllowed: sponsorMatch,
   };
 }
@@ -191,6 +213,14 @@ async function assertClaimWriteEnabled(supabase: any, chainId: number, context: 
     if (!isAddr(policy.canarySponsor)) throw new Error("FORGE mainnet Canary sponsor is not configured.");
     if (creator !== policy.canarySponsor) throw new Error("FORGE mainnet Canary is restricted to the configured sponsor wallet.");
     if (!Number.isInteger(eligible) || eligible < 1 || eligible > policy.canaryMaxWallets) throw new Error(`FORGE mainnet Canary is limited to ${policy.canaryMaxWallets || 0} eligible wallets.`);
+    if (!canaryFundingConfigured(policy.canaryMaxTokenAmount)) throw new Error("FORGE mainnet Canary funding cap is not configured.");
+    if (context.totalAllocatedUnits != null || context.rewardDecimals != null) {
+      const total = clean(context.totalAllocatedUnits, 100);
+      const decimals = Number(context.rewardDecimals);
+      if (!validUnits(total) || !Number.isInteger(decimals) || decimals < 0 || decimals > 36) throw new Error("FORGE mainnet Canary allocation metadata is invalid.");
+      const maxUnits = decimalAmountToUnits(policy.canaryMaxTokenAmount, decimals);
+      if (BigInt(total) > maxUnits) throw new Error(`FORGE mainnet Canary allocation exceeds the configured funding cap (${policy.canaryMaxTokenAmount} tokens).`);
+    }
   }
   return network;
 }
@@ -328,7 +358,7 @@ async function call(chainId: number, iface: Interface, address: string, fn: stri
 }
 
 async function verifyOnChain(supabase: any, expected: { creator: string; rewardToken: string; rewardSymbol: string; rewardDecimals: number; merkleRoot: string; totalUnits: string; eligibleWallets: number; claimChainId: number; claimContract: string; deadlineUnix: number }, requireFunded = true) {
-  await assertClaimWriteEnabled(supabase, expected.claimChainId, { creator: expected.creator, eligibleWallets: expected.eligibleWallets });
+  await assertClaimWriteEnabled(supabase, expected.claimChainId, { creator: expected.creator, eligibleWallets: expected.eligibleWallets, totalAllocatedUnits: expected.totalUnits, rewardDecimals: expected.rewardDecimals });
   const chainId = expected.claimChainId;
   const runtimeHash = await assertApprovedClaimRuntime(chainId, expected.claimContract, {
     token: expected.rewardToken,
@@ -410,7 +440,21 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && route === "status") {
       const wallet = clean(url.searchParams.get("wallet"), 42).toLowerCase();
       const policy = await mainnetReleasePolicy(supabase);
-      return json({ testnet: { chainId: 46630, launchEnabled: true }, mainnet: publicReleaseStatus(policy, wallet) });
+      const mainnet: any = publicReleaseStatus(policy, wallet);
+      if (mainnet.canaryActive) {
+        const { count, error: activeError } = await supabase.from("forge_claim_epochs")
+          .select("id", { count: "exact", head: true })
+          .eq("claim_chain_id", 4663)
+          .in("status", ["uploading", "published"])
+          .gt("deadline", new Date().toISOString());
+        if (activeError) throw new Error("Could not verify the FORGE Mainnet Canary epoch slot.");
+        mainnet.canaryActiveEpochs = count || 0;
+        mainnet.canarySlotAvailable = (count || 0) === 0;
+      } else {
+        mainnet.canaryActiveEpochs = null;
+        mainnet.canarySlotAvailable = false;
+      }
+      return json({ testnet: { chainId: 46630, launchEnabled: true }, mainnet });
     }
 
     if (req.method === "GET" && route === "get") {
@@ -462,7 +506,7 @@ Deno.serve(async (req: Request) => {
       if (!Number.isInteger(decimals) || decimals < 0 || decimals > 36) return json({ error: "Invalid token decimals." }, 400);
       if (!Number.isInteger(claimChainId) || !claimNetwork(claimChainId)) return json({ error: "Unsupported claim chain." }, 400);
       try {
-        await assertClaimWriteEnabled(supabase, claimChainId, { creator, eligibleWallets: eligible });
+        await assertClaimWriteEnabled(supabase, claimChainId, { creator, eligibleWallets: eligible, totalAllocatedUnits: totalUnits, rewardDecimals: decimals });
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : "Claim network is locked." }, 403);
       }
