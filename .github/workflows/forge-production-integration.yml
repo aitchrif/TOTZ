@@ -15,6 +15,7 @@ on:
       - 'tests/forge-floor-guard-integration.mjs'
       - 'tests/forge-security-regression.mjs'
       - 'tests/forge-backend-provenance-integration.mjs'
+      - 'tests/forge-csp-regression.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
 
@@ -40,3 +41,5 @@ jobs:
         run: node tests/forge-backend-provenance-integration.mjs
       - name: Verify FLOOR GUARD read-only market intelligence
         run: node tests/forge-floor-guard-integration.mjs
+      - name: Verify FORGE browser CSP and external scripts
+        run: node tests/forge-csp-regression.mjs
