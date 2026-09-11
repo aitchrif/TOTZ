@@ -32,4 +32,14 @@ assert(launcher.includes('state.canaryFundingCapConfigured!==true'), 'Launcher m
 assert(launcher.includes('total>maxUnits'), 'Launcher must block an oversized Canary package before deployment/funding.');
 assert(launcher.includes('state.canarySlotAvailable!==true'), 'Launcher must block when another Canary epoch is active.');
 
-console.log('FORGE CANARY GUARDRAILS: PASS · server/client token cap + serialized single active epoch');
+assert(launcher.includes('let activeUploadSession = null;'), 'Launcher must retain an in-memory protected upload session for safe retry.');
+assert(launcher.includes('const resuming=Boolean(activeUploadSession&&uploadToken);'), 'Launcher must detect a protected-session publication retry.');
+assert(launcher.includes('resumeSession:resuming'), 'Canary preflight must distinguish a retry from a new epoch launch.');
+assert(launcher.includes('activeUploadSession={slug,claimContract:live.claimAddress,packageFingerprint:createBody.packageFingerprint,snapshotBlockHash:createBody.snapshotBlockHash};'), 'Launcher must bind the resume session to the exact claim deployment and package fingerprint.');
+assert(launcher.includes('Resuming the existing protected upload session. No new deployment, funding transfer or publication session will be created.'), 'Retry UX must explicitly forbid a second deploy/fund/session.');
+assert(launcher.includes('const existing=await getPublishedClaim(slug);'), 'Retry must detect publication that succeeded before a lost client response.');
+assert(launcher.includes('if(existing){finishPublished(slug,Number(existing.uploaded_entries||pkg.eligibleWallets||0));return;}'), 'Already-published retry must become idempotent in the client.');
+assert((launcher.match(/await api\('create',createBody\);/g)||[]).length===1, 'Protected-session retries must not create a second publication session.');
+assert(launcher.includes('if(activeUploadSession&&uploadToken){status(\'verifyStatus\''), 'Launcher must prevent loading another package while a protected upload session is recoverable in the current tab.');
+
+console.log('FORGE CANARY GUARDRAILS: PASS · server/client token cap + serialized single active epoch + protected publication resume');
