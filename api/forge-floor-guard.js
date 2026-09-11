@@ -1,28 +1,12 @@
-// Public FLOOR GUARD proxy. Marketplace credentials and scoring stay in the persistent data broker.
-const FLOOR_GUARD_DATA = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-floor-guard-data';
+// Public Collection Security proxy. OpenSea credentials, contract detection and bot scoring stay server-side.
+const COLLECTION_SECURITY_DATA = 'https://yymwpnztjlyfxongwmsw.supabase.co/functions/v1/forge-collection-security-data';
 
-function safeSlug(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  let slug = raw;
-  try {
-    const url = new URL(raw);
-    if (url.hostname === 'opensea.io' || url.hostname.endsWith('.opensea.io')) {
-      const parts = url.pathname.split('/').filter(Boolean);
-      const index = parts.findIndex((part) => part.toLowerCase() === 'collection');
-      if (index >= 0 && parts[index + 1]) slug = parts[index + 1];
-    }
-  } catch (_) {}
-  slug = String(slug).replace(/^collection\//i, '').split(/[?#/]/)[0].trim();
-  return /^[a-zA-Z0-9_-]{1,120}$/.test(slug) ? slug : '';
-}
-
-function safeWallet(value) {
+function safeAddress(value) {
   const wallet = String(value || '').trim().toLowerCase();
   return /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : '';
 }
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -30,41 +14,40 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const mode = String(req.query?.mode || 'collection').toLowerCase();
-  if (!['collection', 'wallet', 'database'].includes(mode)) {
-    return res.status(400).json({ error: 'Unsupported FLOOR GUARD mode.' });
+  const mode = String(req.query?.mode || 'scan').toLowerCase();
+  if (!['scan', 'wallet', 'database'].includes(mode)) {
+    return res.status(400).json({ error: 'Unsupported Collection Security mode.' });
   }
 
-  const url = new URL(FLOOR_GUARD_DATA);
+  const url = new URL(COLLECTION_SECURITY_DATA);
   url.searchParams.set('mode', mode);
 
-  if (mode === 'collection') {
-    const slug = safeSlug(req.query?.collection || req.query?.slug);
-    const hours = [1, 6, 24, 72, 168].includes(Number(req.query?.hours)) ? Number(req.query.hours) : 24;
-    if (!slug) return res.status(400).json({ error: 'Paste a valid OpenSea collection URL or collection slug.' });
-    url.searchParams.set('collection', slug);
-    url.searchParams.set('hours', String(hours));
+  if (mode === 'scan') {
+    const contract = safeAddress(req.query?.contract);
+    if (!contract) return res.status(400).json({ error: 'Paste a valid EVM NFT contract address.' });
+    url.searchParams.set('contract', contract);
   } else if (mode === 'wallet') {
-    const wallet = safeWallet(req.query?.wallet);
+    const wallet = safeAddress(req.query?.wallet);
     if (!wallet) return res.status(400).json({ error: 'Paste a valid EVM wallet address.' });
     url.searchParams.set('wallet', wallet);
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 28000);
+  const timer = setTimeout(() => controller.abort(), 55000);
   try {
     const response = await fetch(url, {
       method: 'GET',
-      headers: { accept: 'application/json', 'user-agent': 'TOTZ-FORGE-FLOOR-GUARD/2.0' },
+      headers: { accept: 'application/json', 'user-agent': 'TOTZ-FORGE-COLLECTION-SECURITY/1.0' },
       signal: controller.signal
     });
     const data = await response.json().catch(() => ({}));
-    res.setHeader('Cache-Control', response.ok ? 's-maxage=30, stale-while-revalidate=90' : 'no-store');
+    const cache = mode === 'scan' ? 's-maxage=20, stale-while-revalidate=60' : mode === 'database' ? 's-maxage=20, stale-while-revalidate=60' : 's-maxage=30, stale-while-revalidate=90';
+    res.setHeader('Cache-Control', response.ok ? cache : 'no-store');
     return res.status(response.status).json(data);
   } catch (error) {
-    const message = error?.name === 'AbortError' ? 'Marketplace data broker timed out.' : String(error?.message || 'Marketplace data broker failed.');
+    const message = error?.name === 'AbortError' ? 'Collection security scan timed out.' : String(error?.message || 'Collection security data broker failed.');
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(502).json({ error: 'Could not read FLOOR GUARD intelligence right now.', detail: message });
+    return res.status(502).json({ error: 'Could not read collection security intelligence right now.', detail: message });
   } finally {
     clearTimeout(timer);
   }
