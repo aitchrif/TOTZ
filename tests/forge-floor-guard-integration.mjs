@@ -24,13 +24,13 @@ assert(html.includes('BOT <span>INTELLIGENCE.</span>'), 'FLOOR GUARD V2 hero int
 assert(html.includes('COLLECTION SCAN') && html.includes('WALLET CHECK') && html.includes('BOT DATABASE'), 'FLOOR GUARD V2 must expose collection, wallet and database modes.');
 assert(html.includes('Confirmed ≠ heuristic'), 'FLOOR GUARD must visibly separate confirmed intelligence from heuristics.');
 assert(html.includes('“CONFIRMED BOT” is never assigned automatically'), 'FLOOR GUARD must explain its confirmation boundary.');
+assert(html.includes('Behavioral classifications are separate signals'), 'Collection UI must keep behavioral signals separate from confirmed identity.');
 assert(html.includes('https://opensea.io'), 'OpenSea attribution/link is required.');
 
 assert(client.includes("mode:'collection'"), 'Collection intelligence client mode missing.');
 assert(client.includes("mode:'wallet'"), 'Wallet intelligence client mode missing.');
 assert(client.includes("mode:'database'"), 'Persistent database client mode missing.');
 assert(client.includes("status === 'confirmed' ? 'CONFIRMED BOT'"), 'Confirmed bot status must be an explicit registry classification.');
-assert(client.includes('Behavioral classifications are separate signals'), 'Collection UI must keep behavioral signals separate from confirmed identity.');
 assert(!/eth_sendTransaction|wallet_sendCalls|approve\(|setApprovalForAll|personal_sign|eth_sign/.test(client), 'FLOOR GUARD client must not contain wallet write/signature paths.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'FLOOR GUARD public endpoint must be GET-only.');
