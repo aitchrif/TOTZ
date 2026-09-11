@@ -4,7 +4,7 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-for (const file of ['forge-floor-guard.html', 'forge-floor-guard.js', 'api/forge-floor-guard.js', 'api/forge-floor-guard-owner.js', 'forge-nav-state.js', 'forge-runtime-config.js', 'forge-table-pagination.js', 'vercel.json']) {
+for (const file of ['forge-floor-guard.html', 'forge-floor-guard.js', 'forge-floor-guard-history.js', 'api/forge-floor-guard.js', 'api/forge-floor-guard-owner.js', 'forge-nav-state.js', 'forge-runtime-config.js', 'forge-table-pagination.js', 'totz-ui-brand.js', 'vercel.json']) {
   assert(fs.existsSync(file), `Missing FLOOR GUARD production file: ${file}`);
 }
 for (const retired of ['forge-gtd-check.html', 'forge-gtd-check.js', 'forge-wl-cleaner.html', 'forge-wl-cleaner.js']) {
@@ -17,6 +17,8 @@ assert(runtime.includes('const mainnetClaimsEnabled = false;'), 'New Mainnet dep
 
 const html = fs.readFileSync('forge-floor-guard.html', 'utf8');
 const client = fs.readFileSync('forge-floor-guard.js', 'utf8');
+const historyClient = fs.readFileSync('forge-floor-guard-history.js', 'utf8');
+const brand = fs.readFileSync('totz-ui-brand.js', 'utf8');
 const api = fs.readFileSync('api/forge-floor-guard.js', 'utf8');
 const ownerApi = fs.readFileSync('api/forge-floor-guard-owner.js', 'utf8');
 
@@ -41,6 +43,13 @@ assert(client.includes('const DEFAULT_VISIBLE_BIDDERS = 5;'), 'Bidder intelligen
 assert(client.includes("data-filter=\"confirmed\"") && client.includes("data-filter=\"suspected\"") && client.includes("data-filter=\"watch\""), 'Bidder risk filters must remain available.');
 assert(client.includes('SHOW TOP 5') && client.includes('SHOW ALL'), 'Bidder table expand/collapse control missing.');
 assert(!/eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\s*\(|sendTransaction\s*\(/.test(client), 'Collection Security client must not contain blockchain write/approval paths.');
+
+assert(brand.includes("const isFloorGuard = pathname === '/forge/floor-guard'"), 'Global TOTZ shell must identify FLOOR GUARD safely.');
+assert(brand.includes("script.src = '/forge-floor-guard-history.js?v=1'"), 'FLOOR GUARD scan-history enhancement must be loaded only through the site shell.');
+assert(historyClient.includes('const VISIBLE_SCANS = 3;'), 'Recent security scans must default to the latest three entries.');
+assert(historyClient.includes('VIEW HISTORY') && historyClient.includes('SHOW LATEST 3'), 'Scan history expand/collapse controls missing.');
+assert(historyClient.includes('MutationObserver') && historyClient.includes('requestAnimationFrame'), 'Scan history must stay synchronized with workspace re-renders.');
+assert(!/eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\s*\(|sendTransaction\s*\(/.test(historyClient), 'Scan history enhancement must remain UI-only.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'Public Collection Security endpoint must stay GET-only.');
 assert(api.includes('forge-collection-security-data'), 'Public scanner must use the server-side Collection Security broker.');
@@ -71,4 +80,4 @@ assert(redirects.get('/forge/wl-cleaner') === '/forge/floor-guard' && redirects.
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'Collection Security UI must stay no-store during rollout.');
 
-console.log('FORGE COLLECTION SECURITY: PASS · compact bidder intelligence · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');
+console.log('FORGE COLLECTION SECURITY: PASS · compact bidder intelligence · compact scan history · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');

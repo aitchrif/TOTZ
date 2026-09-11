@@ -11,6 +11,7 @@
   const isAdmin = page === 'rewards-admin' || page === 'admin';
   const isForgeRoot = pathname === '/forge' || page === 'forge';
   const isForge = isForgeRoot || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
+  const isFloorGuard = pathname === '/forge/floor-guard' || page === 'forge-floor-guard';
   const hasDock = true;
   const enableBrandTextRewrite = isHome || isStaking || isRewards || isAdmin || isForgeRoot;
 
@@ -117,6 +118,15 @@
     document.body.appendChild(script);
   }
 
+  function loadFloorGuardScanHistory() {
+    if (!isFloorGuard || document.querySelector('script[data-forge-scan-history]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-floor-guard-history.js?v=1';
+    script.dataset.forgeScanHistory = '1';
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
   async function silentStakingConnect() {
     if (!isStaking || !window.ethereum) return;
     if (localStorage.getItem('totz_staking_disconnect') === '1') return;
@@ -183,6 +193,7 @@
   installSectionDock();
   loadHomeEarnings();
   loadForgeTablePagination();
+  loadFloorGuardScanHistory();
 
   if (enableBrandTextRewrite) rewrite(document.body);
 
