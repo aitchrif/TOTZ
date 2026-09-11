@@ -20,7 +20,8 @@ const required = [
   'forge-nav-state.js',
   'api/forge-holders.js',
   'package.json',
-  'artifacts/ForgeMerkleClaim.json'
+  'artifacts/ForgeMerkleClaim.json',
+  'tests/forge-security-regression.mjs'
 ];
 for (const file of required) assert(fs.existsSync(file), `Missing production FORGE file: ${file}`);
 
@@ -47,10 +48,18 @@ assert(/function claim\(\)[\s\S]*?interactionEnabled\(\)/.test(claimJs), 'Direct
 const holdersApi = fs.readFileSync('api/forge-holders.js', 'utf8');
 assert(/from ['"]ethers['"]/.test(holdersApi), 'FORGE holder snapshot API must declare its ethers runtime import.');
 assert(/maxDuration:\s*60/.test(holdersApi), 'FORGE holder snapshot API server window must remain 60 seconds.');
+assert(holdersApi.includes('requireCanonical: true'), 'FORGE holder reads must bind to a canonical block hash.');
+assert(holdersApi.includes('snapshotBlockHash'), 'FORGE holder snapshots must retain the pinned block hash.');
 const forgeJs = fs.readFileSync('forge.js', 'utf8');
 assert(/function fetchForgeData\(contract\)[\s\S]*?65000/.test(forgeJs), 'X-RAY client scan timeout must stay above the 60s holder API window.');
+assert(forgeJs.includes('Partial discovery'), 'X-RAY must expose partial discovery visibly.');
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 assert(packageJson?.dependencies?.ethers === '6.15.0', 'FORGE holder snapshot runtime must pin ethers 6.15.0.');
+assert(packageJson?.type === 'module', 'FORGE Node runtime must use explicit ESM mode.');
+
+const launcherJs = fs.readFileSync('forge-claim-launcher.js', 'utf8');
+assert(launcherJs.includes('assertSnapshotProvenance'), 'Claim launcher must independently revalidate exact snapshot provenance.');
+assert(launcherJs.includes('TOTZ_FORGE_PACKAGE_PROVENANCE_V1'), 'Claim publication fingerprint must bind snapshot provenance.');
 
 const guideHtml = fs.readFileSync('forge-guide.html', 'utf8');
 assert(/TOTZ FORGE · PUBLIC BETA/.test(guideHtml), 'Public Beta guide must identify the launch state.');
@@ -112,4 +121,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · X-RAY scan timeout aligned · clean routes/copy · claim routes no-store · EPOCHS nav parity · original EPOCHS UI preserved · paint-safe nav sync');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · hash-bound provenance · X-RAY partial labeling · clean routes/copy · claim routes no-store · EPOCHS nav parity · original EPOCHS UI preserved · paint-safe nav sync');
