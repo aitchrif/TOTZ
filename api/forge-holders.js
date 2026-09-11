@@ -42,6 +42,7 @@ const multicall = new Interface([
 ]);
 
 function isAddress(value) { return /^0x[a-fA-F0-9]{40}$/.test(String(value || '')); }
+function isBytes32(value) { return /^0x[a-fA-F0-9]{64}$/.test(String(value || '')); }
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function toBlockTag(blockNumber) { return `0x${Math.max(0, Number(blockNumber || 0)).toString(16)}`; }
 function remainingMs(chain) { return Math.max(0, Number(chain.deadlineAt || 0) - Date.now()); }
@@ -55,7 +56,7 @@ function requestChain(base) {
     rpcs: [...new Set(base.rpcs)],
     deadlineAt: Date.now() + REQUEST_BUDGET_MS,
     validatedEndpoints: new Set(),
-    snapshotValidatedEndpoints: new Set(),
+    snapshotEndpointsUsed: new Set(),
     snapshotBlockTag: null,
     snapshotBlockHash: null
   };
@@ -98,12 +99,34 @@ async function validateEndpointChain(chain, endpoint) {
   chain.validatedEndpoints.add(endpoint);
 }
 
+function hashBoundParams(chain, method, params) {
+  if (!chain.snapshotBlockHash) return { params, bound: false };
+  if (method !== 'eth_call' && method !== 'eth_getCode') return { params, bound: false };
+  if (!Array.isArray(params) || params.length < 2) return { params, bound: false };
+  const expectedTag = String(chain.snapshotBlockTag || '').toLowerCase();
+  const suppliedTag = String(params[params.length - 1] || '').toLowerCase();
+  if (!expectedTag || suppliedTag !== expectedTag) return { params, bound: false };
+  const next = params.slice();
+  next[next.length - 1] = { blockHash: chain.snapshotBlockHash, requireCanonical: true };
+  return { params: next, bound: true };
+}
+
 async function validateEndpointSnapshot(chain, endpoint) {
-  if (!chain.snapshotBlockTag || !chain.snapshotBlockHash || chain.snapshotValidatedEndpoints.has(endpoint)) return;
+  if (!chain.snapshotBlockTag || !chain.snapshotBlockHash) return;
   const block = await rpcFetch(chain, endpoint, 'eth_getBlockByNumber', [chain.snapshotBlockTag, false], 5000);
   const hash = String(block?.hash || '').toLowerCase();
-  if (!/^0x[a-f0-9]{64}$/.test(hash) || hash !== chain.snapshotBlockHash) throw new Error('RPC_SNAPSHOT_MISMATCH');
-  chain.snapshotValidatedEndpoints.add(endpoint);
+  if (!isBytes32(hash) || hash !== chain.snapshotBlockHash) throw new Error('RPC_SNAPSHOT_MISMATCH');
+}
+
+async function assertSnapshotCanonical(chain) {
+  if (!chain.snapshotBlockTag || !chain.snapshotBlockHash) throw new Error('RPC_SNAPSHOT_UNAVAILABLE');
+  const endpoints = chain.snapshotEndpointsUsed.size ? [...chain.snapshotEndpointsUsed] : chain.rpcs.slice(0, 1);
+  if (!endpoints.length) throw new Error('RPC_UNAVAILABLE');
+  for (const endpoint of endpoints) {
+    deadlineGuard(chain);
+    await validateEndpointChain(chain, endpoint);
+    await validateEndpointSnapshot(chain, endpoint);
+  }
 }
 
 async function rpc(chain, method, params, { timeoutMs = 7000, retries = 1, requireSnapshot = true } = {}) {
@@ -116,10 +139,19 @@ async function rpc(chain, method, params, { timeoutMs = 7000, retries = 1, requi
       deadlineGuard(chain);
       try {
         if (method !== 'eth_chainId') await validateEndpointChain(chain, endpoint);
-        if (requireSnapshot && !['eth_chainId', 'eth_blockNumber', 'eth_getBlockByNumber'].includes(method)) {
+        const shouldBind = requireSnapshot && !['eth_chainId', 'eth_blockNumber', 'eth_getBlockByNumber', 'eth_getBlockByHash'].includes(method);
+        let callParams = params;
+        let bound = false;
+        if (shouldBind) {
           await validateEndpointSnapshot(chain, endpoint);
+          const binding = hashBoundParams(chain, method, params);
+          callParams = binding.params;
+          bound = binding.bound;
+          if ((method === 'eth_call' || method === 'eth_getCode') && !bound) throw new Error('RPC_HASH_BINDING_REQUIRED');
         }
-        return await rpcFetch(chain, endpoint, method, params, timeoutMs);
+        const result = await rpcFetch(chain, endpoint, method, callParams, timeoutMs);
+        if (bound) chain.snapshotEndpointsUsed.add(endpoint);
+        return result;
       } catch (error) {
         lastError = error;
         if (String(error?.message || '').includes('REQUEST_DEADLINE')) throw error;
@@ -140,11 +172,34 @@ async function snapshotBlock(chain) {
   const tag = toBlockTag(number);
   const block = await rpc(chain, 'eth_getBlockByNumber', [tag, false], { timeoutMs: 5000, retries: 1, requireSnapshot: false });
   const hash = String(block?.hash || '').toLowerCase();
-  if (!/^0x[a-f0-9]{64}$/.test(hash)) throw new Error('RPC_SNAPSHOT_UNAVAILABLE');
+  if (!isBytes32(hash)) throw new Error('RPC_SNAPSHOT_UNAVAILABLE');
   chain.snapshotBlockTag = tag;
   chain.snapshotBlockHash = hash;
-  chain.snapshotValidatedEndpoints = new Set();
+  chain.snapshotEndpointsUsed = new Set();
   return { number, tag, hash };
+}
+
+async function requestedSnapshot(chain, blockNumber, blockHash) {
+  const number = Number(blockNumber);
+  const hash = String(blockHash || '').toLowerCase();
+  if (!Number.isSafeInteger(number) || number < 0 || !isBytes32(hash)) throw new Error('SNAPSHOT_PROVENANCE_INVALID');
+  const tag = toBlockTag(number);
+  const block = await rpc(chain, 'eth_getBlockByNumber', [tag, false], { timeoutMs: 5000, retries: 1, requireSnapshot: false });
+  const canonicalHash = String(block?.hash || '').toLowerCase();
+  if (canonicalHash !== hash) throw new Error('RPC_SNAPSHOT_MISMATCH');
+  chain.snapshotBlockTag = tag;
+  chain.snapshotBlockHash = hash;
+  chain.snapshotEndpointsUsed = new Set();
+  return { number, tag, hash };
+}
+
+async function resolveSnapshot(chain, query) {
+  const requestedBlock = query?.snapshotBlock;
+  const requestedHash = query?.snapshotBlockHash;
+  const hasBlock = requestedBlock !== undefined && requestedBlock !== null && String(requestedBlock) !== '';
+  const hasHash = requestedHash !== undefined && requestedHash !== null && String(requestedHash) !== '';
+  if (hasBlock !== hasHash) throw new Error('SNAPSHOT_PROVENANCE_INVALID');
+  return hasBlock ? requestedSnapshot(chain, requestedBlock, requestedHash) : snapshotBlock(chain);
 }
 
 async function assertContract(chain, contract, blockTag) {
@@ -335,7 +390,7 @@ export default async function handler(req, res) {
   if (!isAddress(contract)) return res.status(400).json({ error: 'Invalid contract address' });
 
   try {
-    const snapshot = await snapshotBlock(chain);
+    const snapshot = await resolveSnapshot(chain, req.query);
     const blockNumber = snapshot.number;
     const blockTag = snapshot.tag;
     await assertContract(chain, contract, blockTag);
@@ -345,9 +400,11 @@ export default async function handler(req, res) {
       if (!isAddress(wallet)) return res.status(400).json({ error: 'Invalid wallet address' });
       res.setHeader('Cache-Control', 'no-store');
       const balance = await walletBalance(chain, contract, wallet, blockTag);
+      await assertSnapshotCanonical(chain);
       return res.status(200).json({
         chain: chain.key, chainId: chain.chainId, contract, wallet, balance,
-        snapshotBlock: blockNumber, snapshotBlockHash: snapshot.hash, fetchedAt: new Date().toISOString()
+        snapshotBlock: blockNumber, snapshotBlockHash: snapshot.hash, complete: true, partial: false,
+        fetchedAt: new Date().toISOString()
       });
     }
 
@@ -371,6 +428,7 @@ export default async function handler(req, res) {
     if (!holders.length) throw new Error('No current holders found.');
     complete = complete && ownership.complete !== false;
     const discoveredTokens = ownership.owners.length;
+    await assertSnapshotCanonical(chain);
 
     return res.status(200).json({
       chain: chain.key,
@@ -395,7 +453,8 @@ export default async function handler(req, res) {
         blockNumber,
         blockHash: snapshot.hash,
         source,
-        completeness: complete ? 'provable' : 'best-effort-partial'
+        completeness: complete ? 'provable' : 'best-effort-partial',
+        readBinding: 'eip-1898-blockhash-requireCanonical'
       },
       fetchedAt: new Date().toISOString()
     });
@@ -414,12 +473,15 @@ export default async function handler(req, res) {
     } else if (/RPC_CHAIN_MISMATCH/i.test(message)) {
       status = 503;
       publicMessage = `A configured ${chain.name} RPC reported the wrong chain ID. The scan was rejected.`;
-    } else if (/RPC_SNAPSHOT_MISMATCH|RPC_SNAPSHOT_UNAVAILABLE/i.test(message)) {
+    } else if (/RPC_SNAPSHOT_MISMATCH|RPC_SNAPSHOT_UNAVAILABLE|SNAPSHOT_PROVENANCE_INVALID/i.test(message)) {
       status = 503;
-      publicMessage = 'RPC providers disagreed on the pinned snapshot block. The scan was rejected; please retry.';
+      publicMessage = 'The requested snapshot block is not canonically available with the expected hash. The scan was rejected.';
+    } else if (/RPC_HASH_BINDING_REQUIRED/i.test(message)) {
+      status = 503;
+      publicMessage = 'This RPC cannot safely bind reads to the pinned block hash. The scan was rejected.';
     } else if (/RPC_HTTP|RPC_ERROR|RPC_UNAVAILABLE/i.test(message)) {
       status = 503;
-      publicMessage = `${chain.name} RPC could not complete this read. Please retry in a moment.`;
+      publicMessage = `${chain.name} RPC could not complete this hash-bound read. Please retry in a moment.`;
     }
 
     return res.status(status).json({ error: publicMessage });
