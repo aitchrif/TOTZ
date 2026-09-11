@@ -27,6 +27,8 @@ assert(core.includes(`APPROVED_CLAIM_RUNTIME_CORE_HASH = "${APPROVED_CORE_HASH}"
 assert(core.includes('function normalizedRuntimeCoreHash'), 'Core backend must normalize runtime before attestation.');
 assert(core.includes('CLAIM_IMMUTABLE_LAYOUT'), 'Core backend must retain named compiler immutable ranges.');
 assert(core.includes('assertRuntimeImmutableOccurrences'), 'Core backend must verify every immutable occurrence before normalization.');
+assert(core.includes('CLAIM_IMMUTABLE_LAYOUT'), 'Core backend must retain named compiler immutable ranges.');
+assert(core.includes('assertRuntimeImmutableOccurrences'), 'Core backend must verify every immutable occurrence before normalization.');
 assert(core.includes('metadataLength') && core.includes('coreLength'), 'Core backend must strip Solidity metadata before runtime-core hashing.');
 assert(!core.includes(LEGACY_METADATA_BOUND_HASH), 'Core backend must not remain coupled to the legacy compiler-metadata hash.');
 assert(core.includes('forge_release_flags') && core.includes('mainnet_claims_enabled'), 'Core backend must enforce the database Mainnet master gate.');
