@@ -24,12 +24,13 @@ jobs:
         run: node scripts/apply-forge-attestation-review-fix.mjs
       - name: Commit remediation
         run: |
+          git restore .github/workflows/forge-production-integration.yml
           if git diff --quiet; then
             echo 'No remediation diff to commit.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add supabase/functions/forge-claims/index.ts tests/forge-backend-provenance-integration.mjs .github/workflows/forge-production-integration.yml .gitattributes
+          git add supabase/functions/forge-claims/index.ts tests/forge-backend-provenance-integration.mjs .gitattributes
           git commit -m 'security(forge): bind every immutable runtime occurrence'
           git push origin HEAD:release/forge-attestation-fix-2026-09-11
