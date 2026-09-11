@@ -1,48 +1,23 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const state = { collectionRows: [], collection: null, currency: 'ETH', dbRows: [] };
-  const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[char]));
+  const state = { scan: null, rows: [], session: '', workspace: null };
+  const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const short = (wallet) => String(wallet || '').length > 15 ? `${wallet.slice(0, 7)}…${wallet.slice(-5)}` : String(wallet || '');
-  const validWallet = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || '').trim());
+  const validAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || '').trim());
+  const statusClass = (status) => status === 'confirmed' ? 'confirmed' : status === 'highly_suspected' ? 'suspected' : status === 'watch' ? 'watch' : status === 'low_signal' ? 'low' : 'unreviewed';
+  const statusLabel = (status) => status === 'confirmed' ? 'CONFIRMED BOT' : status === 'highly_suspected' ? 'HIGHLY SUSPECTED' : status === 'watch' ? 'WATCH' : status === 'low_signal' ? 'LOW SIGNAL' : 'UNREVIEWED';
+  const sessionKey = () => state.scan ? `forgeSecurity:${state.scan.contract.chain}:${state.scan.contract.address}` : '';
 
-  function slugFromInput(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    let slug = raw;
-    try {
-      const url = new URL(raw);
-      const parts = url.pathname.split('/').filter(Boolean);
-      const index = parts.findIndex((part) => part.toLowerCase() === 'collection');
-      if ((url.hostname === 'opensea.io' || url.hostname.endsWith('.opensea.io')) && index >= 0 && parts[index + 1]) slug = parts[index + 1];
-    } catch (_) {}
-    slug = String(slug).replace(/^collection\//i, '').split(/[?#/]/)[0].trim();
-    return /^[a-zA-Z0-9_-]{1,120}$/.test(slug) ? slug : '';
-  }
-
-  function statusClass(status) {
-    return status === 'confirmed' ? 'confirmed' : status === 'highly_suspected' ? 'suspected' : status === 'watch' ? 'watch' : 'low';
-  }
-  function statusLabel(status) {
-    return status === 'confirmed' ? 'CONFIRMED BOT' : status === 'highly_suspected' ? 'HIGHLY SUSPECTED' : status === 'watch' ? 'WATCH' : 'LOW SIGNAL';
-  }
-  function formatPrice(value, symbol) {
-    if (!Number.isFinite(Number(value))) return '—';
-    const number = Number(value);
-    const digits = number < 0.01 ? 5 : number < 1 ? 4 : 3;
-    return `${number.toLocaleString(undefined, { maximumFractionDigits: digits })} ${symbol || 'ETH'}`;
-  }
   function setStatus(id, message, type = '') {
-    const node = $(id);
+    const node = $(id); if (!node) return;
     node.textContent = message || '';
     node.className = `status${message ? ' show' : ''}${type ? ` ${type}` : ''}`;
   }
-  function setBusy(button, busy, busyText, idleText) {
-    button.disabled = busy;
-    button.textContent = busy ? busyText : idleText;
+  function busy(button, isBusy, busyText, idleText) {
+    if (!button) return; button.disabled = isBusy; button.textContent = isBusy ? busyText : idleText;
   }
-  async function api(params, timeout = 32000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+  async function getApi(params, timeout = 52000) {
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
     try {
       const response = await fetch(`/api/forge-floor-guard?${new URLSearchParams(params)}`, { cache: 'no-store', signal: controller.signal });
       const data = await response.json().catch(() => ({}));
@@ -50,175 +25,161 @@
       return data;
     } finally { clearTimeout(timer); }
   }
-
-  function switchTab(name) {
-    document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
-    ['collection','wallet','database'].forEach((key) => { $(`${key}Panel`).hidden = key !== name; });
-    if (name === 'database' && !state.dbRows.length) loadDatabase();
+  async function ownerApi(body, session = state.session, timeout = 30000) {
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch('/api/forge-floor-guard-owner', {
+        method: 'POST', cache: 'no-store', signal: controller.signal,
+        headers: { 'content-type': 'application/json', ...(session ? { 'x-forge-session': session } : {}) },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { const error = new Error(data.error || data.detail || `Request failed (${response.status}).`); error.status = response.status; throw error; }
+      return data;
+    } finally { clearTimeout(timer); }
   }
 
-  function renderCollectionRows(rows) {
-    const body = $('collectionRows');
-    const empty = $('collectionEmpty');
+  function verdict(summary) {
+    if (Number(summary.confirmedBotBidders) > 0) return { cls:'alert', title:'CONFIRMED BOT ACTIVITY FOUND', text:`${summary.confirmedBotBidders} current bidder wallet${summary.confirmedBotBidders === 1 ? '' : 's'} matched the trusted FORGE bot registry.` };
+    if (Number(summary.highlySuspectedBidders) > 0) return { cls:'warn', title:'AUTOMATION RISK DETECTED', text:`No confirmed registry bot matched, but ${summary.highlySuspectedBidders} bidder wallet${summary.highlySuspectedBidders === 1 ? '' : 's'} showed strong automation signals and should be reviewed.` };
+    if (Number(summary.watchBidders) > 0) return { cls:'warn', title:'REVIEW RECOMMENDED', text:`${summary.watchBidders} bidder wallet${summary.watchBidders === 1 ? '' : 's'} crossed the watch threshold. Review evidence before taking action.` };
+    return { cls:'', title:'NO STRONG BOT SIGNALS', text:'No confirmed bot or strong automation signal was found in the current bidder sample.' };
+  }
+
+  function renderRows() {
+    const body = $('bidderRows'); const empty = $('bidderEmpty'); const rows = state.rows;
     if (!rows.length) { body.innerHTML = ''; empty.hidden = false; return; }
     empty.hidden = true;
     body.innerHTML = rows.map((row) => {
-      const evidence = [...(row.registryEvidence || []), ...(row.reasons || [])].slice(0, 4);
-      const status = row.botStatus || 'low_signal';
+      const evidence = (row.evidence || []).slice(0, 4);
+      const ownerActions = state.workspace ? `<button class="btn sky small owner-watch" data-wallet="${esc(row.wallet)}" data-status="watch" type="button">WATCH</button> <button class="btn ghost small owner-watch" data-wallet="${esc(row.wallet)}" data-status="restricted" type="button">RESTRICT</button>` : `<button class="btn ghost small owner-gate" type="button">OWNER TOOLS</button>`;
       return `<tr>
-        <td><a class="wallet-link" href="https://opensea.io/${esc(row.wallet)}" target="_blank" rel="noopener noreferrer">${esc(short(row.wallet))} ↗</a></td>
-        <td><span class="badge ${statusClass(status)}">${statusLabel(status)}</span></td>
-        <td><span class="score">${Number(row.botConfidence || 0)}</span></td>
-        <td><span class="score">${Number(row.score || 0)}</span></td>
-        <td>${Number(row.activeLowListings || 0)}</td>
-        <td>${Number(row.recentListings || 0) + Number(row.recentSales || 0)}</td>
-        <td><div class="reasons">${evidence.length ? evidence.map((reason) => `<span class="reason">${esc(reason)}</span>`).join('') : '<span class="reason">no strong evidence</span>'}</div></td>
-        <td><button class="btn ghost inspect-wallet" data-wallet="${esc(row.wallet)}" type="button">CHECK WALLET</button></td>
+        <td><a class="wallet" href="https://opensea.io/${esc(row.wallet)}" target="_blank" rel="noopener noreferrer">${esc(short(row.wallet))} ↗</a></td>
+        <td><span class="badge ${statusClass(row.status)}">${statusLabel(row.status)}</span></td>
+        <td><span class="score">${Number(row.confidence || 0)}</span></td>
+        <td><b>${Number(row.currentOffers || 0).toLocaleString()}</b></td>
+        <td>${Number(row.activeOffersGlobal || 0).toLocaleString()}</td>
+        <td><div class="reasons">${evidence.length ? evidence.map((x) => `<span class="reason">${esc(x)}</span>`).join('') : '<span class="reason">no strong evidence</span>'}</div></td>
+        <td>${ownerActions}</td>
       </tr>`;
     }).join('');
-    document.querySelectorAll('.inspect-wallet').forEach((button) => button.addEventListener('click', () => {
-      $('walletInput').value = button.dataset.wallet || '';
-      switchTab('wallet');
-      checkWallet();
-    }));
+    document.querySelectorAll('.owner-gate').forEach((button) => button.addEventListener('click', () => $('ownerCard').scrollIntoView({ behavior:'smooth', block:'center' })));
+    document.querySelectorAll('.owner-watch').forEach((button) => button.addEventListener('click', () => upsertWatch(button.dataset.wallet, button.dataset.status, button)));
   }
 
-  function renderCollection(data) {
-    state.collectionRows = Array.isArray(data.rows) ? data.rows : [];
-    state.collection = data.collection || null;
-    state.currency = data.currency || 'ETH';
-    $('collectionResults').hidden = false;
-    $('collectionName').textContent = data.collection?.name || data.collection?.slug || 'Collection';
-    $('collectionMeta').textContent = `${data.collection?.slug || ''} · ${data.windowHours || 24}h · V2 intelligence scan`;
+  function renderScan(data) {
+    state.scan = data; state.rows = Array.isArray(data.rows) ? data.rows : [];
+    $('resultShell').hidden = false;
+    $('collectionName').textContent = data.collection?.name || data.contract?.name || 'Collection';
+    $('collectionMeta').textContent = `${data.contract?.chain || 'EVM'} · ${data.contract?.standard || 'NFT'} · ${short(data.contract?.address || '')}`;
     $('openSeaLink').href = data.collection?.url || 'https://opensea.io';
-    $('confirmedStat').textContent = Number(data.botDatabase?.confirmedAvailable || 0).toLocaleString();
-    $('confirmedHolderStat').textContent = Number(data.botDatabase?.confirmedHolders || 0).toLocaleString();
-    $('confirmedListerStat').textContent = Number(data.botDatabase?.confirmedListers || 0).toLocaleString();
-    $('floorStat').textContent = formatPrice(data.floor, data.currency);
-    $('holdersStat').textContent = Number(data.holdersSampled || 0).toLocaleString();
-    $('activeStat').textContent = Number(data.activeListingsScanned || 0).toLocaleString();
-    const confirmed = data.botDatabase?.confirmedWallets || [];
-    $('confirmedSummary').textContent = confirmed.length
-      ? `${confirmed.length} confirmed registry wallet${confirmed.length === 1 ? '' : 's'} intersect this scan. ${data.botDatabase.confirmedHolders || 0} appear in the holder sample and ${data.botDatabase.confirmedListers || 0} are active listers.`
-      : 'No trusted confirmed-bot registry match was found in this holder/listing sample.';
-    const reviewCount = state.collectionRows.filter((r) => ['highly_suspected','watch'].includes(r.botStatus) || Number(r.score) >= 40).length;
-    $('pressureSummary').textContent = reviewCount
-      ? `${reviewCount} wallet${reviewCount === 1 ? '' : 's'} crossed the behavioral review threshold. These are signals, not confirmed identities.`
-      : 'No strong automation/floor-pressure signal crossed the review threshold in this scan.';
-    renderCollectionRows(state.collectionRows);
-    $('copyWatchBtn').disabled = reviewCount === 0;
-    $('exportBtn').disabled = state.collectionRows.length === 0;
-    $('collectionResults').scrollIntoView({ behavior:'smooth', block:'start' });
+    const s = data.summary || {};
+    $('offersStat').textContent = Number(s.activeOffers || 0).toLocaleString();
+    $('biddersStat').textContent = Number(s.uniqueBidders || 0).toLocaleString();
+    $('confirmedStat').textContent = Number(s.confirmedBotBidders || 0).toLocaleString();
+    $('suspectedStat').textContent = Number(s.highlySuspectedBidders || 0).toLocaleString();
+    $('holdersStat').textContent = Number(s.confirmedBotHolders || 0).toLocaleString();
+    const v = verdict(s); const box = $('verdictBox'); box.className = `verdict-main${v.cls ? ` ${v.cls}` : ''}`; $('verdictTitle').textContent = v.title; $('verdictText').textContent = v.text;
+    const flagged = state.rows.filter((r) => ['confirmed','highly_suspected','watch'].includes(r.status));
+    $('copyFlaggedBtn').disabled = flagged.length === 0; $('exportBtn').disabled = state.rows.length === 0;
+    $('connectOwnerBtn').disabled = false; $('connectOwnerBtn').textContent = 'CONNECT OWNER WALLET'; $('ownerHint').textContent = `Verify owner/admin control of ${data.collection?.name || 'this collection'}.`;
+    renderRows();
+    const url = new URL(location.href); url.searchParams.set('contract', data.contract.address); history.replaceState({}, '', url);
+    restoreWorkspace();
   }
 
   async function scanCollection() {
-    const slug = slugFromInput($('collectionInput').value);
-    const hours = Number($('windowSelect').value || 24);
-    if (!slug) return setStatus('collectionStatus', 'Paste a valid OpenSea collection URL or slug.', 'error');
-    const button = $('scanBtn');
-    setBusy(button, true, 'SCANNING…', 'SCAN COLLECTION');
-    setStatus('collectionStatus', 'Checking holders, active listings, marketplace events and the persistent FORGE bot registry…', 'warn');
+    const contract = String($('contractInput').value || '').trim().toLowerCase();
+    if (!validAddress(contract)) return setStatus('scanStatus', 'Paste a valid 0x EVM NFT collection contract address.', 'error');
+    const button = $('scanBtn'); busy(button, true, 'SCANNING BIDDERS…', 'SCAN COLLECTION');
+    setStatus('scanStatus', 'Detecting chain and collection, reading live OpenSea offers, checking bidder wallets and the FORGE bot registry…', 'warn');
     try {
-      const data = await api({ mode:'collection', collection:slug, hours:String(hours) });
-      renderCollection(data);
-      const url = new URL(location.href); url.searchParams.set('collection', slug); url.searchParams.set('hours', String(hours)); history.replaceState({},'',url);
-      setStatus('collectionStatus', `Scan complete · ${data.botDatabase?.confirmedHolders || 0} confirmed holder match${Number(data.botDatabase?.confirmedHolders || 0) === 1 ? '' : 'es'} · ${data.walletsScored || 0} wallet signals reviewed.`);
+      const data = await getApi({ mode:'security', contract }); renderScan(data);
+      const s = data.summary || {};
+      setStatus('scanStatus', `Scan complete · ${s.activeOffers || 0} current offers · ${s.uniqueBidders || 0} unique bidders · ${s.confirmedBotBidders || 0} confirmed bot matches · ${s.highlySuspectedBidders || 0} highly suspected.`, 'ok');
+      $('resultShell').scrollIntoView({ behavior:'smooth', block:'start' });
     } catch (error) {
-      setStatus('collectionStatus', error?.name === 'AbortError' ? 'Collection scan timed out. Retry.' : (error?.message || 'Collection scan failed.'), 'error');
-    } finally { setBusy(button, false, '', 'SCAN COLLECTION'); }
+      setStatus('scanStatus', error?.name === 'AbortError' ? 'Collection security scan timed out. Retry.' : (error?.message || 'Collection scan failed.'), 'error');
+    } finally { busy(button, false, '', 'SCAN COLLECTION'); }
   }
 
-  function renderWallet(data) {
-    $('walletResults').hidden = false;
-    $('walletAddress').textContent = data.wallet || '—';
-    $('walletOpenSea').href = `https://opensea.io/${data.wallet}`;
-    const badge = $('walletBadge');
-    badge.className = `badge ${statusClass(data.classification)}`;
-    badge.textContent = statusLabel(data.classification);
-    $('walletConfidence').textContent = Number(data.confidence || 0);
-    const m = data.metrics || {};
-    $('walletListings').textContent = Number(m.activeListings || 0).toLocaleString();
-    $('walletOffers').textContent = Number(m.activeOffers || 0).toLocaleString();
-    $('walletEvents').textContent = Number(m.events7d || 0).toLocaleString();
-    $('walletCollections').textContent = Number(m.collectionsCount || 0).toLocaleString();
-    $('walletSubMinute').textContent = Number(m.subMinutePairs || 0).toLocaleString();
-    $('walletHours').textContent = Number(m.activeHours || 0).toLocaleString();
-    const evidence = Array.isArray(data.evidence) ? data.evidence : [];
-    $('walletEvidence').innerHTML = evidence.length ? evidence.map((item) => `<div class="evidence">${esc(item)}</div>`).join('') : '<div class="evidence">No strong automation evidence surfaced from the available public marketplace sample.</div>';
-  }
-
-  async function checkWallet() {
-    const wallet = String($('walletInput').value || '').trim().toLowerCase();
-    if (!validWallet(wallet)) return setStatus('walletStatus', 'Paste a valid 0x EVM wallet address.', 'error');
-    const button = $('walletBtn');
-    setBusy(button, true, 'ANALYZING…', 'CHECK WALLET');
-    setStatus('walletStatus', 'Reading global active listings, offers, recent marketplace events and collection breadth…', 'warn');
-    try {
-      const data = await api({ mode:'wallet', wallet });
-      renderWallet(data);
-      setStatus('walletStatus', data.manualConfirmed ? 'Wallet matched a trusted CONFIRMED BOT record.' : `Behavioral analysis complete · ${statusLabel(data.classification)} · ${data.confidence}% confidence.`);
-    } catch (error) {
-      setStatus('walletStatus', error?.name === 'AbortError' ? 'Wallet analysis timed out. Retry.' : (error?.message || 'Wallet analysis failed.'), 'error');
-    } finally { setBusy(button, false, '', 'CHECK WALLET'); }
-  }
-
-  function renderDatabase(data) {
-    state.dbRows = Array.isArray(data.rows) ? data.rows : [];
-    $('dbConfirmed').textContent = Number(data.counts?.confirmed || 0).toLocaleString();
-    $('dbSuspected').textContent = Number(data.counts?.highlySuspected || 0).toLocaleString();
-    $('dbWatch').textContent = Number(data.counts?.watch || 0).toLocaleString();
-    $('dbTotal').textContent = Number(data.counts?.total || 0).toLocaleString();
-    $('databaseRows').innerHTML = state.dbRows.length ? state.dbRows.map((row) => `<div class="db-row">
-      <code>${esc(short(row.wallet))}</code>
-      <span class="badge ${statusClass(row.status)}">${statusLabel(row.status)}</span>
-      <b>${Number(row.confidence || 0)}%</b>
-      <div class="reasons">${(row.evidence || []).slice(0,3).map((item) => `<span class="reason">${esc(item)}</span>`).join('') || '<span class="reason">observation stored</span>'}</div>
-    </div>`).join('') : '<div class="empty">No wallet observations stored yet.</div>';
-  }
-
-  async function loadDatabase() {
-    const button = $('refreshDbBtn');
-    setBusy(button, true, 'LOADING…', 'REFRESH');
-    setStatus('databaseStatus', 'Loading the persistent FORGE intelligence registry…', 'warn');
-    try {
-      const data = await api({ mode:'database' });
-      renderDatabase(data);
-      setStatus('databaseStatus', `Registry loaded · ${data.counts?.confirmed || 0} confirmed · ${data.counts?.highlySuspected || 0} highly suspected · ${data.counts?.watch || 0} watch.`);
-    } catch (error) {
-      setStatus('databaseStatus', error?.message || 'Could not load bot intelligence database.', 'error');
-    } finally { setBusy(button, false, '', 'REFRESH'); }
-  }
-
-  async function copyReviewList() {
-    const rows = state.collectionRows.filter((row) => row.botStatus === 'confirmed' || row.botStatus === 'highly_suspected' || row.botStatus === 'watch' || Number(row.score) >= 40);
-    if (!rows.length) return;
-    const text = rows.map((row) => `${row.wallet}\t${statusLabel(row.botStatus)}\tconfidence=${row.botConfidence || 0}\tfloor_score=${row.score || 0}`).join('\n');
-    try { await navigator.clipboard.writeText(text); setStatus('collectionStatus', `Copied ${rows.length} wallet${rows.length === 1 ? '' : 's'} for review.`); }
-    catch (_) { setStatus('collectionStatus', 'Clipboard access was blocked by the browser.', 'error'); }
+  async function copyFlagged() {
+    const rows = state.rows.filter((r) => ['confirmed','highly_suspected','watch'].includes(r.status)); if (!rows.length) return;
+    const text = rows.map((r) => `${r.wallet}\t${statusLabel(r.status)}\tconfidence=${r.confidence || 0}\toffers_here=${r.currentOffers || 0}`).join('\n');
+    try { await navigator.clipboard.writeText(text); setStatus('scanStatus', `Copied ${rows.length} flagged wallet${rows.length === 1 ? '' : 's'}.`, 'ok'); } catch (_) { setStatus('scanStatus', 'Clipboard access was blocked by the browser.', 'error'); }
   }
   function exportCsv() {
-    if (!state.collectionRows.length) return;
-    const header = ['wallet','bot_status','bot_confidence','floor_score','active_low_listings','listing_events','sale_events','reasons'];
-    const lines = state.collectionRows.map((row) => [row.wallet,row.botStatus,row.botConfidence,row.score,row.activeLowListings,row.recentListings,row.recentSales,`"${String([...(row.registryEvidence||[]),...(row.reasons||[])].join('; ')).replace(/"/g,'""')}"`].join(','));
-    const blob = new Blob([[header.join(','),...lines].join('\n')], { type:'text/csv;charset=utf-8' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `forge-floor-guard-v2-${state.collection?.slug || 'scan'}.csv`; document.body.appendChild(link); link.click(); const href = link.href; link.remove(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+    if (!state.rows.length) return;
+    const header = ['wallet','status','confidence','offers_here','global_active_offers','evidence'];
+    const lines = state.rows.map((r) => [r.wallet,r.status,r.confidence,r.currentOffers,r.activeOffersGlobal,`"${String((r.evidence||[]).join('; ')).replace(/"/g,'""')}"`].join(','));
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type:'text/csv;charset=utf-8' });
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `totz-forge-security-${state.scan?.collection?.slug || 'scan'}.csv`; document.body.appendChild(link); link.click(); const href = link.href; link.remove(); setTimeout(() => URL.revokeObjectURL(href), 1000);
   }
 
-  document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
-  $('scanBtn').addEventListener('click', scanCollection);
-  $('collectionInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') scanCollection(); });
-  $('walletBtn').addEventListener('click', checkWallet);
-  $('walletInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') checkWallet(); });
-  $('refreshDbBtn').addEventListener('click', loadDatabase);
-  $('copyWatchBtn').addEventListener('click', copyReviewList);
-  $('exportBtn').addEventListener('click', exportCsv);
+  function renderWorkspace(bundle) {
+    const workspace = bundle?.workspace; if (!workspace) return;
+    state.workspace = bundle; $('ownerWorkspace').hidden = false;
+    $('workspaceIdentity').textContent = `${workspace.collection_name || workspace.collection_slug || 'Collection'} · ${workspace.chain} · owner verified by ${workspace.verification_method}`;
+    const enabled = workspace.monitoring_enabled === true; $('monitorLabel').textContent = enabled ? 'Monitoring enabled' : 'Monitoring off'; $('monitorMeta').textContent = enabled ? 'Workspace is tracking scan history' : 'Manual scans only'; $('monitorBtn').textContent = enabled ? 'DISABLE' : 'ENABLE';
+    const watch = Array.isArray(bundle.watchlist) ? bundle.watchlist : [];
+    $('watchList').innerHTML = watch.length ? watch.map((row) => `<div class="watch-row"><div><code>${esc(short(row.wallet))}</code><div class="watch-meta">${esc(String(row.status || 'watch').toUpperCase())}${row.note ? ` · ${esc(row.note)}` : ''}</div></div><button class="btn ghost small watch-remove" data-wallet="${esc(row.wallet)}" type="button">REMOVE</button></div>`).join('') : '<div class="empty">No wallets on the watchlist.</div>';
+    document.querySelectorAll('.watch-remove').forEach((button) => button.addEventListener('click', () => removeWatch(button.dataset.wallet, button)));
+    const scans = Array.isArray(bundle.recentScans) ? bundle.recentScans : [];
+    $('scanHistory').innerHTML = scans.length ? scans.map((scan) => { const c = scan.counts || {}; const when = scan.scanned_at ? new Date(scan.scanned_at).toLocaleString() : '—'; return `<div class="scan-row"><div><b>${Number(c.activeOffers || 0)} offers · ${Number(c.uniqueBidders || 0)} bidders</b><br><span>${Number(c.confirmedBotBidders || 0)} confirmed · ${Number(c.highlySuspectedBidders || 0)} suspected</span></div><span>${esc(when)}</span></div>`; }).join('') : '<div class="empty">No stored scans yet.</div>';
+    setStatus('ownerStatus', `Owner verified · workspace unlocked via ${workspace.verification_method}.`, 'ok');
+    renderRows();
+  }
 
-  const params = new URLSearchParams(location.search);
-  const collection = slugFromInput(params.get('collection'));
-  const hours = Number(params.get('hours'));
-  const wallet = params.get('wallet');
-  if (collection) $('collectionInput').value = collection;
-  if ([1,6,24,72,168].includes(hours)) $('windowSelect').value = String(hours);
-  if (validWallet(wallet)) { $('walletInput').value = wallet; switchTab('wallet'); setTimeout(checkWallet, 120); }
-  else if (collection) setTimeout(scanCollection, 120);
+  async function restoreWorkspace() {
+    if (!state.scan) return;
+    const key = sessionKey(); const saved = key ? localStorage.getItem(key) : '';
+    if (!saved) { state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; renderRows(); return; }
+    try {
+      const bundle = await ownerApi({ action:'workspace' }, saved); state.session = saved; renderWorkspace(bundle);
+      $('connectOwnerBtn').textContent = 'WORKSPACE UNLOCKED'; $('connectOwnerBtn').disabled = true;
+    } catch (_) {
+      localStorage.removeItem(key); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; renderRows();
+    }
+  }
+
+  async function connectOwner() {
+    if (!state.scan) return setStatus('ownerStatus', 'Scan a collection first.', 'error');
+    if (!window.ethereum?.request || !window.ethers?.BrowserProvider) return setStatus('ownerStatus', 'No compatible EVM browser wallet detected.', 'error');
+    const button = $('connectOwnerBtn'); busy(button, true, 'VERIFYING OWNER…', 'CONNECT OWNER WALLET');
+    setStatus('ownerStatus', 'Connect the owner/admin wallet. You will sign a login message only — no transaction or approval.', 'warn');
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum); await provider.send('eth_requestAccounts', []); const signer = await provider.getSigner(); const wallet = (await signer.getAddress()).toLowerCase();
+      const challenge = await ownerApi({ action:'challenge', chain:state.scan.contract.chain, contract:state.scan.contract.address, wallet, slug:state.scan.collection?.slug || '' }, '', 20000);
+      const signature = await signer.signMessage(challenge.message);
+      const verified = await ownerApi({ action:'verify', challengeId:challenge.challengeId, signature, slug:state.scan.collection?.slug || '', collectionName:state.scan.collection?.name || state.scan.contract?.name || '' }, '', 30000);
+      state.session = verified.session; localStorage.setItem(sessionKey(), state.session); renderWorkspace(verified); button.textContent = 'WORKSPACE UNLOCKED'; button.disabled = true; $('ownerWorkspace').scrollIntoView({ behavior:'smooth', block:'start' });
+    } catch (error) {
+      setStatus('ownerStatus', error?.message || 'Owner verification failed.', 'error'); busy(button, false, '', 'CONNECT OWNER WALLET');
+    }
+  }
+
+  async function upsertWatch(wallet, status, button) {
+    if (!state.session || !state.workspace) return;
+    busy(button, true, 'SAVING…', status === 'restricted' ? 'RESTRICT' : 'WATCH');
+    try { const bundle = await ownerApi({ action:'watchlist_upsert', wallet, status }); renderWorkspace(bundle); setStatus('ownerStatus', `${short(wallet)} added as ${status.toUpperCase()} in this workspace.`, 'ok'); }
+    catch (error) { setStatus('ownerStatus', error?.message || 'Could not update watchlist.', 'error'); }
+  }
+  async function removeWatch(wallet, button) {
+    busy(button, true, '…', 'REMOVE');
+    try { const bundle = await ownerApi({ action:'watchlist_remove', wallet }); renderWorkspace(bundle); }
+    catch (error) { setStatus('ownerStatus', error?.message || 'Could not remove wallet.', 'error'); }
+  }
+  async function toggleMonitoring() {
+    if (!state.workspace) return; const enabled = state.workspace.workspace?.monitoring_enabled !== true; const button = $('monitorBtn'); busy(button, true, 'SAVING…', enabled ? 'ENABLE' : 'DISABLE');
+    try { const bundle = await ownerApi({ action:'monitoring', enabled }); renderWorkspace(bundle); }
+    catch (error) { setStatus('ownerStatus', error?.message || 'Could not update monitoring.', 'error'); }
+  }
+  function disconnectWorkspace() {
+    if (state.scan) localStorage.removeItem(sessionKey()); state.session = ''; state.workspace = null; $('ownerWorkspace').hidden = true; $('connectOwnerBtn').disabled = false; $('connectOwnerBtn').textContent = 'CONNECT OWNER WALLET'; setStatus('ownerStatus', 'Workspace session disconnected. Public scanner remains available.'); renderRows();
+  }
+
+  $('scanBtn').addEventListener('click', scanCollection); $('contractInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') scanCollection(); });
+  $('copyFlaggedBtn').addEventListener('click', copyFlagged); $('exportBtn').addEventListener('click', exportCsv); $('connectOwnerBtn').addEventListener('click', connectOwner); $('monitorBtn').addEventListener('click', toggleMonitoring); $('disconnectWorkspaceBtn').addEventListener('click', disconnectWorkspace);
+
+  const contract = new URLSearchParams(location.search).get('contract'); if (validAddress(contract)) { $('contractInput').value = contract; setTimeout(scanCollection, 120); }
 })();
