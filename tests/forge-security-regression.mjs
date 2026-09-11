@@ -90,7 +90,7 @@ function makeRpcMock({ partial = false, reorgAfterEthCall = null } = {}) {
       assert(selector && selector.blockHash === HASH_A && selector.requireCanonical === true,
         'eth_call must be bound to the pinned block hash with requireCanonical=true');
       observedSelectors.push(selector);
-      const [, calls] = multicall.decodeFunctionData('aggregate3', params[0].data);
+      const [calls] = multicall.decodeFunctionData('aggregate3', params[0].data);
       const results = calls.map((call) => encodeCallResult(call.callData, { partial }));
       ethCallCount++;
       const encoded = multicall.encodeFunctionResult('aggregate3', [results]);
