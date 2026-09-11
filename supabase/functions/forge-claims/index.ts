@@ -285,49 +285,6 @@ function assertRuntimeImmutableOccurrences(code: string, expected: ClaimRuntimeI
   }
 }
 
-type ClaimRuntimeImmutables = {
-  token: string;
-  merkleRoot: string;
-  totalAllocated: string;
-  deadline: number;
-  sponsor: string;
-};
-
-function immutableWord(value: string | number | bigint, kind: "address" | "bytes32" | "uint") {
-  let hex = String(value).replace(/^0x/, "").toLowerCase();
-  if (kind === "address") {
-    if (!/^[0-9a-f]{40}$/.test(hex)) throw new Error("invalid immutable address");
-  } else if (kind === "bytes32") {
-    if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error("invalid immutable bytes32");
-    return hex;
-  } else {
-    let n: bigint;
-    try { n = BigInt(value); } catch { throw new Error("invalid immutable uint"); }
-    if (n < 0n || n > MAX_UINT256) throw new Error("invalid immutable uint");
-    hex = n.toString(16);
-  }
-  return hex.padStart(64, "0");
-}
-
-function assertRuntimeImmutableOccurrences(code: string, expected: ClaimRuntimeImmutables) {
-  const hex = String(code || "").replace(/^0x/, "").toLowerCase();
-  if (!hex || hex.length % 2) throw new Error("invalid runtime");
-  const words: Record<keyof ClaimRuntimeImmutables, string> = {
-    token: immutableWord(expected.token, "address"),
-    merkleRoot: immutableWord(expected.merkleRoot, "bytes32"),
-    totalAllocated: immutableWord(expected.totalAllocated, "uint"),
-    deadline: immutableWord(expected.deadline, "uint"),
-    sponsor: immutableWord(expected.sponsor, "address"),
-  };
-  for (const [name, ranges] of Object.entries(CLAIM_IMMUTABLE_LAYOUT) as [keyof ClaimRuntimeImmutables, readonly { start: number; length: number }[]][]) {
-    for (const { start, length } of ranges) {
-      if (length !== 32 || (start + length) * 2 > hex.length) throw new Error("runtime size mismatch");
-      const actual = hex.slice(start * 2, (start + length) * 2);
-      if (actual !== words[name]) throw new Error(`Claim contract immutable ${name} mismatch.`);
-    }
-  }
-}
-
 function normalizedRuntimeCoreHash(code: string) {
   const hex = String(code || "").replace(/^0x/, "");
   if (!hex || hex.length % 2) throw new Error("invalid runtime");
