@@ -1,6 +1,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const state = { scan: null, rows: [], session: '', workspace: null };
+  const DEFAULT_VISIBLE_BIDDERS = 5;
+  const state = { scan: null, rows: [], session: '', workspace: null, bidderFilter: 'all', showAllBidders: false };
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const short = (wallet) => String(wallet || '').length > 15 ? `${wallet.slice(0, 7)}…${wallet.slice(-5)}` : String(wallet || '');
   const validAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(String(value || '').trim());
@@ -25,12 +26,16 @@
       .delta-chip.up{background:#FFE2B8;color:#7B4C08}.delta-chip.down{background:#E7F4EF;color:#355642}.delta-chip.new{background:#FFDED9;color:#8B2D22}.delta-chip.neutral{background:#F1ECF7;color:#6A607B}
       .scan-row{align-items:flex-start}.scan-row>span{white-space:nowrap;padding-top:2px}
       .score{position:relative}.score[title]{cursor:help}
-      @media(max-width:650px){.owner-card.verified-compact .owner-grid{grid-template-columns:1fr}.owner-card.verified-compact .owner-action{text-align:left}.scan-row{align-items:flex-start;flex-direction:column}}
+      .bidder-filter-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:9px 0 11px;padding:9px 10px;border:1px solid rgba(43,33,64,.08);border-radius:16px;background:#fff}
+      .bidder-filters{display:flex;gap:6px;flex-wrap:wrap}.bidder-filter{border:0;border-radius:999px;padding:7px 10px;background:var(--cream,#FFF3DC);font-size:.58rem;font-weight:900;cursor:pointer}.bidder-filter.active{background:var(--ink,#2B2140);color:#fff}.bidder-filter-count{opacity:.7}
+      .bidder-compact-meta{display:flex;align-items:center;gap:9px;color:var(--soft,#6A607B);font-size:.59rem;font-weight:900}.bidder-toggle{border:2px solid var(--ink,#2B2140);border-radius:999px;padding:7px 10px;background:#fff;font-size:.58rem;font-weight:900;cursor:pointer}.bidder-toggle[hidden]{display:none!important}
+      @media(max-width:650px){.owner-card.verified-compact .owner-grid{grid-template-columns:1fr}.owner-card.verified-compact .owner-action{text-align:left}.scan-row{align-items:flex-start;flex-direction:column}.bidder-filter-bar{align-items:flex-start}.bidder-compact-meta{width:100%;justify-content:space-between}}
     `;
     document.head.appendChild(style);
     const headers = Array.from(document.querySelectorAll('.table thead th'));
     const confidenceHeader = headers.find((node) => String(node.textContent || '').trim().toUpperCase() === 'CONFIDENCE');
     if (confidenceHeader) confidenceHeader.textContent = 'AUTOMATION SCORE';
+    installBidderControls();
   }
 
   function setOwnerCardVerified(workspace) {
@@ -93,9 +98,71 @@
     return { cls:'', title:'NO STRONG BOT SIGNALS', text:'No confirmed bot or strong automation signal was found in the current bidder sample.' };
   }
 
+  function rowMatchesFilter(row) {
+    if (state.bidderFilter === 'confirmed') return row.status === 'confirmed';
+    if (state.bidderFilter === 'suspected') return row.status === 'highly_suspected';
+    if (state.bidderFilter === 'watch') return row.status === 'watch';
+    return true;
+  }
+
+  function bidderCounts() {
+    return {
+      all: state.rows.length,
+      confirmed: state.rows.filter((r) => r.status === 'confirmed').length,
+      suspected: state.rows.filter((r) => r.status === 'highly_suspected').length,
+      watch: state.rows.filter((r) => r.status === 'watch').length
+    };
+  }
+
+  function installBidderControls() {
+    if ($('bidderFilterBar')) return;
+    const tableWrap = document.querySelector('.table-wrap');
+    if (!tableWrap) return;
+    const bar = document.createElement('div');
+    bar.id = 'bidderFilterBar';
+    bar.className = 'bidder-filter-bar';
+    bar.innerHTML = `
+      <div class="bidder-filters" aria-label="Bidder filters">
+        <button type="button" class="bidder-filter active" data-filter="all">ALL <span class="bidder-filter-count" data-count="all">0</span></button>
+        <button type="button" class="bidder-filter" data-filter="confirmed">CONFIRMED <span class="bidder-filter-count" data-count="confirmed">0</span></button>
+        <button type="button" class="bidder-filter" data-filter="suspected">SUSPECTED <span class="bidder-filter-count" data-count="suspected">0</span></button>
+        <button type="button" class="bidder-filter" data-filter="watch">WATCH <span class="bidder-filter-count" data-count="watch">0</span></button>
+      </div>
+      <div class="bidder-compact-meta"><span id="bidderVisibleMeta">Showing 0 of 0</span><button id="bidderToggleBtn" class="bidder-toggle" type="button" hidden>SHOW ALL</button></div>`;
+    tableWrap.insertAdjacentElement('beforebegin', bar);
+    bar.querySelectorAll('.bidder-filter').forEach((button) => button.addEventListener('click', () => {
+      state.bidderFilter = button.dataset.filter || 'all';
+      state.showAllBidders = false;
+      updateBidderControls();
+      renderRows();
+    }));
+    $('bidderToggleBtn')?.addEventListener('click', () => {
+      state.showAllBidders = !state.showAllBidders;
+      renderRows();
+    });
+    updateBidderControls();
+  }
+
+  function updateBidderControls(filteredCount = null, shownCount = null) {
+    installBidderControls();
+    const counts = bidderCounts();
+    document.querySelectorAll('.bidder-filter-count').forEach((node) => { const key = node.dataset.count; node.textContent = counts[key] ?? 0; });
+    document.querySelectorAll('.bidder-filter').forEach((button) => button.classList.toggle('active', button.dataset.filter === state.bidderFilter));
+    const filtered = filteredCount ?? state.rows.filter(rowMatchesFilter).length;
+    const shown = shownCount ?? Math.min(filtered, state.showAllBidders ? filtered : DEFAULT_VISIBLE_BIDDERS);
+    if ($('bidderVisibleMeta')) $('bidderVisibleMeta').textContent = filtered ? `Showing ${shown} of ${filtered}` : 'No matching bidders';
+    const toggle = $('bidderToggleBtn');
+    if (toggle) {
+      toggle.hidden = filtered <= DEFAULT_VISIBLE_BIDDERS;
+      toggle.textContent = state.showAllBidders ? 'SHOW TOP 5' : `SHOW ALL ${filtered}`;
+    }
+  }
+
   function renderRows() {
-    const body = $('bidderRows'); const empty = $('bidderEmpty'); const rows = state.rows;
-    if (!rows.length) { body.innerHTML = ''; empty.hidden = false; return; }
+    const body = $('bidderRows'); const empty = $('bidderEmpty');
+    const filteredRows = state.rows.filter(rowMatchesFilter);
+    const rows = state.showAllBidders ? filteredRows : filteredRows.slice(0, DEFAULT_VISIBLE_BIDDERS);
+    if (!rows.length) { body.innerHTML = ''; empty.hidden = false; empty.textContent = state.rows.length ? 'No bidders match this filter.' : 'No bidder activity found.'; updateBidderControls(filteredRows.length, 0); return; }
     empty.hidden = true;
     body.innerHTML = rows.map((row) => {
       const evidence = (row.evidence || []).slice(0, 4);
@@ -110,12 +177,13 @@
         <td>${ownerActions}</td>
       </tr>`;
     }).join('');
+    updateBidderControls(filteredRows.length, rows.length);
     document.querySelectorAll('.owner-gate').forEach((button) => button.addEventListener('click', () => $('ownerCard').scrollIntoView({ behavior:'smooth', block:'center' })));
     document.querySelectorAll('.owner-watch').forEach((button) => button.addEventListener('click', () => upsertWatch(button.dataset.wallet, button.dataset.status, button)));
   }
 
   function renderScan(data) {
-    state.scan = data; state.rows = Array.isArray(data.rows) ? data.rows : [];
+    state.scan = data; state.rows = Array.isArray(data.rows) ? data.rows : []; state.bidderFilter = 'all'; state.showAllBidders = false;
     $('resultShell').hidden = false;
     $('collectionName').textContent = data.collection?.name || data.contract?.name || 'Collection';
     $('collectionMeta').textContent = `${data.contract?.chain || 'EVM'} · ${data.contract?.standard || 'NFT'} · ${short(data.contract?.address || '')}`;
@@ -173,12 +241,7 @@
     if (!previous) return '<span class="delta-chip neutral">BASELINE</span>';
     const current = scan?.counts || {}; const older = previous?.counts || {};
     const chips = [];
-    const metrics = [
-      ['activeOffers', 'offers'],
-      ['uniqueBidders', 'bidders'],
-      ['confirmedBotBidders', 'confirmed'],
-      ['highlySuspectedBidders', 'suspected']
-    ];
+    const metrics = [['activeOffers','offers'],['uniqueBidders','bidders'],['confirmedBotBidders','confirmed'],['highlySuspectedBidders','suspected']];
     for (const [key, label] of metrics) {
       const delta = Number(current[key] || 0) - Number(older[key] || 0);
       if (!delta) continue;
@@ -187,7 +250,6 @@
     const nowRisk = highRiskWallets(scan); const oldRisk = highRiskWallets(previous);
     const newRisk = [...nowRisk].filter((wallet) => !oldRisk.has(wallet));
     if (newRisk.length) chips.unshift(`<span class="delta-chip new">NEW HIGH-RISK ${newRisk.length}</span>`);
-
     const currentRows = new Map(flaggedRows(scan).map((row) => [String(row.wallet).toLowerCase(), row]));
     const olderRows = new Map(flaggedRows(previous).map((row) => [String(row.wallet).toLowerCase(), row]));
     let biggest = null;
