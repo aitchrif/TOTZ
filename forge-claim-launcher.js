@@ -103,6 +103,56 @@
     return live;
   }
 
+  async function assertSnapshotProvenance(data){
+    const source=data?.source||{};
+    const network=data?.network||{};
+    const chain=String(network.key||'').trim().toLowerCase();
+    const chainId=Number(network.chainId||0);
+    const contract=String(source.contract||'').trim().toLowerCase();
+    const block=Number(source.snapshotBlock||0);
+    const blockHash=String(source.snapshotBlockHash||'').trim().toLowerCase();
+    if(source.snapshotComplete!==true)throw new Error('This claim package declares an incomplete holder snapshot. Generate a new package from EPOCHS.');
+    if(!['robinhood','ink','ethereum'].includes(chain))throw new Error('Unsupported source network in claim package.');
+    if(!Number.isSafeInteger(chainId)||chainId<=0||!isAddress(contract)||!Number.isSafeInteger(block)||block<=0||!isBytes32(blockHash))throw new Error('Claim package snapshot provenance is incomplete or invalid.');
+    const params=new URLSearchParams({chain,contract,snapshotBlock:String(block),snapshotBlockHash:blockHash});
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),65000);
+    let response,dataOut;
+    try{
+      response=await fetch(`/api/forge-holders?${params}`,{cache:'no-store',signal:controller.signal});
+      dataOut=await response.json().catch(()=>({}));
+    }catch(e){
+      if(e?.name==='AbortError')throw new Error('Snapshot provenance revalidation timed out. No deployment is allowed.');
+      throw e;
+    }finally{clearTimeout(timer);}
+    if(!response.ok)throw new Error(dataOut.error||`Snapshot provenance revalidation failed (${response.status}).`);
+    if(
+      dataOut.complete!==true||dataOut.partial===true||
+      Number(dataOut.chainId)!==chainId||
+      String(dataOut.contract||'').toLowerCase()!==contract||
+      Number(dataOut.snapshotBlock)!==block||
+      String(dataOut.snapshotBlockHash||'').toLowerCase()!==blockHash
+    ) throw new Error('Snapshot provenance could not be independently revalidated. No deployment is allowed.');
+    return dataOut;
+  }
+
+  async function publicationFingerprint(data){
+    const source=data?.source||{};
+    return sha256Hex([
+      'TOTZ_FORGE_PACKAGE_PROVENANCE_V1',
+      `distribution=${String(data?.distributionFingerprint||'')}`,
+      `sourceChain=${String(data?.network?.key||'').toLowerCase()}`,
+      `sourceChainId=${Number(data?.network?.chainId||0)}`,
+      `sourceContract=${String(source.contract||'').toLowerCase()}`,
+      `snapshotBlock=${Number(source.snapshotBlock||0)}`,
+      `snapshotBlockHash=${String(source.snapshotBlockHash||'').toLowerCase()}`,
+      'snapshotComplete=true',
+      `merkleRoot=${String(data?.root||'').toLowerCase()}`,
+      `eligibleWallets=${Number(data?.eligibleWallets||0)}`,
+      `totalAllocatedUnits=${String(data?.reward?.totalUnits||'')}`
+    ].join('\n'));
+  }
+
   async function assertServerLaunchReady(sponsor){
     if(CLAIM_NETWORK.environment!=='mainnet')return true;
     if(!isAddress(sponsor))throw new Error('A valid sponsor wallet is required for the Mainnet release preflight.');
@@ -187,14 +237,14 @@
     try{
       setCheck('Package format', null);
       if(!data||data.format!=='TOTZ_FORGE_MERKLE_V1')throw new Error('Unsupported claim package format.');
-      if(data.source?.snapshotComplete!==true)throw new Error('This claim package is not backed by a provably complete holder snapshot. Generate a new package from EPOCHS.');
+      if(data.source?.snapshotComplete!==true)throw new Error('This claim package is not backed by a complete holder snapshot. Generate a new package from EPOCHS.');
+      if(!isBytes32(data.source?.snapshotBlockHash))throw new Error('Claim package is missing the pinned snapshot block hash.');
       if(!isBytes32(data.root))throw new Error('Invalid Merkle root.');
       if(!data.claims||typeof data.claims!=='object')throw new Error('Claim map missing.');
       const entries=Object.entries(data.claims);
       const eligible=Number(data.eligibleWallets||0);
       if(entries.length!==eligible)throw new Error(`Claim count mismatch (${entries.length}/${eligible}).`);
       $('checks').innerHTML='';setCheck('Package format',true,'TOTZ_FORGE_MERKLE_V1');
-      setCheck('Complete snapshot',true,'provable source');
       setCheck('Claim count',true,`${fmt(entries.length)} wallets`);
       let total=0n, invalid=0, dupes=0;
       const seen=new Set();
@@ -214,15 +264,34 @@
       setCheck('Every leaf + proof',invalid===0,invalid?`${invalid} invalid`:`${fmt(entries.length)} verified`);
       setCheck('Exact pool total',total===expected,`${formatUnits(total,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`);
       if(invalid||dupes||total!==expected||expected<=0n)throw new Error('Package verification failed. Do not deploy it.');
-      pkg=data;verified=true;
-      $('sumCollection').textContent=data.source?.collection||'NFT Collection';$('sumEligible').textContent=fmt(entries.length);$('sumPool').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;$('sumSource').textContent=data.network?.name||`Chain ${data.network?.chainId||'—'}`;$('sumBlock').textContent=data.source?.snapshotBlock?`#${fmt(data.source.snapshotBlock)}`:'Pinned';$('sumRoot').textContent=`MERKLE ROOT · ${data.root}`;$('summary').classList.add('show');
-      $('fundRequired').textContent=`${data.reward?.total||formatUnits(expected,Number(data.reward?.decimals||0))} ${data.reward?.symbol||''}`;
-      status('verifyStatus',writesEnabled()?'Package verified locally. Deployment controls are now available.':`Package verified locally. ${CLAIM_NETWORK.name} writes remain locked.`,'ok');
+
+      setCheck('Snapshot provenance',null,'revalidating exact block hash on-chain');
+      const attested=await assertSnapshotProvenance(data);
+      const boundFingerprint=await publicationFingerprint(data);
+      $('checks').lastElementChild?.remove();
+      setCheck('Snapshot provenance',true,`block #${fmt(data.source.snapshotBlock)} · hash-bound`);
+      setCheck('Complete snapshot',true,`${fmt(attested.info?.holdersCount||attested.holders?.length||0)} holders revalidated`);
+
+      pkg={
+        ...data,
+        publicationFingerprint:boundFingerprint,
+        source:{
+          ...data.source,
+          snapshotComplete:true,
+          snapshotBlockHash:String(attested.snapshotBlockHash).toLowerCase(),
+          snapshotSource:attested.source||data.source?.snapshotSource||'unknown',
+          snapshotProvenance:attested.provenance||data.source?.snapshotProvenance||null
+        }
+      };
+      verified=true;
+      $('sumCollection').textContent=pkg.source?.collection||'NFT Collection';$('sumEligible').textContent=fmt(entries.length);$('sumPool').textContent=`${pkg.reward?.total||formatUnits(expected,Number(pkg.reward?.decimals||0))} ${pkg.reward?.symbol||''}`;$('sumSource').textContent=pkg.network?.name||`Chain ${pkg.network?.chainId||'—'}`;$('sumBlock').textContent=`#${fmt(pkg.source.snapshotBlock)}`;$('sumRoot').textContent=`MERKLE ROOT · ${pkg.root}`;$('summary').classList.add('show');
+      $('fundRequired').textContent=`${pkg.reward?.total||formatUnits(expected,Number(pkg.reward?.decimals||0))} ${pkg.reward?.symbol||''}`;
+      status('verifyStatus',writesEnabled()?'Package and exact snapshot provenance verified. Deployment controls are now available.':`Package and exact snapshot provenance verified. ${CLAIM_NETWORK.name} writes remain locked.`,'ok');
       $('switchBtn').disabled=!writesEnabled();updateDeployReady();flow(1);
     }catch(e){status('verifyStatus',e?.message||'Package verification failed.','error');$('deployBtn').disabled=true;$('switchBtn').disabled=true;flow(0);}
   }
 
-  async function readFile(file){$('fileName').textContent=file.name;status('verifyStatus','Verifying every allocation and Merkle proof…');try{const txt=await file.text();const data=JSON.parse(txt);await verifyPackage(data);}catch(e){status('verifyStatus',e?.message||'Could not read claim JSON.','error');}}
+  async function readFile(file){$('fileName').textContent=file.name;status('verifyStatus','Verifying allocations, Merkle proofs and snapshot provenance…');try{const txt=await file.text();const data=JSON.parse(txt);await verifyPackage(data);}catch(e){status('verifyStatus',e?.message||'Could not read claim JSON.','error');}}
 
   async function ensureWallet(request=true){
     if(!window.ethereum?.request)throw new Error('No EVM browser wallet detected.');
@@ -316,19 +385,21 @@
         sourceChain:pkg.network?.key||'unknown',sourceChainId:Number(pkg.network?.chainId||0),
         sourceContract:String(pkg.source?.contract||'').toLowerCase(),sourceCollection:pkg.source?.collection,
         snapshotBlock:pkg.source?.snapshotBlock??null,
+        snapshotBlockHash:String(pkg.source?.snapshotBlockHash||'').toLowerCase(),snapshotComplete:pkg.source?.snapshotComplete===true,
+        snapshotSource:pkg.source?.snapshotSource||null,snapshotProvenance:pkg.source?.snapshotProvenance||null,
         rewardToken:live.token,rewardSymbol:tokenMeta.symbol||pkg.reward.symbol,
         rewardDecimals:Number(pkg.reward.decimals),merkleRoot:live.root,totalAllocatedUnits:live.totalAllocated.toString(),
         eligibleWallets:Number(pkg.eligibleWallets),claimChainId:CLAIM_NETWORK.chainId,claimContract:live.claimAddress,
-        deadline:live.deadline,packageFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
+        deadline:live.deadline,packageFingerprint:pkg.publicationFingerprint,distributionFingerprint:pkg.distributionFingerprint||null,issuedAt:Math.floor(Date.now()/1000)
       };
-      status('publishStatus','Sponsor signature required to authorize this exact FORGE publication and protected upload session. No gas is used.','warn');
+      status('publishStatus','Sponsor signature required to authorize this exact claim package fingerprint and protected upload session. No gas is used.','warn');
       createBody.authSignature=await signer.signMessage(publicationMessage(createBody));
       status('publishStatus','Authorization verified locally. Creating the protected upload session…');
       await api('create',createBody);
       const entries=Object.entries(pkg.claims).map(([wallet,c])=>({wallet:wallet.toLowerCase(),amountUnits:String(c.amountUnits),leaf:c.leaf,proof:c.proof}));
       for(let i=0;i<entries.length;i+=200){status('publishStatus',`Uploading verified proofs… ${Math.min(i+200,entries.length)}/${entries.length}`);await api('upload',{slug,uploadToken,entries:entries.slice(i,i+200)});}
       status('publishStatus','Server is re-checking the exact allocation total, approved claim runtime and live contract…');
-      await api('publish',{slug,uploadToken});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
+      await api('publish',{slug,uploadToken,snapshotBlockHash:createBody.snapshotBlockHash,snapshotComplete:true,packageFingerprint:createBody.packageFingerprint});publishedSlug=slug;const url=`${location.origin}/forge-claim?slug=${encodeURIComponent(slug)}`;$('claimLink').textContent=url;$('claimLink').href=url;$('openClaimBtn').href=url;$('publishBox').classList.add('show');$('publishTag').textContent='PUBLISHED';flow(4);status('publishStatus',`Published ${fmt(entries.length)} server-verified proofs. The holder claim page is live.`,'ok');uploadToken=null;
     }catch(e){status('publishStatus',e?.shortMessage||e?.message||'Could not publish claim.','error');if(writesEnabled()&&deployedTuple)$('publishBtn').disabled=false;}
   }
 
