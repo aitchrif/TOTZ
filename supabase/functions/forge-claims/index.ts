@@ -47,11 +47,26 @@ const SOURCE_CHAINS: Record<string, number> = { robinhood: 4663, ink: 57073, eth
 // source-reproducible ForgeMerkleClaim core hash from contracts/ForgeMerkleClaim.sol.
 const APPROVED_CLAIM_RUNTIME_CORE_HASH = "0xb90f55deac3bb7b4cc6743afb563abd27ac21e0df0ff02d7ce6ae289bb9b7e36";
 const MAX_CANARY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CLAIM_IMMUTABLE_RANGES = [
-  { start: 522, length: 32 }, { start: 1020, length: 32 }, { start: 1288, length: 32 }, { start: 1422, length: 32 }, { start: 1618, length: 32 }, { start: 1864, length: 32 },
-  { start: 376, length: 32 }, { start: 1129, length: 32 }, { start: 1456, length: 32 }, { start: 1495, length: 32 }, { start: 255, length: 32 }, { start: 868, length: 32 },
-  { start: 329, length: 32 }, { start: 719, length: 32 }, { start: 1740, length: 32 }, { start: 1787, length: 32 }, { start: 186, length: 32 }, { start: 558, length: 32 }, { start: 1193, length: 32 },
-];
+// solc 0.8.24 immutableReferences for the reviewed ForgeMerkleClaim release artifact.
+// Keep the groups named: attestation verifies every embedded copy before zero-normalization.
+const CLAIM_IMMUTABLE_LAYOUT = {
+  token: [
+    { start: 522, length: 32 }, { start: 1020, length: 32 }, { start: 1288, length: 32 }, { start: 1422, length: 32 }, { start: 1618, length: 32 }, { start: 1864, length: 32 },
+  ],
+  merkleRoot: [
+    { start: 255, length: 32 }, { start: 868, length: 32 },
+  ],
+  totalAllocated: [
+    { start: 329, length: 32 }, { start: 719, length: 32 }, { start: 1740, length: 32 }, { start: 1787, length: 32 },
+  ],
+  deadline: [
+    { start: 186, length: 32 }, { start: 558, length: 32 }, { start: 1193, length: 32 },
+  ],
+  sponsor: [
+    { start: 376, length: 32 }, { start: 1129, length: 32 }, { start: 1456, length: 32 }, { start: 1495, length: 32 },
+  ],
+} as const;
+const CLAIM_IMMUTABLE_RANGES = Object.values(CLAIM_IMMUTABLE_LAYOUT).flat();
 
 const coder = AbiCoder.defaultAbiCoder();
 const claimIface = new Interface([
@@ -227,6 +242,49 @@ async function rpc(chainId: number, method: string, params: any[], timeoutMs = 1
   }
 }
 
+type ClaimRuntimeImmutables = {
+  token: string;
+  merkleRoot: string;
+  totalAllocated: string;
+  deadline: number;
+  sponsor: string;
+};
+
+function immutableWord(value: string | number | bigint, kind: "address" | "bytes32" | "uint") {
+  let hex = String(value).replace(/^0x/, "").toLowerCase();
+  if (kind === "address") {
+    if (!/^[0-9a-f]{40}$/.test(hex)) throw new Error("invalid immutable address");
+  } else if (kind === "bytes32") {
+    if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error("invalid immutable bytes32");
+    return hex;
+  } else {
+    let n: bigint;
+    try { n = BigInt(value); } catch { throw new Error("invalid immutable uint"); }
+    if (n < 0n || n > MAX_UINT256) throw new Error("invalid immutable uint");
+    hex = n.toString(16);
+  }
+  return hex.padStart(64, "0");
+}
+
+function assertRuntimeImmutableOccurrences(code: string, expected: ClaimRuntimeImmutables) {
+  const hex = String(code || "").replace(/^0x/, "").toLowerCase();
+  if (!hex || hex.length % 2) throw new Error("invalid runtime");
+  const words: Record<keyof ClaimRuntimeImmutables, string> = {
+    token: immutableWord(expected.token, "address"),
+    merkleRoot: immutableWord(expected.merkleRoot, "bytes32"),
+    totalAllocated: immutableWord(expected.totalAllocated, "uint"),
+    deadline: immutableWord(expected.deadline, "uint"),
+    sponsor: immutableWord(expected.sponsor, "address"),
+  };
+  for (const [name, ranges] of Object.entries(CLAIM_IMMUTABLE_LAYOUT) as [keyof ClaimRuntimeImmutables, readonly { start: number; length: number }[]][]) {
+    for (const { start, length } of ranges) {
+      if (length !== 32 || (start + length) * 2 > hex.length) throw new Error("runtime size mismatch");
+      const actual = hex.slice(start * 2, (start + length) * 2);
+      if (actual !== words[name]) throw new Error(`Claim contract immutable ${name} mismatch.`);
+    }
+  }
+}
+
 function normalizedRuntimeCoreHash(code: string) {
   const hex = String(code || "").replace(/^0x/, "");
   if (!hex || hex.length % 2) throw new Error("invalid runtime");
@@ -243,13 +301,17 @@ function normalizedRuntimeCoreHash(code: string) {
   return keccak256(bytes.slice(0, coreLength));
 }
 
-async function assertApprovedClaimRuntime(chainId: number, address: string) {
+async function assertApprovedClaimRuntime(chainId: number, address: string, expected: ClaimRuntimeImmutables) {
   const code = await rpc(chainId, "eth_getCode", [address, "latest"]);
   if (!code || code === "0x" || code === "0x0") throw new Error("Claim contract does not exist on the configured claim chain.");
   let actual = "";
   try {
+    // Getter agreement is not sufficient: every compiler-reported immutable copy must
+    // match the publication tuple before those bytes are normalized out of the hash.
+    assertRuntimeImmutableOccurrences(code, expected);
     actual = normalizedRuntimeCoreHash(code);
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("Claim contract immutable ")) throw e;
     throw new Error("Claim contract runtime is not an approved TOTZ FORGE build.");
   }
   if (actual.toLowerCase() !== APPROVED_CLAIM_RUNTIME_CORE_HASH) throw new Error("Claim contract runtime is not an approved TOTZ FORGE build.");
@@ -268,7 +330,13 @@ async function call(chainId: number, iface: Interface, address: string, fn: stri
 async function verifyOnChain(supabase: any, expected: { creator: string; rewardToken: string; rewardSymbol: string; rewardDecimals: number; merkleRoot: string; totalUnits: string; eligibleWallets: number; claimChainId: number; claimContract: string; deadlineUnix: number }, requireFunded = true) {
   await assertClaimWriteEnabled(supabase, expected.claimChainId, { creator: expected.creator, eligibleWallets: expected.eligibleWallets });
   const chainId = expected.claimChainId;
-  const runtimeHash = await assertApprovedClaimRuntime(chainId, expected.claimContract);
+  const runtimeHash = await assertApprovedClaimRuntime(chainId, expected.claimContract, {
+    token: expected.rewardToken,
+    merkleRoot: expected.merkleRoot,
+    totalAllocated: expected.totalUnits,
+    deadline: expected.deadlineUnix,
+    sponsor: expected.creator,
+  });
   if (!await codeAt(chainId, expected.rewardToken)) throw new Error("Reward token contract does not exist on the configured claim chain.");
   const [sponsor, tokenAddr, root, total, deadline, full, balance, symbol, decimals] = await Promise.all([
     call(chainId, claimIface, expected.claimContract, "sponsor"),
@@ -445,7 +513,7 @@ Deno.serve(async (req: Request) => {
         if (String(error.code) === "23505") return json({ error: "Claim slug, Merkle root, or contract already exists." }, 409);
         throw error;
       }
-      return json({ ok: true, ...data, authorizedCreator: creator, onChainVerified: true, runtimeAttested: true, runtimeHash: chainCheck.runtimeHash, runtimeAttestation: "executable-core-v1", authVersion: "V2", claimChainId });
+      return json({ ok: true, ...data, authorizedCreator: creator, onChainVerified: true, runtimeAttested: true, runtimeHash: chainCheck.runtimeHash, runtimeAttestation: "executable-core+immutables-v2", authVersion: "V2", claimChainId });
     }
 
     if (route === "upload") {
@@ -533,7 +601,7 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Claim package changed during finalization." }, 409);
       }
       if (finalized !== true) return json({ error: "Claim publication state changed before finalization." }, 409);
-      return json({ ok: true, slug, entries: entries.length, totalAllocatedUnits: total.toString(), serverVerified: true, onChainVerified: true, runtimeAttested: true, runtimeHash: chainCheck.runtimeHash, runtimeAttestation: "executable-core-v1", transactionalFinalization: true, claimChainId: Number(epoch.claim_chain_id) });
+      return json({ ok: true, slug, entries: entries.length, totalAllocatedUnits: total.toString(), serverVerified: true, onChainVerified: true, runtimeAttested: true, runtimeHash: chainCheck.runtimeHash, runtimeAttestation: "executable-core+immutables-v2", transactionalFinalization: true, claimChainId: Number(epoch.claim_chain_id) });
     }
 
     return json({ error: "Unknown route." }, 404);

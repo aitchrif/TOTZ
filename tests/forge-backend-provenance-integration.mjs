@@ -25,11 +25,13 @@ assert(gateway.includes('cache: "no-store"'), 'Server provenance revalidation mu
 
 assert(core.includes(`APPROVED_CLAIM_RUNTIME_CORE_HASH = "${APPROVED_CORE_HASH}"`), 'Core backend must attest the reviewed executable runtime core.');
 assert(core.includes('function normalizedRuntimeCoreHash'), 'Core backend must normalize runtime before attestation.');
+assert(core.includes('CLAIM_IMMUTABLE_LAYOUT'), 'Core backend must retain named compiler immutable ranges.');
+assert(core.includes('assertRuntimeImmutableOccurrences'), 'Core backend must verify every immutable occurrence before normalization.');
 assert(core.includes('metadataLength') && core.includes('coreLength'), 'Core backend must strip Solidity metadata before runtime-core hashing.');
 assert(!core.includes(LEGACY_METADATA_BOUND_HASH), 'Core backend must not remain coupled to the legacy compiler-metadata hash.');
 assert(core.includes('forge_release_flags') && core.includes('mainnet_claims_enabled'), 'Core backend must enforce the database Mainnet master gate.');
 assert(core.includes('mainnet_release_mode'), 'Core backend must enforce locked/canary/public release policy.');
-assert(core.includes('runtimeAttestation: "executable-core-v1"'), 'Core publication responses must identify executable-core attestation.');
+assert(core.includes('runtimeAttestation: "executable-core+immutables-v2"'), 'Core publication responses must identify occurrence-bound runtime attestation.');
 
 assert(releaseArtifact.artifactFormat === 'TOTZ_FORGE_CLAIM_RELEASE_V1', 'Fresh claim artifact must use the source-controlled release format.');
 assert(releaseArtifact.generatedFromSource === true, 'Fresh claim artifact must declare source generation.');
@@ -74,4 +76,4 @@ const canonical = [
 const expected = `0x${crypto.createHash('sha256').update(canonical).digest('hex')}`;
 assert(/^0x[0-9a-f]{64}$/.test(expected), 'Canonical provenance fingerprint must be bytes32-shaped.');
 
-console.log(`FORGE BACKEND + RELEASE PROVENANCE: PASS · fingerprint ${expected.slice(0, 12)}… · source-controlled core + fresh artifact pinned`);
+console.log(`FORGE BACKEND + RELEASE PROVENANCE: PASS · fingerprint ${expected.slice(0, 12)}… · source-controlled core + immutable occurrences bound`);
