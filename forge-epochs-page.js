@@ -13,6 +13,7 @@
   const NETWORK_FALLBACKS = { robinhood: 'RH', ink: 'INK', ethereum: 'Ξ' };
   const $ = (id) => document.getElementById(id);
   const isAddress = (v) => /^0x[a-fA-F0-9]{40}$/.test(String(v || ''));
+  const isBytes32 = (v) => /^0x[a-fA-F0-9]{64}$/.test(String(v || ''));
   const fmt = (n, max=0) => Number(n || 0).toLocaleString(undefined,{maximumFractionDigits:max});
   const short = (a) => a ? `${a.slice(0,6)}…${a.slice(-4)}` : '—';
 
@@ -114,14 +115,27 @@
   }
 
   function updateSnapshotCard(contract,data){
+    if(data?.partial===true||data?.complete!==true){
+      const reason=data?.diagnostics?.warning||'The source could not prove complete ERC-721 enumeration.';
+      throw new Error(`Allocation blocked: holder snapshot is incomplete. ${reason}`);
+    }
     const info=data.info||{};
     const holders=(data.holders||[]).map(h=>({address:String(h.address||'').toLowerCase(),balance:Number(h.balance||0)})).filter(h=>isAddress(h.address)&&h.balance>0).sort((a,b)=>b.balance-a.balance||a.address.localeCompare(b.address));
     if(!holders.length) throw new Error('No current holders found for this contract.');
     const supply=Number(info.totalSupply||holders.reduce((s,h)=>s+h.balance,0));
-    snapshot={chain:selectedChain,chainName:CHAINS[selectedChain].name,chainId:CHAINS[selectedChain].chainId,contract,info,holders,supply,snapshotBlock:Number(data.snapshotBlock||0),fetchedAt:data.fetchedAt||new Date().toISOString()};
+    if(!Number.isInteger(supply)||supply<=0)throw new Error('Complete total supply is unavailable. Allocation generation is blocked.');
+    if(!Number(data.snapshotBlock||0))throw new Error('Pinned snapshot block is missing. Allocation generation is blocked.');
+    if(!isBytes32(data.snapshotBlockHash))throw new Error('Pinned snapshot block hash is missing. Allocation generation is blocked.');
+    if(Number(data.chainId||0)!==CHAINS[selectedChain].chainId)throw new Error('Snapshot chain ID does not match the selected network.');
+    snapshot={
+      chain:selectedChain,chainName:CHAINS[selectedChain].name,chainId:CHAINS[selectedChain].chainId,
+      contract,info,holders,supply,snapshotBlock:Number(data.snapshotBlock),snapshotBlockHash:String(data.snapshotBlockHash).toLowerCase(),
+      fetchedAt:data.fetchedAt||new Date().toISOString(),complete:true,partial:false,source:data.source||'unknown',
+      diagnostics:data.diagnostics||{},provenance:data.provenance||null
+    };
     $('snapCollection').textContent=`${info.name||'NFT Collection'}${info.symbol?` · ${info.symbol}`:''}`;
     $('snapNetwork').textContent=snapshot.chainName;
-    $('snapBlock').textContent=snapshot.snapshotBlock?`#${fmt(snapshot.snapshotBlock)}`:'Pinned';
+    $('snapBlock').textContent=`#${fmt(snapshot.snapshotBlock)}`;
     $('snapHolders').textContent=fmt(holders.length);
     $('snapshot').hidden=false;
     resetBuilt();
@@ -134,7 +148,7 @@
     try{
       const data=await fetchJson(`/api/forge-holders?chain=${encodeURIComponent(selectedChain)}&contract=${encodeURIComponent(contract)}`);
       updateSnapshotCard(contract,data);
-      status('sourceStatus',`Snapshot ready · ${fmt(snapshot.holders.length)} holders${snapshot.snapshotBlock?` · block #${fmt(snapshot.snapshotBlock)}`:''}.`,'ok');
+      status('sourceStatus',`Verified complete snapshot · ${fmt(snapshot.holders.length)} holders · block #${fmt(snapshot.snapshotBlock)}.`,'ok');
       const u=new URL(location.href); u.searchParams.set('chain',selectedChain); u.searchParams.set('contract',contract); history.replaceState({},'',u); syncLinks();
     }catch(e){snapshot=null; $('snapshot').hidden=true; resetBuilt(); let m=e?.message||'Could not load snapshot.'; if(e?.name==='AbortError')m='Snapshot request timed out. Please retry.'; status('sourceStatus',m,'error');}
     finally{setBusy(false);}
@@ -193,6 +207,7 @@
   async function build(){
     resetBuilt();
     if(!snapshot?.holders?.length){status('epochStatus','Load a collection snapshot first.','warn');return;}
+    if(snapshot.complete!==true||snapshot.partial===true||!snapshot.snapshotBlock||!isBytes32(snapshot.snapshotBlockHash)){status('epochStatus','Allocation blocked: this snapshot is not provably complete and pinned to a block hash.','error');return;}
     try{
       const unlocked=access.genesis;
       const decimals=Number($('decimals').value||6);
@@ -212,7 +227,7 @@
       let leftover=poolUnits-allocated;
       if(leftover>0n){const order=rows.map((r,i)=>({i,remainder:r.remainder})).sort((a,b)=>a.remainder===b.remainder?a.i-b.i:(a.remainder>b.remainder?-1:1)); for(let i=0;i<order.length&&leftover>0n;i++,leftover--)rows[order[i].i].units+=1n;}
       if(rows.some(r=>r.units<=0n)) throw new Error(`Reward pool is too small for these rules: at least one of ${fmt(rows.length)} eligible wallets would receive 0 smallest token units. Increase the reward amount or reduce/skew the eligibility weighting.`);
-      const canonical=[`chain=${snapshot.chain}`,`contract=${snapshot.contract}`,`block=${snapshot.snapshotBlock}`,`pool=${poolUnits}`,`decimals=${decimals}`,`symbol=${symbol}`,`min=${min}`,`mode=${mode}`,`cap=${cap}`,`exclude=${[...ex.valid].sort().join('|')}`,...rows.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(r=>`${r.address}:${r.balance}:${r.weight}:${r.units}`)].join('\n');
+      const canonical=[`chain=${snapshot.chain}`,`chainId=${snapshot.chainId}`,`contract=${snapshot.contract}`,`block=${snapshot.snapshotBlock}`,`blockHash=${snapshot.snapshotBlockHash}`,`snapshotSource=${snapshot.source}`,`snapshotComplete=true`,`pool=${poolUnits}`,`decimals=${decimals}`,`symbol=${symbol}`,`min=${min}`,`mode=${mode}`,`cap=${cap}`,`exclude=${[...ex.valid].sort().join('|')}`,...rows.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(r=>`${r.address}:${r.balance}:${r.weight}:${r.units}`)].join('\n');
       const fingerprint=await hash(canonical);
       distribution={rows,poolUnits,decimals,symbol,min,mode,cap,exclusions:ex.valid,totalWeight,fingerprint,createdAt:new Date().toISOString(),source:snapshot};
       $('eligible').textContent=fmt(rows.length); $('excluded').textContent=fmt(ex.valid.size); $('totalWeight').textContent=totalWeight.toString(); $('average').textContent=`${formatUnits(poolUnits/BigInt(rows.length),decimals,Math.min(6,decimals))} ${symbol}`; $('exactPool').textContent=`${formatUnits(poolUnits,decimals,Math.min(6,decimals))} ${symbol}`; $('fingerprint').textContent=fingerprint; $('fingerprint').title=fingerprint;
@@ -221,7 +236,7 @@
       $('deliveryCount').textContent=`${fmt(rows.length)} wallets`;
       $('directFit').textContent=rows.length<=200?'GOOD FIT':'LARGE LIST';
       $('merkleFit').textContent=rows.length>200?'RECOMMENDED':'AVAILABLE';
-      status('epochStatus',`Distribution built · ${fmt(rows.length)} eligible wallets · exact pool preserved.`,'ok');
+      status('epochStatus',`Distribution built from a verified complete snapshot · ${fmt(rows.length)} eligible wallets · exact pool preserved.`,'ok');
       applyAccess();
     }catch(e){status('epochStatus',e?.message||'Could not build distribution.','error');}
   }
@@ -242,9 +257,9 @@
   function exportDistribution(){
     if(!requireGenesis()||!distribution)return;
     const d=distribution,s=d.source;
-    const rows=[['TOTZ FORGE EPOCH DISTRIBUTION',''],['Collection',s.info?.name||'NFT Collection'],['Symbol',s.info?.symbol||''],['Network',s.chainName],['Chain ID',s.chainId],['Contract',s.contract],['Snapshot Block',s.snapshotBlock||''],['Snapshot UTC',s.fetchedAt],['Reward Pool',formatUnits(d.poolUnits,d.decimals,d.decimals)],['Reward Symbol',d.symbol],['Reward Decimals',d.decimals],['Minimum NFTs',d.min],['Weighting',d.mode==='nft'?'NFT-weighted':'Equal per wallet'],['NFT Weight Cap',d.cap||'None'],['Excluded Wallets',d.exclusions.size],['Eligible Wallets',d.rows.length],['Distribution Fingerprint',d.fingerprint],['Created UTC',d.createdAt],[],['Rank','Wallet','NFTs Held','Weight','Allocation Units','Allocation']];
+    const rows=[['TOTZ FORGE EPOCH DISTRIBUTION',''],['Collection',s.info?.name||'NFT Collection'],['Symbol',s.info?.symbol||''],['Network',s.chainName],['Chain ID',s.chainId],['Contract',s.contract],['Snapshot Block',s.snapshotBlock],['Snapshot Block Hash',s.snapshotBlockHash],['Snapshot Complete','YES'],['Snapshot Source',s.source],['Snapshot UTC',s.fetchedAt],['Reward Pool',formatUnits(d.poolUnits,d.decimals,d.decimals)],['Reward Symbol',d.symbol],['Reward Decimals',d.decimals],['Minimum NFTs',d.min],['Weighting',d.mode==='nft'?'NFT-weighted':'Equal per wallet'],['NFT Weight Cap',d.cap||'None'],['Excluded Wallets',d.exclusions.size],['Eligible Wallets',d.rows.length],['Distribution Fingerprint',d.fingerprint],['Created UTC',d.createdAt],[],['Rank','Wallet','NFTs Held','Weight','Allocation Units','Allocation']];
     d.rows.forEach((r,i)=>rows.push([i+1,r.address,r.balance,r.weight.toString(),r.units.toString(),formatUnits(r.units,d.decimals,d.decimals)]));
-    const csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); downloadText(csv,'text/csv;charset=utf-8',`forge-epoch-${slugFor(d)}-${s.snapshotBlock||'snapshot'}.csv`); toast(`Exported ${fmt(d.rows.length)} allocations`);
+    const csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); downloadText(csv,'text/csv;charset=utf-8',`forge-epoch-${slugFor(d)}-${s.snapshotBlock}.csv`); toast(`Exported ${fmt(d.rows.length)} allocations`);
   }
 
   function selectDelivery(mode){
@@ -258,7 +273,7 @@
     if(!requireGenesis()||!distribution)return;
     const d=distribution;
     const rows=[['wallet','amount_units','amount','symbol']]; d.rows.forEach(r=>rows.push([r.address,r.units.toString(),formatUnits(r.units,d.decimals,d.decimals),d.symbol]));
-    const csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); downloadText(csv,'text/csv;charset=utf-8',`forge-direct-drop-${slugFor(d)}-${d.source.snapshotBlock||'snapshot'}.csv`); toast(`Exported direct-drop batch for ${fmt(d.rows.length)} wallets`);
+    const csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); downloadText(csv,'text/csv;charset=utf-8',`forge-direct-drop-${slugFor(d)}-${d.source.snapshotBlock}.csv`); toast(`Exported direct-drop batch for ${fmt(d.rows.length)} wallets`);
   }
 
   function compareHex(a,b){const A=BigInt(a),B=BigInt(b);return A===B?0:(A<B?-1:1);}
@@ -287,6 +302,7 @@
   }
   async function generateMerkle(){
     if(!requireGenesis()||!distribution)return;
+    if(distribution.source?.complete!==true||!isBytes32(distribution.source?.snapshotBlockHash)){status('deliveryStatus','Merkle generation blocked: source snapshot completeness/provenance is not verified.','error');return;}
     if(!window.ethers){status('deliveryStatus','Merkle library did not load. Refresh and retry.','error');return;}
     const btn=$('generateMerkleBtn'); btn.disabled=true; btn.textContent='GENERATING…'; status('deliveryStatus','Building deterministic Merkle tree and proofs locally…');
     try{
@@ -299,7 +315,16 @@
         pairHashing:'sorted-keccak256',
         root:tree.root,
         network:{name:distribution.source.chainName,chainId:distribution.source.chainId,key:distribution.source.chain},
-        source:{contract:distribution.source.contract,collection:distribution.source.info?.name||'NFT Collection',snapshotBlock:distribution.source.snapshotBlock,snapshotUTC:distribution.source.fetchedAt},
+        source:{
+          contract:distribution.source.contract,
+          collection:distribution.source.info?.name||'NFT Collection',
+          snapshotBlock:distribution.source.snapshotBlock,
+          snapshotBlockHash:distribution.source.snapshotBlockHash,
+          snapshotUTC:distribution.source.fetchedAt,
+          snapshotComplete:true,
+          snapshotSource:distribution.source.source,
+          snapshotProvenance:distribution.source.provenance||null
+        },
         reward:{symbol:distribution.symbol,decimals:distribution.decimals,totalUnits:distribution.poolUnits.toString(),total:formatUnits(distribution.poolUnits,distribution.decimals,distribution.decimals)},
         eligibleWallets:distribution.rows.length,
         distributionFingerprint:distribution.fingerprint,
@@ -310,12 +335,12 @@
       $('merkleLeaves').textContent=fmt(distribution.rows.length);
       $('merkleTotal').textContent=`${formatUnits(distribution.poolUnits,distribution.decimals,Math.min(6,distribution.decimals))} ${distribution.symbol}`;
       $('merkleResult').hidden=false; $('copyRootBtn').disabled=false; $('exportClaimsBtn').disabled=false;
-      status('deliveryStatus',`Merkle package ready · ${fmt(distribution.rows.length)} proofs generated locally.`,'ok');
+      status('deliveryStatus',`Merkle package ready · ${fmt(distribution.rows.length)} proofs · complete snapshot provenance embedded.`,'ok');
     }catch(e){merklePackage=null; $('merkleResult').hidden=true; status('deliveryStatus',e?.message||'Could not generate Merkle package.','error');}
     finally{btn.textContent='GENERATE MERKLE PACKAGE';btn.disabled=!access.genesis||!distribution;}
   }
   async function copyRoot(){if(!merklePackage)return;await copyText(merklePackage.root,'Copied Merkle root');}
-  function exportClaims(){if(!requireGenesis()||!merklePackage)return;downloadText(JSON.stringify(merklePackage,null,2),'application/json;charset=utf-8',`forge-merkle-${slugFor(distribution)}-${distribution.source.snapshotBlock||'snapshot'}.json`);toast(`Exported ${fmt(distribution.rows.length)} Merkle claims`);}
+  function exportClaims(){if(!requireGenesis()||!merklePackage)return;downloadText(JSON.stringify(merklePackage,null,2),'application/json;charset=utf-8',`forge-merkle-${slugFor(distribution)}-${distribution.source.snapshotBlock}.json`);toast(`Exported ${fmt(distribution.rows.length)} Merkle claims`);}
 
   installNetworkLogos();
   document.querySelectorAll('.network-btn').forEach(b=>b.addEventListener('click',()=>setNetwork(b.dataset.chain)));
