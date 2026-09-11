@@ -1,0 +1,30 @@
+name: FORGE Solidity Reproducibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contracts/ForgeMerkleClaim.sol'
+      - 'artifacts/ForgeMerkleClaim.json'
+      - 'scripts/verify-forge-claim-build.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/forge-solidity-reproducibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce-claim-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned compiler dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Reproduce ForgeMerkleClaim artifact
+        run: node scripts/verify-forge-claim-build.mjs
