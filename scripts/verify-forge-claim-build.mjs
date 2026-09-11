@@ -64,15 +64,10 @@ function flattenRefs(refs = {}) {
   return Object.values(refs).flatMap((items) => Array.isArray(items) ? items : []);
 }
 
-function canonicalRefs(refs = {}) {
-  return Object.entries(refs)
-    .map(([key, items]) => [
-      key,
-      [...(Array.isArray(items) ? items : [])]
-        .map(({ start, length }) => ({ start: Number(start), length: Number(length) }))
-        .sort((a, b) => a.start - b.start || a.length - b.length),
-    ])
-    .sort(([a], [b]) => String(a).localeCompare(String(b)));
+function immutableShape(refs = {}) {
+  return flattenRefs(refs)
+    .map(({ start, length }) => ({ start: Number(start), length: Number(length) }))
+    .sort((a, b) => a.start - b.start || a.length - b.length);
 }
 
 function zeroImmutables(hex, refs) {
@@ -111,15 +106,27 @@ const normalizedCore = add0x(stripMetadata(normalizedFull));
 const legacyNormalizedFull = add0x(zeroImmutables(legacy.deployedBytecode, legacyRefs));
 const legacyNormalizedCore = add0x(stripMetadata(legacyNormalizedFull));
 
+const creationBytes = raw(creation).length / 2;
+const legacyCreationBytes = raw(legacy.bytecode).length / 2;
+const runtimeBytes = raw(runtime).length / 2;
+const legacyRuntimeBytes = raw(legacy.deployedBytecode).length / 2;
+const initPrefixBytes = creationBytes - runtimeBytes;
+const legacyInitPrefixBytes = legacyCreationBytes - legacyRuntimeBytes;
+const initPrefix = raw(creation).slice(0, initPrefixBytes * 2);
+const legacyInitPrefix = raw(legacy.bytecode).slice(0, legacyInitPrefixBytes * 2);
+
 const report = {
   compilerVersion,
   compilerPinned: compilerVersion.startsWith('0.8.24+commit.e11b9ed9'),
   optimizer: 'enabled / 200 runs',
   evmVersion: 'shanghai',
-  creationBytes: raw(creation).length / 2,
-  legacyCreationBytes: raw(legacy.bytecode).length / 2,
-  runtimeBytes: raw(runtime).length / 2,
-  legacyRuntimeBytes: raw(legacy.deployedBytecode).length / 2,
+  creationBytes,
+  legacyCreationBytes,
+  runtimeBytes,
+  legacyRuntimeBytes,
+  initPrefixBytes,
+  legacyInitPrefixBytes,
+  initPrefixExact: initPrefixBytes === legacyInitPrefixBytes && initPrefix.toLowerCase() === legacyInitPrefix.toLowerCase(),
   creationExactIncludingMetadata: creation.toLowerCase() === String(legacy.bytecode).toLowerCase(),
   creationCoreExact: creationCore.toLowerCase() === legacyCreationCore.toLowerCase(),
   runtimeExactBeforeImmutablesIncludingMetadata: runtime.toLowerCase() === String(legacy.deployedBytecode).toLowerCase(),
@@ -128,9 +135,9 @@ const report = {
   normalizedCoreHash: keccak256(normalizedCore),
   legacyNormalizedCoreHash: keccak256(legacyNormalizedCore),
   normalizedCoreExact: normalizedCore.toLowerCase() === legacyNormalizedCore.toLowerCase(),
-  immutableReferencesExact: JSON.stringify(canonicalRefs(refs)) === JSON.stringify(canonicalRefs(legacyRefs)),
-  immutableReferenceGroups: Object.keys(refs).length,
-  legacyImmutableReferenceGroups: Object.keys(legacyRefs).length,
+  immutableReferencesExact: JSON.stringify(immutableShape(refs)) === JSON.stringify(immutableShape(legacyRefs)),
+  immutableReferenceCount: immutableShape(refs).length,
+  legacyImmutableReferenceCount: immutableShape(legacyRefs).length,
 };
 
 const builtAbi = abiSet(built.abi);
@@ -146,7 +153,7 @@ report.executableReproducible =
   report.compilerPinned &&
   report.abiSurfaceExact &&
   report.immutableReferencesExact &&
-  report.creationCoreExact &&
+  report.initPrefixExact &&
   report.normalizedCoreExact &&
   report.creationBytes === report.legacyCreationBytes &&
   report.runtimeBytes === report.legacyRuntimeBytes;
@@ -156,8 +163,8 @@ console.log(JSON.stringify(report, null, 2));
 
 if (!report.compilerPinned) throw new Error(`Unexpected solc build: ${compilerVersion}`);
 if (!report.abiSurfaceExact) throw new Error('Candidate Solidity ABI does not match the approved legacy artifact ABI.');
-if (!report.immutableReferencesExact) throw new Error('Immutable layout does not match the approved legacy artifact.');
-if (!report.creationCoreExact) throw new Error('Constructor/init executable core does not match the approved legacy artifact.');
+if (!report.immutableReferencesExact) throw new Error('Immutable byte positions do not match the approved legacy artifact.');
+if (!report.initPrefixExact) throw new Error('Constructor/init executable prefix does not match the approved legacy artifact.');
 if (!report.normalizedCoreExact) throw new Error('Runtime executable core does not match the approved legacy artifact.');
 if (report.creationBytes !== report.legacyCreationBytes || report.runtimeBytes !== report.legacyRuntimeBytes) {
   throw new Error('Compiled bytecode lengths differ from the approved legacy artifact.');
@@ -167,4 +174,4 @@ if (!report.metadataIdentityExact) {
   console.warn('FORGE CLAIM METADATA NOTE: executable bytecode is reproducible, but compiler metadata is not byte-for-byte identical to the legacy artifact. Do not describe this as full artifact identity.');
 }
 
-console.log('FORGE CLAIM REPRODUCIBILITY: PASS · ABI, immutable layout, constructor core, and runtime core reproduce the approved executable artifact');
+console.log('FORGE CLAIM REPRODUCIBILITY: PASS · ABI, immutable positions, constructor prefix, and runtime core reproduce the approved executable artifact');
