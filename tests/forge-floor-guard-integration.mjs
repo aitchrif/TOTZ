@@ -37,6 +37,9 @@ assert(client.includes('AUTOMATION SCORE') && client.includes('automation_score'
 assert(client.includes('Auto-scan active · about every 6 hours'), 'Monitoring cadence must be clear in the owner workspace.');
 assert(client.includes('function scanDeltaChips') && client.includes('NEW HIGH-RISK'), 'Scan-to-scan delta intelligence must stay enabled.');
 assert(client.includes('verified-compact') && client.includes('Owner verified · security workspace active'), 'Verified owner banner must collapse into a compact active state.');
+assert(client.includes('const DEFAULT_VISIBLE_BIDDERS = 5;'), 'Bidder intelligence must default to a compact top-five view.');
+assert(client.includes("data-filter=\"confirmed\"") && client.includes("data-filter=\"suspected\"") && client.includes("data-filter=\"watch\""), 'Bidder risk filters must remain available.');
+assert(client.includes('SHOW TOP 5') && client.includes('SHOW ALL'), 'Bidder table expand/collapse control missing.');
 assert(!/eth_sendTransaction|wallet_sendCalls|setApprovalForAll|approve\s*\(|sendTransaction\s*\(/.test(client), 'Collection Security client must not contain blockchain write/approval paths.');
 
 assert(api.includes("if (req.method !== 'GET')"), 'Public Collection Security endpoint must stay GET-only.');
@@ -68,4 +71,4 @@ assert(redirects.get('/forge/wl-cleaner') === '/forge/floor-guard' && redirects.
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'Collection Security UI must stay no-store during rollout.');
 
-console.log('FORGE COLLECTION SECURITY: PASS · contract-first bidder scan · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');
+console.log('FORGE COLLECTION SECURITY: PASS · compact bidder intelligence · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');
