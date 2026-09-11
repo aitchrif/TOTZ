@@ -32,6 +32,29 @@
     document.head.appendChild(style);
   }
 
+  function syncLaunchSurface() {
+    const nav = document.querySelector('.tool-nav');
+    if (nav) {
+      nav.querySelectorAll('a[href^="/forge/wl-cleaner"],a[href^="/forge/gtd-check"]').forEach((item) => item.remove());
+      let floor = nav.querySelector('a[href^="/forge/floor-guard"]');
+      if (!floor) {
+        floor = document.createElement('a');
+        nav.appendChild(floor);
+      }
+      floor.href = '/forge/floor-guard';
+      floor.textContent = '⚠ FLOOR GUARD';
+    }
+
+    const strip = document.querySelector('.module-strip');
+    if (strip && strip.dataset.forgePostlaunchReady !== '1') {
+      strip.dataset.forgePostlaunchReady = '1';
+      strip.innerHTML = `
+        <a class="module" href="/forge/epochs"><b>⚒️ EPOCHS · LIVE</b><span>Build verifiable holder reward epochs from rules, weights and real reward pools. Open EPOCHS →</span></a>
+        <a class="module" href="/forge/my-epochs"><b>◫ MY EPOCHS · LIVE</b><span>Track published FORGE reward epochs from your sponsor wallet. Open MY EPOCHS →</span></a>
+        <a class="module" href="/forge/floor-guard"><b>⚠ FLOOR GUARD · LIVE</b><span>Scan OpenSea floor pressure and surface repeated bot-like listing behavior. Open FLOOR GUARD →</span></a>`;
+    }
+  }
+
   function ensurePager() {
     const tableWrap = document.querySelector('.table-wrap');
     if (!tableWrap) return null;
@@ -117,6 +140,7 @@
 
   function boot() {
     installStyle();
+    syncLaunchSurface();
     ensurePager();
     const body = document.getElementById('holderRows');
     if (!body) return;

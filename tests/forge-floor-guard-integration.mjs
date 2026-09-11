@@ -4,7 +4,7 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-for (const file of ['forge-floor-guard.html', 'forge-floor-guard.js', 'api/forge-floor-guard.js', 'forge-nav-state.js', 'forge-runtime-config.js', 'vercel.json']) {
+for (const file of ['forge-floor-guard.html', 'forge-floor-guard.js', 'api/forge-floor-guard.js', 'forge-nav-state.js', 'forge-runtime-config.js', 'forge-table-pagination.js', 'vercel.json']) {
   assert(fs.existsSync(file), `Missing FLOOR GUARD production file: ${file}`);
 }
 for (const retired of ['forge-gtd-check.html', 'forge-gtd-check.js', 'forge-wl-cleaner.html', 'forge-wl-cleaner.js']) {
@@ -40,6 +40,12 @@ assert(nav.includes('[data-forge-nav="wl-cleaner"]') && nav.includes('[data-forg
 assert(nav.includes('let syncScheduled = false;') && nav.includes('function scheduleSync()'), 'Shared FORGE nav must coalesce MutationObserver sync work.');
 assert(nav.includes('requestAnimationFrame(run)') && nav.includes('finally {\n      syncing = false;'), 'Shared FORGE nav must preserve the observer-race guards.');
 
+const xrayEnhancement = fs.readFileSync('forge-table-pagination.js', 'utf8');
+assert(xrayEnhancement.includes('function syncLaunchSurface()'), 'X-RAY must clean its post-launch tool surface at runtime.');
+assert(xrayEnhancement.includes("floor.href = '/forge/floor-guard'"), 'X-RAY nav must expose FLOOR GUARD.');
+assert(xrayEnhancement.includes('MY EPOCHS · LIVE') && xrayEnhancement.includes('FLOOR GUARD · LIVE'), 'X-RAY module cards must expose the current live FORGE tools.');
+assert(xrayEnhancement.includes('/forge/wl-cleaner') && xrayEnhancement.includes('/forge/gtd-check'), 'X-RAY cleanup must remove cached retired-tool links if they appear.');
+
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 const rewrites = new Map((vercel.rewrites || []).map((rule) => [rule.source, rule.destination]));
 const redirects = new Map((vercel.redirects || []).map((rule) => [rule.source, rule.destination]));
@@ -50,4 +56,4 @@ assert(redirects.get('/forge/gtd-check') === '/forge/floor-guard', 'Old GTD CHEC
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'FLOOR GUARD UI route must be no-store during rollout.');
 
-console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence via persistent broker · observer-race guard · retired GTD/WL · Mainnet writes locked');
+console.log('FORGE FLOOR GUARD: PASS · OpenSea floor intelligence · X-RAY launch cleanup · observer-race guard · retired GTD/WL · Mainnet writes locked');
