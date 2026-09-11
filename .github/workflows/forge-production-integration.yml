@@ -11,12 +11,13 @@ on:
       - 'api/forge-floor-guard.js'
       - 'supabase/functions/forge-claims/**'
       - 'supabase/functions/forge-claims-gateway/**'
-      - 'supabase/migrations/*forge_claim_provenance*'
+      - 'supabase/migrations/*forge_claim*'
       - 'vercel.json'
       - 'tests/forge-production-integration.mjs'
       - 'tests/forge-floor-guard-integration.mjs'
       - 'tests/forge-security-regression.mjs'
       - 'tests/forge-backend-provenance-integration.mjs'
+      - 'tests/forge-runtime-attestation-regression.mjs'
       - 'tests/forge-csp-regression.mjs'
       - '.github/workflows/forge-production-integration.yml'
   workflow_dispatch:
@@ -41,6 +42,8 @@ jobs:
         run: node tests/forge-security-regression.mjs
       - name: Verify backend and release provenance enforcement
         run: node tests/forge-backend-provenance-integration.mjs
+      - name: Verify runtime immutable occurrence attestation
+        run: node tests/forge-runtime-attestation-regression.mjs
       - name: Verify FLOOR GUARD read-only market intelligence
         run: node tests/forge-floor-guard-integration.mjs
       - name: Verify FORGE browser CSP and external scripts

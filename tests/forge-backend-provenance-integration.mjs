@@ -8,6 +8,7 @@ function assert(condition, message) {
 const gateway = fs.readFileSync('supabase/functions/forge-claims-gateway/index.ts', 'utf8');
 const core = fs.readFileSync('supabase/functions/forge-claims/index.ts', 'utf8');
 const migration = fs.readFileSync('supabase/migrations/20260911_forge_claim_provenance_gateway.sql', 'utf8');
+const schemaLockdown = fs.readFileSync('supabase/migrations/20260911_forge_claim_schema_lockdown.sql', 'utf8');
 const launcher = fs.readFileSync('forge-claim-launcher.js', 'utf8');
 const releaseArtifact = JSON.parse(fs.readFileSync('artifacts/ForgeMerkleClaim.release.json', 'utf8'));
 
@@ -25,11 +26,13 @@ assert(gateway.includes('cache: "no-store"'), 'Server provenance revalidation mu
 
 assert(core.includes(`APPROVED_CLAIM_RUNTIME_CORE_HASH = "${APPROVED_CORE_HASH}"`), 'Core backend must attest the reviewed executable runtime core.');
 assert(core.includes('function normalizedRuntimeCoreHash'), 'Core backend must normalize runtime before attestation.');
+assert(core.includes('CLAIM_IMMUTABLE_LAYOUT'), 'Core backend must retain named compiler immutable ranges.');
+assert(core.includes('assertRuntimeImmutableOccurrences'), 'Core backend must verify every immutable occurrence before normalization.');
 assert(core.includes('metadataLength') && core.includes('coreLength'), 'Core backend must strip Solidity metadata before runtime-core hashing.');
 assert(!core.includes(LEGACY_METADATA_BOUND_HASH), 'Core backend must not remain coupled to the legacy compiler-metadata hash.');
 assert(core.includes('forge_release_flags') && core.includes('mainnet_claims_enabled'), 'Core backend must enforce the database Mainnet master gate.');
 assert(core.includes('mainnet_release_mode'), 'Core backend must enforce locked/canary/public release policy.');
-assert(core.includes('runtimeAttestation: "executable-core-v1"'), 'Core publication responses must identify executable-core attestation.');
+assert(core.includes('runtimeAttestation: "executable-core+immutables-v2"'), 'Core publication responses must identify occurrence-bound runtime attestation.');
 
 assert(releaseArtifact.artifactFormat === 'TOTZ_FORGE_CLAIM_RELEASE_V1', 'Fresh claim artifact must use the source-controlled release format.');
 assert(releaseArtifact.generatedFromSource === true, 'Fresh claim artifact must declare source generation.');
@@ -46,6 +49,15 @@ assert(migration.includes("new.provenance_verified_at := null"), 'Creation must 
 assert(migration.includes("v_provenance_verified_at < now() - interval '2 minutes'"), 'Finalization must require a fresh publish-time provenance verification.');
 assert(migration.includes('revoke execute on function public.forge_finalize_claim_epoch'), 'Finalization RPC must not be executable by public/anon/authenticated roles.');
 assert(migration.includes('grant execute on function public.forge_finalize_claim_epoch(uuid, integer, text) to service_role'), 'Only service_role must retain direct finalization execution.');
+
+assert(schemaLockdown.includes('create or replace function public.forge_claim_entry_write_guard()'), 'Source control must include the claim-entry write guard body.');
+assert(schemaLockdown.includes('create or replace function public.forge_enforce_claim_release_gate()'), 'Source control must include the release-gate function body.');
+assert(schemaLockdown.includes('create trigger forge_claim_entries_write_guard'), 'Source control must include claim-entry trigger wiring.');
+assert(schemaLockdown.includes('create trigger forge_claim_epoch_release_gate'), 'Source control must include release-gate trigger wiring.');
+assert(schemaLockdown.includes('create trigger forge_claim_epoch_provenance_gate'), 'Source control must include provenance-gate trigger wiring.');
+assert(schemaLockdown.includes('revoke all on table public.forge_claim_provenance_authorizations from anon, authenticated'), 'Direct client access to provenance authorizations must be revoked.');
+assert(schemaLockdown.includes('revoke insert, update, delete, truncate on table public.forge_claim_epochs from anon, authenticated'), 'Direct client epoch writes must be revoked.');
+assert(schemaLockdown.includes('revoke insert, update, delete, truncate on table public.forge_claim_entries from anon, authenticated'), 'Direct client claim-entry writes must be revoked.');
 
 const sample = {
   distributionFingerprint: `0x${'11'.repeat(32)}`,
@@ -74,4 +86,4 @@ const canonical = [
 const expected = `0x${crypto.createHash('sha256').update(canonical).digest('hex')}`;
 assert(/^0x[0-9a-f]{64}$/.test(expected), 'Canonical provenance fingerprint must be bytes32-shaped.');
 
-console.log(`FORGE BACKEND + RELEASE PROVENANCE: PASS · fingerprint ${expected.slice(0, 12)}… · source-controlled core + fresh artifact pinned`);
+console.log(`FORGE BACKEND + RELEASE PROVENANCE: PASS · fingerprint ${expected.slice(0, 12)}… · source-controlled core + immutable occurrences bound + DB guards captured`);
