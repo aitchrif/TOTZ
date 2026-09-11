@@ -1,0 +1,35 @@
+name: FORGE Attestation Cleanup
+
+on:
+  push:
+    branches:
+      - release/forge-attestation-fix-2026-09-11
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/forge-attestation-fix-2026-09-11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deduplicate attestation helper
+        run: node scripts/cleanup-forge-attestation-dup.mjs
+      - name: Commit cleanup
+        run: |
+          if git diff --quiet; then
+            echo 'No cleanup diff to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/forge-claims/index.ts
+          git commit -m 'fix(forge): deduplicate runtime attestation helper'
+          git push origin HEAD:release/forge-attestation-fix-2026-09-11
