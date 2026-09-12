@@ -155,16 +155,17 @@
     }
     badge.dataset.forgeEnvironment = env;
     badge.className = `forge-env-badge${env === 'mainnet' ? ' mainnet' : ''}`;
-    if (env === 'testnet') {
-      badge.textContent = '🧪 TESTNET';
-      badge.title = 'Claim deployment is restricted to Robinhood Chain Testnet';
-      return;
+    let text = '🧪 TESTNET';
+    let title = 'Claim deployment is restricted to Robinhood Chain Testnet';
+    if (env === 'mainnet') {
+      const publicMainnet = window.TOTZ_FORGE_CONFIG?.mainnetClaimsEnabled === true;
+      text = publicMainnet ? '⛓ MAINNET LIVE' : '⛓ MAINNET READ';
+      title = publicMainnet
+        ? 'Robinhood Chain Mainnet is live. New claim launches remain subject to server-side policy and operator signatures.'
+        : 'Production reads Robinhood Chain Mainnet. New claim writes remain release-gated.';
     }
-    const publicMainnet = window.TOTZ_FORGE_CONFIG?.mainnetClaimsEnabled === true;
-    badge.textContent = publicMainnet ? '⛓ MAINNET LIVE' : '⛓ MAINNET READ';
-    badge.title = publicMainnet
-      ? 'Robinhood Chain Mainnet is live. New claim launches remain subject to server-side policy and operator signatures.'
-      : 'Production reads Robinhood Chain Mainnet. New claim writes remain release-gated.';
+    if (badge.textContent !== text) badge.textContent = text;
+    if (badge.title !== title) badge.title = title;
   }
 
   function normalizeToolNav() {
