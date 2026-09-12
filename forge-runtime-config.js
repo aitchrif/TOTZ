@@ -25,12 +25,12 @@
     })
   });
 
-  // Production integration baseline: the public FORGE surface reads Robinhood
-  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
-  // explicit controlled release flips both the client and server gates.
-  // Already-published verified claims remain interactable after lockdown.
+  // Public Mainnet release: the reviewed FORGE surface reads Robinhood Mainnet
+  // and permits new deploy/fund/publish actions. The server release gate remains
+  // the independent authority for Mainnet writes and must also be in public mode.
+  // Already-published verified claims remain interactable after any later lockdown.
   const environment = 'mainnet';
-  const mainnetClaimsEnabled = false;
+  const mainnetClaimsEnabled = true;
   const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
@@ -200,6 +200,18 @@
     document.head.appendChild(script);
   }
 
+  function installPublicReleaseCopy() {
+    if (!config.mainnetClaimsEnabled) return;
+    const sync = () => {
+      document.querySelectorAll('.contract-note').forEach(note => {
+        if (!String(note.textContent || '').includes('Production Mainnet deploy/fund/publish stays fail-closed')) return;
+        note.innerHTML = '<b>Next step:</b> export the verified Claim JSON and open the operator Claim Launcher. Public Mainnet deploy/fund/publish is enabled for approved operators and remains subject to server-side release policy and verification.';
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync, { once: true });
+    else sync();
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -220,4 +232,5 @@
   installLockedClaimUiGuard();
   installGlobalSiteShell();
   installEpochRewardPicker();
+  installPublicReleaseCopy();
 })();

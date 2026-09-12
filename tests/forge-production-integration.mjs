@@ -30,13 +30,14 @@ for (const file of required) assert(fs.existsSync(file), `Missing production FOR
 
 const runtime = fs.readFileSync('forge-runtime-config.js', 'utf8');
 assert(runtime.includes("const environment = 'mainnet';"), 'Production FORGE must read Robinhood Mainnet.');
-assert(runtime.includes('const mainnetClaimsEnabled = false;'), 'Production launch gate must remain locked.');
+assert(runtime.includes('const mainnetClaimsEnabled = true;'), 'Reviewed public Mainnet client launch gate must be enabled.');
 assert(runtime.includes('const claimNetwork = networks.mainnet;'), 'Production claim network must be Robinhood Mainnet.');
 assert(/gaslessRelay:\s*''/.test(runtime), 'Gasless relay must remain unreachable in direct-claim production mode.');
 assert(/function canInteractWithPublishedClaim\(network = claimNetwork\)[\s\S]*?return Boolean\(resolveClaimNetwork\(network\)\);/.test(runtime), 'Published verified claims must remain interactable independently of the new-launch gate.');
 assert(runtime.includes("const selector = '#deployBtn,#fundBtn,#publishBtn,#tokenPolicyAck,#reviewAck';"), 'Mainnet launch lockdown must stay scoped to new-launch controls.');
 assert(!runtime.includes('#claimBtn'), 'Mainnet launch lockdown must never disable the published holder claim button.');
 assert(!runtime.includes('#recoverBtn'), 'Mainnet launch lockdown must never disable published sponsor recovery.');
+assert(runtime.includes('Public Mainnet deploy/fund/publish is enabled for approved operators'), 'Public-release EPOCHS copy override is missing.');
 
 const claim = fs.readFileSync('forge-claim.html', 'utf8');
 assert(!claim.includes('GAS SPONSORED'), 'Public holder claim UI must not expose sponsored claiming.');
@@ -78,7 +79,7 @@ assert(!/href="\/forge-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the c
 assert(!/href="\/forge-my-epochs(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/my-epochs route.');
 assert(!/href="\/forge-claim-launcher(?:[?#"])/.test(epochsHtml), 'EPOCHS must use the clean /forge/claim-launcher route.');
 assert(!/TESTNET CLAIM|Testnet Claim Launcher|Mainnet deployment remains intentionally disabled/i.test(epochsHtml), 'EPOCHS contains stale Testnet launch copy.');
-assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS must state the production write gate clearly.');
+assert(epochsHtml.includes('Production Mainnet deploy/fund/publish stays fail-closed'), 'EPOCHS static fallback must retain the fail-closed pre-runtime copy.');
 assert(epochsHtml.includes('<a class="pill" href="/forge">X-RAY</a>'), 'EPOCHS must preserve the original pre-UI top action.');
 assert(epochsHtml.includes('rh_favicon_120.png'), 'EPOCHS must preserve the original Robinhood network logo.');
 assert(epochsHtml.includes('docs-logo-symbol.png'), 'EPOCHS must preserve the original Ink network logo.');
@@ -128,4 +129,4 @@ for (const route of ['/forge/claim', '/forge/claim-launcher']) {
   assert((headers.get('x-robots-tag') || '').includes('noindex'), `${route} must be noindex.`);
 }
 
-console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · launch locked · published claims preserved · direct claim only · holder snapshot runtime pinned · hash-bound provenance · X-RAY partial labeling · clean routes/copy · claim routes no-store · externalized EPOCHS wallet bootstrap · fresh claim artifact · original EPOCHS UI preserved · paint-safe nav sync');
+console.log('FORGE PRODUCTION INTEGRATION: PASS · Public Beta guide · Mainnet read surface · public Mainnet client launch gate enabled · published claims preserved · direct claim only · holder snapshot runtime pinned · hash-bound provenance · X-RAY partial labeling · clean routes/copy · claim routes no-store · externalized EPOCHS wallet bootstrap · fresh claim artifact · original EPOCHS UI preserved · paint-safe nav sync');
