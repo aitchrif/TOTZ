@@ -25,12 +25,12 @@
     })
   });
 
-  // Production integration baseline: the public FORGE surface reads Robinhood
-  // Mainnet, but NEW deploy/fund/publish actions stay fail-closed until an
-  // explicit controlled release flips both the client and server gates.
-  // Already-published verified claims remain interactable after lockdown.
+  // Public Mainnet release: the reviewed FORGE surface reads Robinhood Mainnet
+  // and permits new deploy/fund/publish actions. The server release gate remains
+  // the independent authority for Mainnet writes and must also be in public mode.
+  // Already-published verified claims remain interactable after any later lockdown.
   const environment = 'mainnet';
-  const mainnetClaimsEnabled = false;
+  const mainnetClaimsEnabled = true;
   const claimNetwork = networks.mainnet;
   const testHelpersEnabled = claimNetwork.chainId === networks.testnet.chainId && claimNetwork.environment === 'testnet';
 
