@@ -13,7 +13,7 @@ for (const retired of ['forge-gtd-check.html', 'forge-gtd-check.js', 'forge-wl-c
 
 const runtime = fs.readFileSync('forge-runtime-config.js', 'utf8');
 assert(runtime.includes("const environment = 'mainnet';"), 'Collection Security must ship alongside the Mainnet read production runtime.');
-assert(runtime.includes('const mainnetClaimsEnabled = false;'), 'New Mainnet deploy/fund/publish must remain locked.');
+assert(runtime.includes('const mainnetClaimsEnabled = true;'), 'Reviewed public Mainnet deploy/fund/publish client gate must be enabled.');
 
 const html = fs.readFileSync('forge-floor-guard.html', 'utf8');
 const client = fs.readFileSync('forge-floor-guard.js', 'utf8');
@@ -80,4 +80,4 @@ assert(redirects.get('/forge/wl-cleaner') === '/forge/floor-guard' && redirects.
 const headers = new Map((vercel.headers || []).map((entry) => [entry.source, new Map((entry.headers || []).map((h) => [h.key.toLowerCase(), h.value.toLowerCase()]))]));
 assert(headers.get('/forge/floor-guard')?.get('cache-control') === 'no-store, max-age=0', 'Collection Security UI must stay no-store during rollout.');
 
-console.log('FORGE COLLECTION SECURITY: PASS · compact bidder intelligence · compact scan history · owner verification workspace · monitoring deltas · evidence-first · Mainnet writes locked');
+console.log('FORGE COLLECTION SECURITY: PASS · compact bidder intelligence · compact scan history · owner verification workspace · monitoring deltas · evidence-first · public Mainnet client launch gate enabled');
