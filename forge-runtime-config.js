@@ -200,6 +200,18 @@
     document.head.appendChild(script);
   }
 
+  function installPublicReleaseCopy() {
+    if (!config.mainnetClaimsEnabled) return;
+    const sync = () => {
+      document.querySelectorAll('.contract-note').forEach(note => {
+        if (!String(note.textContent || '').includes('Production Mainnet deploy/fund/publish stays fail-closed')) return;
+        note.innerHTML = '<b>Next step:</b> export the verified Claim JSON and open the operator Claim Launcher. Public Mainnet deploy/fund/publish is enabled for approved operators and remains subject to server-side release policy and verification.';
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync, { once: true });
+    else sync();
+  }
+
   window.TOTZ_FORGE_CONFIG = config;
   window.ForgeRuntime = Object.freeze({
     config,
@@ -220,4 +232,5 @@
   installLockedClaimUiGuard();
   installGlobalSiteShell();
   installEpochRewardPicker();
+  installPublicReleaseCopy();
 })();
