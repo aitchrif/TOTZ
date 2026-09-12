@@ -1,0 +1,6 @@
+TOTZ FORGE production baseline sync marker
+
+Purpose: force a reviewed production deployment of the current locked FORGE baseline after PR #80.
+Mainnet launch gate remains locked.
+Expected runtime: forge-runtime-config.js has mainnetClaimsEnabled = false and claims service = forge-claims-gateway.
+Baseline parent: c777438abca3f9587b5c1fcabe4e5bd8644fde07
