@@ -12,7 +12,7 @@
   const isForgeRoot = pathname === '/forge' || page === 'forge';
   const isForge = isForgeRoot || pathname.startsWith('/forge/') || /^forge(?:-|$)/.test(page);
   const isFloorGuard = pathname === '/forge/floor-guard' || page === 'forge-floor-guard';
-  const hasDock = true;
+  const hasDock = !isForge;
   const enableBrandTextRewrite = isHome || isStaking || isRewards || isAdmin || isForgeRoot;
 
   const style = document.createElement('style');
