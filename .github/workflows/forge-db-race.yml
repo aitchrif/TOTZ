@@ -1,0 +1,41 @@
+name: FORGE Two-Session DB Race
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*forge_claim*'
+      - 'supabase/migrations/*forge_canary*'
+      - 'tests/forge-db-race.sh'
+      - '.github/workflows/forge-db-race.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload-vs-finalize-race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Run real two-session upload-vs-finalize race
+        run: bash tests/forge-db-race.sh
