@@ -1,7 +1,7 @@
 # TOTZ: GROWN — Supply Reduction Scenarios
 
 Updated: 2026-10-22
-Decision status: **DISCUSSION ONLY — NOT APPROVED**
+Decision status: **OWNER CHOSE 3,333 AS PREFERRED TARGET ON 2026-10-22 — FEASIBILITY AND PUBLIC AMENDMENT PENDING**
 **Publicly announced on pinned @WeAreTOTZ X post 2026-09-28: 6,666.** 5,555 was an internal subsequent proposal; no official amendment has been confirmed (no contract supply edited).
 
 ## Constraints to preserve
@@ -36,12 +36,16 @@ The 3,000 is a **proposed reserve**, NOT a measured holder entitlement. The 2026
 
 This budget works **only if** the final holder-tier entitlement is <=2,400, verified WIF entitlement <=1,050, and creator 1/1 and all promised extra rights fit their pools. If not, move budget from GTD/paid/reserve, change supply, or negotiate unannounced tiers — don't retroactively revoke already public guarantees.
 
-## Recommendation
-Start from 4,444 rather than 3,333 as an **internal hypothetical candidate**, recognizing the latest publicly announced supply is 6,666, preserving meaningful space for holders and GTD. Do not confirm any number publicly or edit on-chain supply until:
-1. Get current TOTZ NFT wallet holdings and simulate tiers, including top 10 and unresolved 21–24 rule.
+## Updated owner direction
+The selected design target is now **3,333**, not 4,444. It reduces the originally announced 6,666 by 50%. With the old assumed 992 WIF holder wallets and 100 giveaways, only 2,241 remain even BEFORE founder 1/1, GTD, team, or community allocations. Keep all publicly committed entitlement rules; no fixed bucket can be guaranteed without the full current snapshots.
+
+Do not announce 3,333 as executable or edit on-chain supply until:
+1. Get current TOTZ NFT wallet holdings and simulate tiers, including the announced Top 10 +20 extra and confirmed 15–24 bracket.
 2. Get current WIF wallet snapshot and decide cross-collection overlap/stacking.
 3. Check all partner commitments already announced, including giveaways and founder 1/1.
 4. Fit the exact sum to supply; test allowlist and claims.
-5. Obtain explicit owner approval for final supply, then update PROJECT_SOURCE_OF_TRUTH.md, website, mint configuration, and public materials.
+5. Owner preference recorded as 3,333. Verify that the full commitments fit; then finalize and publish amended supply, updating contract/website and mint materials.
 
 This document exists to preserve the latest discussion without incorrectly treating it as a finalized policy.
+
+See `SUPPLY_3333_DECISION_2026-10-22.md` for 3,333 feasibility gates and allocation accounting. The illustrative 4,444 budget above is obsolete and not authorized for production.
