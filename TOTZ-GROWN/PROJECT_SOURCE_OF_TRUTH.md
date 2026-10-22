@@ -8,7 +8,8 @@ Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction 
 - Original collection: TOTZ (4,000 NFTs), sometimes called TOTZ Genesis.
 - Second collection: **TOTZ: GROWN**. Creative line: **"We were never going to stay kids forever."**
 - GROWN should look like grown-up TOTZ, preserving recognizable original silhouette and clean NFT language; no mouth and avoid painterly contour changes when working with original TOTZ artwork.
-- **Publicly announced on X on 2026-09-28: 6,666 supply.** Later internal discussions considered 5,555, 4,444, 4,000, and 3,333; none should supersede the public announcement without a new public update and a verified full entitlement simulation.
+- **NEW PROJECT OWNER DIRECTION (2026-10-22): target GROWN supply = 3,333 NFTs**, a 50% reduction from the **previous PUBLICLY announced 6,666** (2026-09-28). This is the preferred design target, **not yet a verified executable mint supply or a public amendment**; launch decision is subject to a complete entitlement audit and transparent update to holders.
+- Earlier 5,555 and 4,444 supply planning proposals are superseded for design purposes. Never silently lower the publicly promised holder mint tiers or Top 10 +20 bonus to force the math to fit.
 - **No Public Mint**: controlled holder, GTD and community phases to reduce bot exposure.
 - Do not require original TOTZ NFTs to be burned to receive GROWN; do not claim blockchain mechanics are implemented until tested.
 
@@ -26,7 +27,7 @@ Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction 
   | 25–49 | 10 |
   | 50+ | 15 |
 - **TOP 10 GENESIS WALLETS AT OFFICIAL SNAPSHOT: each receives an ADDITIONAL 20 FREE GROWN as a holder bonus**, on top of its normal tier amount. Thus a 50+ wallet in Top 10 gets 35; a 25–49 wallet in Top 10 gets 30. This is an extra bonus, not a combined cap of 20.
-- Tweet publicly stated **6,666** supply, not 5,555. Proposed reductions need budget changes and transparent updated announcement.
+- The pinned tweet stated **6,666** supply. Target **3,333** still requires a transparent supply change announcement and sufficient supply for all committed free claims. NO CONTRACT OR LIVE WEBSITE SUPPLY HAS BEEN CHANGED.
 - Preserve older tiers as historical internal proposals only; they are NOT the announced terms.
 - No final allocation CSV or confirmed on-chain snapshot is included in this document.
 
@@ -71,11 +72,11 @@ A wallet-collection flow for original holders was planned; avoid publishing wall
 - Avoid announcing burn-to-activate, guaranteed yields, staking, or a token launch as live without approved contracts, funding and tests.
 
 ## Decisions pending before public final announcement
-1. Reconcile publicly announced 6,666 supply with any proposed lower number before changing contract/network/announcements.
+1. Verify the owner-preferred 3,333 supply can cover committed free mints, then publish a clear correction of the previously announced 6,666 before changing the mint contract/website.
 2. Use publicly announced 15–24 => 8, 25–49 => 10, 50+ => 15 and Top 10 => +20 bonus; verify promised rules operationally.
 3. Run a **fresh actual TOTZ holder snapshot** and simulate allocation vs 3,000 reserve.
 4. Obtain WIF Outlaws snapshot and reserve the guaranteed free allocations; define wallet overlap and 1/1 founder treatment.
-5. Revise the 5,555 budget so it explicitly covers all holder promises and WIF.
+5. Replace the 5,555 draft budget with a verified exact 3,333 allocation preserving all commitments, or flag 3,333 as infeasible.
 6. Decide precise mint phase timing, FREE_GTD/PAID_GTD counts, paid mint price, community FCFS caps, and rules for unclaimed supply.
 7. Finish traits/rarities/art/metadata and test generated collection.
 8. Audit contract and wallet checker before announcing final eligibility.
@@ -91,3 +92,13 @@ Compiled from the user's prior planning conversations and discussions through 20
 - Current visible top 25 holder balances total 1,297 original TOTZ, for a **provisional 472 FREE GROWN** under announced tiers, **including +200 Top 10 bonus**.
 - Remaining 740 wallets were not individually retrievable from the source page at the time of review; full network-wide free allocation total is **NOT verified**.
 - See HOLDER_ALLOCATION_CHECK_2026-10-22.md for visible top 25 and caveats. Snapshot controls final eligibility.
+
+## Owner decision — 2026-10-22: 3,333 target supply
+- Project owner explicitly requested reducing TOTZ: GROWN to **3,333**.
+- **Priority order for allocation accounting:** (1) announced TOTZ Genesis holder tier rights and +20 for Top 10; (2) announced WIF Outlaws 1 free per qualifying wallet; (3) any previously promised team/partner/giveaway rights including founder 1/1; (4) uncommitted FREE_GTD, PAID_GTD, FCFS and optional project reserve only from remaining capacity.
+- **No new fixed pool budgets are approved** because a complete current TOTZ and WIF snapshot is unavailable.
+- Conditional arithmetic: if WIF wallets = 992 (old rough indicator) and giveaways = 100, only **2,241** GROWN remain for ALL TOTZ holder claims, founder 1/1, GTD, community, paid, and team. TOTZ alone may exceed 2,241 depending on actual distribution.
+- The 2026-10-22 conditional theoretical estimate for TOTZ free claims was 1,867–2,767 under fixed 765-owner / 4,000-supply / visible Top 25 assumptions; it does **not** replace a snapshot.
+- Proposed procedure: obtain complete snapshots, calculate every entitlement and overlap/stacking rule, reserve committed claims first, decide the GTD/paid remainder, and only then lock contract supply and announce the reduced supply.
+- If promised entitlements alone exceed 3,333, do not arbitrarily cap an already announced guarantee: raise supply or obtain a legitimate explicit community-approved rule revision first.
+- Detailed feasibility record: `TOTZ-GROWN/SUPPLY_3333_DECISION_2026-10-22.md`.
