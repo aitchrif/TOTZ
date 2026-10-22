@@ -69,3 +69,14 @@ The necessary condition is **H + W + P + C <= 3,333**.
 - `HOLDER_ALLOCATION_CHECK_2026-10-22.md` — provisional top 25; no authoritative complete holders snapshot.
 
 **Decision log:** The 3,333 direction supersedes earlier internal planning targets (5,555 and 4,444) **for design purposes**. Public communication and contract implementation are deliberately pending real eligibility validation.
+
+## CURRENT CHECK — 2026-10-22 (OpenSea live holders pages)
+**Newer than the old 992-wallet stress-test above. Use this section for current decisions.**
+- TOTZ Original: **765 unique owners**; original NFT supply **4,000**; top-25 visible balances (sum **1,297**) imply **472** free GROWN including Top-10 +200 under the public tiers. Source: https://opensea.io/collection/wetotz/holders — crawled 2026-10-22.
+- WIF Outlaws: **1,036 unique owners**, 2,222 NFTs, on https://opensea.io/collection/wif-outlaws/holders — crawled 2026-10-22.
+- Assuming every unique WIF holder gets 1 free GROWN: WIF obligation ~**1,036**. This is a live page count, not the official freeze.
+- `3,333 - 1,036 = 2,297`: maximum available for ALL Original TOTZ free allocations plus every other pool. Thus **H must be <=2,297 even if NO other pools are assigned**. With 100 giveaways +1 founder 1/1, H must be **<=2,196**, and this leaves zero for GTD/paid/team.
+- Conditional TOTZ owner distribution bounds from the visible top-25 and 4,000/765 figures are still **H in [1,867, 2,767]**. Combined two collections require **[2,903, 3,803]** GROWN (before any other obligations). So 3,333 **MAY** suffice for the two communities, but this is **NOT CONFIRMED**; upper conditional allocations exceed cap by **470**.
+- The critical break-even for TOTZ holder obligations is **2,297** (strictest before extras). Need full 765-wallet holdings to determine if H <= 2,297, and ideally a meaningful remainder for GTD/community.
+- Overlaps of addresses across TOTZ and WIF Outlaws do NOT automatically remove the separate promised benefits. Define any exclusive/stackable mint policy publicly and check all claims before finalizing.
+- **Verdict: Cannot currently guarantee 3,333 is enough.** Confirm exact H from full current on-chain snapshot and W from a same-date holder export before announcing.
