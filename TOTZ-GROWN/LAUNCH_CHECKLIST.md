@@ -1,6 +1,6 @@
 # TOTZ: GROWN — Working checklist
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-22
 
 ## Confirmed creative direction
 - [x] Name chosen: TOTZ: GROWN
@@ -17,7 +17,7 @@ Last reviewed: 2026-10-21
 - [ ] Complete hairstyles/hair traits
 - [ ] Audit existing trait source files and naming
 - [ ] Finish remaining layers/rarities and 5 Legendary pieces
-- [ ] Generate collection, check collisions, metadata, duplicates, rare distribution, and overall publicly announced 6,666 supply, or transparently approved revised supply
+- [ ] Generate collection, check collisions, metadata, duplicates, rare distribution, and final approved GROWN supply (preferred target 3,333; feasibility pending)
 
 ## Token / platform
 - [ ] Decide if/when $TOTZ launches (separate from the GROWN mint)
@@ -26,7 +26,9 @@ Last reviewed: 2026-10-21
 
 ## Public announcement audit
 - [x] 2026-09-28 pinned X announcement documented: 6,666 supply, fixed 7 holder tiers and Top 10 +20 EXTRA
-- [ ] Reconcile announced 6,666 supply with any proposed lower total before telling community
+- [x] Owner chose 3,333 as the preferred GROWN supply target (2026-10-22)
+- [ ] Verify all promised free mints fit within 3,333 and define any necessary fair alternative if infeasible
+- [ ] Officially announce change from 6,666 to 3,333 only AFTER confirmed entitlement and mint budget audit
 - [x] Visible top 25 wallets from OpenSea checked on 2026-10-22: conditional 472 GROWN allocations
 - [ ] Obtain FULL 765 wallet balances and calculate exact entitlement at official snapshot
 
@@ -35,9 +37,9 @@ Last reviewed: 2026-10-21
 - [x] Publicly confirmed: Top 10 each get +20 EXTRA in addition to tier
 - [ ] Take current TOTZ holders snapshot
 - [ ] Take current WIF Outlaws snapshot
-- [ ] Recalculate exact holder entitlement vs 3,000 proposed reserve
-- [ ] Explicitly budget WIF Outlaws and founder 1/1 inside 5,555 supply
-- [ ] Finalize 1,000 FREE GTD / 1,000 PAID GTD / 100 giveaway / 455 reserve proposed buckets
+- [ ] Recalculate exact TOTZ holder entitlement, preserving publicly announced tiers and top 10 +20 bonus
+- [ ] Explicitly budget WIF Outlaws and founder 1/1 inside chosen 3,333 target
+- [ ] Discard historical 5,555 bucket split and allocate remaining 3,333 only after all holder/WIF/partner guarantees are satisfied
 - [ ] Set individual phase windows and whether a community FCFS allocation is a sub-bucket
 - [ ] Define wallet connect / secure collection / verification flow
 - [ ] Deploy and test mint contract / checker
