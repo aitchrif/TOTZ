@@ -1,6 +1,6 @@
 # TOTZ: GROWN — Project Source of Truth
 
-Last reconstructed: 2026-10-21
+Last updated: 2026-10-22
 Project owner workspace: aitchrif/TOTZ
 Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction from proposals. Do not treat it as an allowlist or executed snapshot.
 
@@ -8,28 +8,29 @@ Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction 
 - Original collection: TOTZ (4,000 NFTs), sometimes called TOTZ Genesis.
 - Second collection: **TOTZ: GROWN**. Creative line: **"We were never going to stay kids forever."**
 - GROWN should look like grown-up TOTZ, preserving recognizable original silhouette and clean NFT language; no mouth and avoid painterly contour changes when working with original TOTZ artwork.
-- Target GROWN supply discussed most recently: **5,555** (planned, requires final confirmation before deployment).
+- **Publicly announced on X on 2026-09-28: 6,666 supply.** Later internal discussions considered 5,555, 4,444, 4,000, and 3,333; none should supersede the public announcement without a new public update and a verified full entitlement simulation.
 - **No Public Mint**: controlled holder, GTD and community phases to reduce bot exposure.
 - Do not require original TOTZ NFTs to be burned to receive GROWN; do not claim blockchain mechanics are implemented until tested.
 
 ## Original holders / eligibility
 - Prior holder count: approximately **769** wallets, historical not a live snapshot.
 - Holder-first priority and guaranteed free allocation; one TOTZ holder should receive at least one, subject to final eligibility/snapshot rules.
-- Latest discussed tier schedule (not validated against a current snapshot):
-  | Original TOTZ held | Free GROWN mints |
+- **IMPORTANT PUBLIC ANNOUNCEMENT (2026-09-28, pinned @WeAreTOTZ, screenshot shared 2026-10-22):** THIS IS THE ACTUAL ANNOUNCED POLICY and takes precedence over the hypothetical schedule incorrectly recorded earlier:
+  | Original TOTZ held in wallet | Announced free GROWN mint entitlement |
   | --- | ---: |
   | 1 | 1 |
   | 2–4 | 2 |
   | 5–9 | 4 |
-  | 10–15 | 6 |
-  | 16–20 | 8 |
-  | 21–24 | **UNRESOLVED** |
-  | 25+ | 10 |
-- **Top 10 holders: 20 each** was the favored anti-whale alternative to granting ~250 to the largest wallet. **UNRESOLVED:** whether 20 is total or an incremental bonus; avoid double counting.
-- Older superseded model (NOT final): 1->1, 2–4->2, 5–9->3, 10–19->5, 20+->10. Keep for history only.
+  | 10–14 | 6 |
+  | 15–24 | 8 |
+  | 25–49 | 10 |
+  | 50+ | 15 |
+- **TOP 10 GENESIS WALLETS AT OFFICIAL SNAPSHOT: each receives an ADDITIONAL 20 FREE GROWN as a holder bonus**, on top of its normal tier amount. Thus a 50+ wallet in Top 10 gets 35; a 25–49 wallet in Top 10 gets 30. This is an extra bonus, not a combined cap of 20.
+- Tweet publicly stated **6,666** supply, not 5,555. Proposed reductions need budget changes and transparent updated announcement.
+- Preserve older tiers as historical internal proposals only; they are NOT the announced terms.
 - No final allocation CSV or confirmed on-chain snapshot is included in this document.
 
-## Proposed supply budget (sums exactly to 5,555)
+## HISTORICAL proposed supply budget (sums exactly to 5,555; NOT official announced supply)
 | Bucket | NFTs | Status |
 | --- | ---: | --- |
 | Original TOTZ holder reserve | 3,000 | Planning allocation, not verified by snapshot |
@@ -39,7 +40,7 @@ Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction 
 | Project/team reserve | 455 | Proposal |
 | **TOTAL** | **5,555** | Proposed budget |
 
-**Important:** WIF Outlaws guaranteed free mints and founder honorary mint must be accounted for explicitly INSIDE the 5,555 supply and these buckets before launch. Do NOT silently add them on top of the above total, promise a subset without reserves, or count a wallet twice across pools without explicit stacking rules.
+**Important:** This 5,555 budget is a non-final proposal and does NOT match the announced 6,666 supply. WIF Outlaws guaranteed free mints and founder honorary mint must be accounted for explicitly INSIDE the final selected supply and these buckets before launch. Do NOT silently add them on top of the above total, promise a subset without reserves, or count a wallet twice across pools without explicit stacking rules.
 
 ## WIF Outlaws
 - Direction announced/discussed for GROWN: **1 FREE GROWN mint per eligible unique WIF Outlaws holder wallet**, independent of NFT quantity.
@@ -70,8 +71,8 @@ A wallet-collection flow for original holders was planned; avoid publishing wall
 - Avoid announcing burn-to-activate, guaranteed yields, staking, or a token launch as live without approved contracts, funding and tests.
 
 ## Decisions pending before public final announcement
-1. Confirm 5,555 supply and exact mint contract/network.
-2. Resolve holder tier 21–24 and Top 10 (20 total vs +20).
+1. Reconcile publicly announced 6,666 supply with any proposed lower number before changing contract/network/announcements.
+2. Use publicly announced 15–24 => 8, 25–49 => 10, 50+ => 15 and Top 10 => +20 bonus; verify promised rules operationally.
 3. Run a **fresh actual TOTZ holder snapshot** and simulate allocation vs 3,000 reserve.
 4. Obtain WIF Outlaws snapshot and reserve the guaranteed free allocations; define wallet overlap and 1/1 founder treatment.
 5. Revise the 5,555 budget so it explicitly covers all holder promises and WIF.
@@ -84,3 +85,9 @@ A wallet-collection flow for original holders was planned; avoid publishing wall
 
 ## Record integrity
 Compiled from the user's prior planning conversations and discussions through 2026-10-21. Historic proposals are labeled accordingly; this file is a living project record, **not** an authoritative proof of deployment or finalized allocation.
+
+## Current holder audit status (2026-10-22)
+- OpenSea collection holders page showed **765 unique owners**, a changeable live page indicator; this is NOT a frozen snapshot.
+- Current visible top 25 holder balances total 1,297 original TOTZ, for a **provisional 472 FREE GROWN** under announced tiers, **including +200 Top 10 bonus**.
+- Remaining 740 wallets were not individually retrievable from the source page at the time of review; full network-wide free allocation total is **NOT verified**.
+- See HOLDER_ALLOCATION_CHECK_2026-10-22.md for visible top 25 and caveats. Snapshot controls final eligibility.
