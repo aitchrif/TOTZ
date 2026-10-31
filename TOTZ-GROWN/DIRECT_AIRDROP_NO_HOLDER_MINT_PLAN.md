@@ -39,3 +39,6 @@ Sources:
 - https://docs.robinhood.com/chain/deploy-smart-contracts/
 - https://docs.openzeppelin.com/contracts/5.x/api/token/erc721
 - https://portal.thirdweb.com/knowledge-base/troubleshoot/contracts/airdrop-contract
+
+## STATUS CHANGE — 2026-10-31
+**SUPERSEDED. DO NOT IMPLEMENT.** The owner selected holder-initiated mint via OpenSea on Robinhood Chain instead of project-run direct airdrop. Retain this file ONLY as a historical technical option. Current active plan and announcement live in PROJECT_SOURCE_OF_TRUTH.md and ANNOUNCEMENT_2222_FINAL_DRAFT_2026-10-31.md. No distribution was performed.
