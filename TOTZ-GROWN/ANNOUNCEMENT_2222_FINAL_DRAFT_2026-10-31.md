@@ -1,22 +1,22 @@
-# TOTZ: GROWN — FINAL owner-approved announcement draft (not posted)
+# TOTZ: GROWN — owner-approved policy / updated OpenSea mint announcement DRAFT
 
 Date: 2026-10-31
-Status: Owner affirmed the 2,222 supply, original Genesis tier rights, Top 100 WIF GTD concept as final communication direction. This **draft has not been posted**.
+Status: DRAFT — NOT POSTED. New owner direction OVERRIDES earlier direct airdrop copy. Platform integration on Robinhood Chain to be verified before public claim of a working OpenSea mint page.
 
-## X thread draft
-### Post 1
+## Four-post X thread (each post <=280 characters)
+### Tweet 1 (239 chars)
 
 🧬 TOTZ: GROWN — FINAL COLLECTION PLAN
 
-New supply: 2,222 NFTs (updated from the previously announced 6,666).
+Total supply: 2,222 NFTs, updated from the previously announced 6,666.
 
-Genesis holders come first. Their announced free allocation tiers stay intact, with an EXTRA +20 GROWN for the Top 10 Genesis wallets.
+Genesis comes first. Our original holder free mint tiers stay intact, including +20 EXTRA for the Top 10 Genesis wallets.
 
-(1/3)
+(1/4)
 
-### Post 2
+### Tweet 2 (217 chars)
 
-Genesis FREE GROWN allocation:
+Genesis FREE mint allocation:
 
 1 TOTZ → 1
 2–4 → 2
@@ -26,27 +26,41 @@ Genesis FREE GROWN allocation:
 25–49 → 10
 50+ → 15
 
-Top 10 Genesis wallets at the official snapshot receive +20 EXTRA each, up to 35 GROWN from Genesis benefits.
+Top 10 Genesis wallets at the official snapshot get +20 EXTRA each — up to 35 free GROWN from Genesis benefits.
 
-(2/3)
+(2/4)
 
-### Post 3
+### Tweet 3 (262 chars)
 
-WIF Outlaws update: the earlier all-holder free allocation is being revised.
+WIF Outlaws update:
 
-1 FREE GROWN is guaranteed to each of the Top 100 WIF wallets at the official snapshot, ranked by NFT holdings.
+The earlier all-holder free allocation is changing to a guaranteed FREE mint for each of the Top 100 WIF Outlaws holder wallets, ranked by NFT holdings at the official snapshot.
 
-We plan to airdrop directly — no holder mint needed. Full snapshot rules soon.
+Snapshot details and tie-break rules will be announced.
 
-(3/3)
+(3/4)
 
-## Pre-publication blockers
-- 2,029 Genesis allocation is still conditional: the uploaded holder CSV has **766 wallets and 4,009 TOTZ**, while on-chain totalSupply is 4,000. Reconcile and lock full reproducible snapshot.
-- WIF Top 100 addresses and balances are **not yet verified**. Need complete wallet export, common snapshot block, clear ties at rank #100 and exclusion/escrow policy.
-- Earlier WIF promise was all eligible WIF wallets guaranteed 1 free; the new Top 100 rule reduces that benefit. Communicate openly and address reliance on earlier promises.
-- Earlier 6,666 supply changes to 2,222; prior allocation assumptions are therefore invalid until final commitment ledger.
-- Combined provisional allocation: 2,029 Genesis + 100 WIF = 2,129, leaving only **93** for other existing commitments; don't advertise remainder as final.
-- Confirm whether cross-collection overlapping wallets can receive Genesis maximum 35 PLUS WIF 1; don't silently erase either claim.
-- Direct airdrop is proposed architecture only, not implemented or paid. Do not claim NFTs have been sent.
+### Tweet 4 (261 chars)
 
-No onchain actions, wallet spending, official snapshot or external publication performed.
+Minting is planned directly through OpenSea on Robinhood Chain.
+
+Eligible holders will connect their wallets and mint their own GROWN. NFT mint price: FREE (network gas fees apply).
+
+No airdrop. Official mint link and schedule will be shared after setup.
+
+(4/4)
+
+## Prepublication verification
+1. Confirm OpenSea Studio can actually create a Robinhood Chain drop for this user's contract, or verify a SeaDrop-compatible route with working OpenSea Drop listing/interaction. Trading support does not guarantee self-service drop creation.
+2. OpenSea Studio Drop has mandatory public-sale stage by platform documentation, incompatible with originally intended no-public mint; develop a validated allowlist-only implementation/alternative or transparently declare/limit final public-stage access. Do not promise nonexistent gating.
+3. Check custom allowlist CSV format per OpenSea (address, custom per-wallet mint limit, optional custom mint price, NO HEADER and no duplicates). Test Genesis 1, 15, 35 mint caps and WIF +1 overlapping wallet.
+4. Reconcile TOTZ snapshot file 4,009 vs 4,000, 766 rows (provisional allocation 2,029), and complete WIF Top 100 ranked snapshot/tie-rule before freezing list.
+5. Final 2,222 budget conditional: 2,029 Genesis + 100 WIF = 2,129, leaving 93 for EVERY other promise; review honorary, partners, giveaways, reserves.
+6. Explicitly explain previous announced 6,666 supply and all-WIF-holder free entitlement changes.
+7. Mint price free does not make transaction gas-free; holders fund gas on Robinhood Chain in ETH.
+8. No dates, contract address, live OpenSea mint URL, deployment, airdrop, or posting are being claimed.
+
+## Official docs
+- https://support.opensea.io/en/articles/8867054-define-your-allowlists
+- https://support.opensea.io/en/articles/8867049-prepare-your-drop-schedule
+- https://support.opensea.io/en/articles/8867082-which-blockchains-are-compatible-with-opensea
