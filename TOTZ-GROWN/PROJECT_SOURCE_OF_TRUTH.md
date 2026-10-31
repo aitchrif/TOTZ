@@ -1,8 +1,16 @@
 # TOTZ: GROWN — Project Source of Truth
 
-Last updated: 2026-10-22
+Last updated: 2026-10-31
 Project owner workspace: aitchrif/TOTZ
 Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction from proposals. Do not treat it as an allowlist or executed snapshot.
+
+## LATEST DESIGN DECISION — 2026-10-31
+- **Owner-selected target supply: 2,345 GROWN NFTs**; supersedes 3,333 for current PLANNING. Previous publicly announced 6,666; not yet updated onchain or publicly.
+- Keep Genesis holder tiers and +20 bonus per Top 10 intact, up to 35 Genesis Free mints to an eligible wallet.
+- Owner proposed *not* guaranteeing a free GROWN to every WIF Outlaws wallet; limited WIF FCFS / lottery concept. **WIF allocation number and eligibility are not yet approved.** Prior public WIF free entitlement must be transparently addressed before such a change.
+- TOTZ CSV preliminary 2,029 allocation, but CSV totals 4,009 NFTs vs onchain 4,000: NEEDS RECONCILIATION.
+- Remaining against preliminary Genesis allocation: **316 GROWN** for all other categories. The previously discussed 1,011 guaranteed WIF allocations would overrun 2,345 by 695 NFTs combined with Genesis.
+- See `SUPPLY_2345_DECISION_2026-10-31.md` for complete feasibility and example allocation. **Do not announce firm 2,345 supply or hard WIF allocations before auditing promises and data.**
 
 ## Project identity
 - Original collection: TOTZ (4,000 NFTs), sometimes called TOTZ Genesis.
