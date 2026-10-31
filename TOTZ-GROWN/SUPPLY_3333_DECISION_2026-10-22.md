@@ -91,3 +91,18 @@ The necessary condition is **H + W + P + C <= 3,333**.
 - If 100 giveaways and 1 distinct founder honorary NFT are reserved, remaining for TOTZ plus GTD/paid/team: **2,221**.
 - TOTZ publicly announced tiers: 1=>1, 2–4=>2, 5–9=>4, 10–14=>6, 15–24=>8, 25–49=>10, 50+=>15, and top 10 at snapshot **+20 extra each**. Exact total for all 765 wallets remains **UNVERIFIED**. No assertion that 3,333 is enough should be made before complete holdings snapshot.
 - Decision: **do not publish 3,333 as an irrevocably confirmed max supply yet**. After complete owner balance audit, compare actual H to 2,322 (or 2,221 when reserving 101 for giveaway+honorary), and account for every other publicly committed mint.
+
+## 2026-10-31 — Current-web snapshot-like mathematical audit (NOT a full wallet export)
+Source pages: https://opensea.io/collection/wetotz/holders and https://opensea.io/collection/wif-outlaws/holders; both crawled on 2026-10-31.
+- TOTZ owners: **765**, total NFTs: **4,000**.
+- WIF Outlaws owners: **1,011**. One claimed GROWN per qualifying WIF wallet -> **1,011**.
+- Current visible TOTZ top-25 ranks, NFT quantities: **[252,186,179,132,107,100,82,69,61,55,54,51,51,48,41,40,38,37,36,36,30,29,28,28,25]**; sum holdings = **1,795**.
+- Announced-tier entitlement for visible top 25, including top-10 +20 × 10 = 200, is **515 free GROWN**.
+- Unseen 740 wallets collectively hold 4,000 - 1,795 = **2,205 TOTZ** if the collection's 4,000 are all in the 765 wallets.
+- The 25th-ranked holdings are 25, so each unseen owner can hold at most 25 TOTZ. Using an exact mixed-integer optimization under these constraints, minimum free claims from those 740 = **1,187**, maximum **1,963**.
+- Thus total TOTZ Genesis free mint claim is mathematically within **1,702–2,478**, *conditional on the observed top 25 and holder count and assuming all 4,000 NFTs are held by counted wallets*.
+- With WIF 1,011 added (additive rights; no inferred deduplication), combined total is **2,713–3,489**.
+- With target supply 3,333, the arithmetic difference is **+620 remaining in the low case**, or **156 short in the high case**, before separate giveaways, honorary, GTD, paid, FCFS, project reserves.
+- A 3,333 cap is **not demonstrably sufficient** from available data. This calculation must not be represented as a full snapshot; the complete individual balances for 740 owners are not currently fetched.
+- Crucial exact cutoff: remaining for TOTZ holder allocation after WIF 1,011 = **2,322**. If also reserving 100 giveaways and 1 honorary, cap for TOTZ = **2,221**, leaving no other slots.
+- To announce responsibly, retrieve an actual complete owner/balance export from OpenSea API or chain indexed transfers, recalculate all tier entitlements and all partner rights, then publish the supply amendment.
