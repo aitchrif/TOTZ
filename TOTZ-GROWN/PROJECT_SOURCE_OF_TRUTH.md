@@ -119,3 +119,12 @@ Compiled from the user's prior planning conversations and discussions through 20
 - Conditional combined commitment: 2,029 + 1,011 = **3,040**. Conditional unallocated: 3,333 - 3,040 = **293**, which must include any giveaways, partners, honorary, paid/free GTD, team reserve; it is NOT a confirmed final remainder.
 - 3,333 is the **chosen planning supply**; a live contract cap, final allowlist, and announcement replacing the previously public 6,666 supply are **pending** source verification and budget audit. Do not call them complete.
 - Historical 2,222 reduction scenario rejected. See `SUPPLY_2222_FEASIBILITY_2026-10-31.md` for historical rationale.
+
+## 2026-10-31 — LATEST OWNER DIRECTION (supersedes the 2,345 planning option)
+- Preferred GROWN supply **2,222 NFT** (not yet deployed, not yet publicly announced as amended from previously published 6,666).
+- **Genesis-first:** keep publicly promised 1/2/4/6/8/10/15 tiers and Top 10 +20 (maximum 35 GROWN from Genesis entitlement alone).
+- **WIF Outlaws:** propose guaranteed (GTD) **1 free GROWN to each of Top 100 WIF holder wallets** ranked by NFT count at official block. Not automatic GTD for all WIF holders; ranking tie rule and handling overlapping wallets remain to finalize.
+- Uploaded TOTZ holder CSV: 766 rows, 4,009 NFTs summed vs onchain 4,000 — mismatch must be resolved. Under CSV the Genesis entitlement is **2,029** including Top 10 +200.
+- **Provisional 2,222 budget:** Genesis 2,029 + Top100 WIF 100 = **2,129**, leaving **93** for all other committed benefits, giveaways and reserve. **NOT a verified final allocation.**
+- Earlier broad WIF Outlaws free mint promise and earlier 6,666 supply announcement require a clear public explanation and appropriate handling of prior promises before changing terms.
+- Reference: `SUPPLY_2222_TOP100_WIF_PROPOSAL_2026-10-31.md`.
