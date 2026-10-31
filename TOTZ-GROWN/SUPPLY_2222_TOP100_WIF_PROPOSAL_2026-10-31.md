@@ -29,3 +29,6 @@ Status: **OWNER'S NEW PREFERRED DIRECTION, CONDITIONAL/NOT FINAL ALLOCATION, NOT
 
 ## No public fixed allocations yet
 This file records a proposed model, not consent to revoke earlier commitments or a live network change.
+
+## MINT METHOD OVERRIDE — 2026-10-31
+Owner explicitly rejected project-sent direct NFT airdrops. **Eligible holders will mint their own NFTs on OpenSea**, using per-wallet free mint caps in a qualified allowlist. The earlier statement in step 8 recommending owner batch airdrop is historical and SUPERSEDED. Robinhood Chain Drop creator support and the mandatory OpenSea Studio PUBLIC sale stage are deployment blockers to investigate; see PROJECT_SOURCE_OF_TRUTH.md and ANNOUNCEMENT_2222_FINAL_DRAFT_2026-10-31.md. NFT price 0 ETH does not waive user network gas.
