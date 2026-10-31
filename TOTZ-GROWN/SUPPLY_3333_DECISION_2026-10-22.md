@@ -80,3 +80,14 @@ The necessary condition is **H + W + P + C <= 3,333**.
 - The critical break-even for TOTZ holder obligations is **2,297** (strictest before extras). Need full 765-wallet holdings to determine if H <= 2,297, and ideally a meaningful remainder for GTD/community.
 - Overlaps of addresses across TOTZ and WIF Outlaws do NOT automatically remove the separate promised benefits. Define any exclusive/stackable mint policy publicly and check all claims before finalizing.
 - **Verdict: Cannot currently guarantee 3,333 is enough.** Confirm exact H from full current on-chain snapshot and W from a same-date holder export before announcing.
+
+
+## Live web recheck — 2026-10-31 (supersedes earlier count-only checks)
+- TOTZ OpenSea holders page: **765 unique owners**, 4,000 original NFTs (page crawl last week; not an official snapshot): https://opensea.io/collection/wetotz/holders .
+- WIF Outlaws OpenSea holders page: **1,011 unique owners**, 2,222 original NFTs (page crawled today): https://opensea.io/collection/wif-outlaws/holders .
+- These are observed counts, **not full wallet-level balance exports**. Earlier 1,036 WIF count and 992 rough number are superseded for this check.
+- WIF free mint budget at one per eligible wallet: **1,011** assuming all listed owners qualify at official snapshot.
+- Remaining theoretical capacity for TOTZ and all others: **3,333 - 1,011 = 2,322**.
+- If 100 giveaways and 1 distinct founder honorary NFT are reserved, remaining for TOTZ plus GTD/paid/team: **2,221**.
+- TOTZ publicly announced tiers: 1=>1, 2–4=>2, 5–9=>4, 10–14=>6, 15–24=>8, 25–49=>10, 50+=>15, and top 10 at snapshot **+20 extra each**. Exact total for all 765 wallets remains **UNVERIFIED**. No assertion that 3,333 is enough should be made before complete holdings snapshot.
+- Decision: **do not publish 3,333 as an irrevocably confirmed max supply yet**. After complete owner balance audit, compare actual H to 2,322 (or 2,221 when reserving 101 for giveaway+honorary), and account for every other publicly committed mint.
