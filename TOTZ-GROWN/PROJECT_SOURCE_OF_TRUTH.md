@@ -102,3 +102,12 @@ Compiled from the user's prior planning conversations and discussions through 20
 - Proposed procedure: obtain complete snapshots, calculate every entitlement and overlap/stacking rule, reserve committed claims first, decide the GTD/paid remainder, and only then lock contract supply and announce the reduced supply.
 - If promised entitlements alone exceed 3,333, do not arbitrarily cap an already announced guarantee: raise supply or obtain a legitimate explicit community-approved rule revision first.
 - Detailed feasibility record: `TOTZ-GROWN/SUPPLY_3333_DECISION_2026-10-22.md`.
+
+## 2026-10-31 — Owner confirms 3,333 and Genesis-first allocation principle
+- User explicitly **reaffirmed 3,333** after exploring 2,222. **2,222 rejected** because the original TOTZ Genesis holders must receive materially better benefits than WIF Outlaws.
+- **Keep the publicly announced TOTZ holder tiers unchanged**, plus +20 to each top-10 wallet; WIF Outlaws eligible wallets get 1 free each.
+- Latest TOTZ holder CSV audit conditionally yields **2,029** free GROWN for **766** rows; the CSV balances total **4,009** while on-chain original TOTZ supply is **4,000**. This needs reconciliation before final mint snapshot.
+- WIF claim budget currently provisionally **1,011** eligible holder wallets (not verified by complete same-block export).
+- Conditional combined commitment: 2,029 + 1,011 = **3,040**. Conditional unallocated: 3,333 - 3,040 = **293**, which must include any giveaways, partners, honorary, paid/free GTD, team reserve; it is NOT a confirmed final remainder.
+- 3,333 is the **chosen planning supply**; a live contract cap, final allowlist, and announcement replacing the previously public 6,666 supply are **pending** source verification and budget audit. Do not call them complete.
+- Historical 2,222 reduction scenario rejected. See `SUPPLY_2222_FEASIBILITY_2026-10-31.md` for historical rationale.
