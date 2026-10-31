@@ -4,6 +4,20 @@ Last updated: 2026-10-31
 Project owner workspace: aitchrif/TOTZ
 Status: PLANNING / PRE-LAUNCH — This record distinguishes confirmed direction from proposals. Do not treat it as an allowlist or executed snapshot.
 
+## LATEST OVERRIDING OWNER DECISION — 2026-10-31: OPENSea HOLDER MINT, NOT AIRDROP
+- **TOTZ: GROWN total target supply: 2,222 NFT**; owner selected as final collection policy direction, pending contract deployment and reconciliation of previous public promises.
+- **Distribution mode changed:** **eligible users mint themselves on an OpenSea Drop page**, NOT a direct project-sponsored airdrop. Previous DIRECT_AIRDROP_NO_HOLDER_MINT_PLAN.md is SUPERSEDED and is historical only.
+- **TOTZ Genesis eligibility preserved:** announced tiers 1=>1, 2–4=>2, 5–9=>4, 10–14=>6, 15–24=>8, 25–49=>10, 50+=>15; Top 10 at official snapshot earn +20 extra, max **35 from Genesis allocation**.
+- **WIF Outlaws:** Top 100 holder wallets by WIF NFT quantity at final snapshot, **1 guaranteed free mint per qualified wallet**. Rankings, tie-breaks and snapshot time not confirmed. Previous all-WIF guarantee publicly stated: change must be explained clearly and prior promises handled.
+- **Provisional budget ONLY:** 2,029 Genesis mints from user-uploaded 766-wallet CSV + 100 WIF GTD = 2,129; 93 remaining. CSV totals 4,009 TOTZ against contract supply 4,000 (+9 error); numbers NOT final.
+- **OpenSea official documentation:** presale/allowlists support per-wallet customized free mint caps via CSV (no headers or duplicate addresses); allowlist is additive across phases unless carefully limited. Holders may still pay chain ETH GAS despite 0 ETH NFT sale price.
+- **Critical platform constraint:** self-service OpenSea Studio Drops REQUIRE A NON-REMOVABLE PUBLIC SALE STAGE per OpenSea support (https://support.opensea.io/en/articles/8867049-prepare-your-drop-schedule). This conflicts with the original NO PUBLIC MINT policy; do not deploy/claim a strictly allowlist-only OpenSea Studio Drop is possible without confirming alternate compatible setup. OpenSea supports Robinhood Chain trading/collections, but this does NOT independently prove Studio Drop creation is available on Robinhood Chain; verify in creator UI.
+- **Announcement language:** 'holders mint through OpenSea; FREE mint price, network gas applies; mint date/link to follow after technical setup.' Never say 'automatically airdropped', 'no mint needed' or 'no gas'.
+- Source: https://support.opensea.io/en/articles/8867054-define-your-allowlists and https://support.opensea.io/en/articles/8867082-which-blockchains-are-compatible-with-opensea .
+- Updated draft: ANNOUNCEMENT_2222_FINAL_DRAFT_2026-10-31.md. No actual launch, deploy or announcement sent.
+
+
+
 ## LATEST DESIGN DECISION — 2026-10-31
 - **Owner-selected target supply: 2,345 GROWN NFTs**; supersedes 3,333 for current PLANNING. Previous publicly announced 6,666; not yet updated onchain or publicly.
 - Keep Genesis holder tiers and +20 bonus per Top 10 intact, up to 35 Genesis Free mints to an eligible wallet.
