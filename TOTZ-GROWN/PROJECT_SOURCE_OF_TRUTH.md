@@ -128,3 +128,13 @@ Compiled from the user's prior planning conversations and discussions through 20
 - **Provisional 2,222 budget:** Genesis 2,029 + Top100 WIF 100 = **2,129**, leaving **93** for all other committed benefits, giveaways and reserve. **NOT a verified final allocation.**
 - Earlier broad WIF Outlaws free mint promise and earlier 6,666 supply announcement require a clear public explanation and appropriate handling of prior promises before changing terms.
 - Reference: `SUPPLY_2222_TOP100_WIF_PROPOSAL_2026-10-31.md`.
+
+## 2026-10-31 — Final owner-approved announcement POLICY (NOT POSTED)
+The owner explicitly confirmed that the **2,222 total supply / Genesis unchanged announced tiers / WIF Outlaws Top 100 GTD** plan is the final communication direction for TOTZ: GROWN.
+- Public announcement **draft approved as direction**; no X/Discord post was sent automatically.
+- Preserve Genesis tier mints and Top 10 +20 each (Genesis cap 35).
+- Give Top 100 qualifying WIF Outlaws holder wallets 1 free GROWN each at a future specified snapshot; ranking metric and tie handling must be announced and verified before snapshot.
+- Previously published supply **6,666** and prior *all WIF holders free* statement conflict with the new policy. Public post must transparently call these changes out; final policy choice does not mean prior promises are already resolved.
+- Actual Genesis allocation of **2,029** is from an unreconciled 766-row CSV with 4,009 original TOTZ vs 4,000 onchain. The budget of **93 remaining** is therefore CONDITIONAL and should not be published as guaranteed.
+- Owner preference for **project-funded direct NFT airdrop** rather than holder-initiated mint continues; no contract or airdrop has been deployed or run.
+- Latest communication text: `ANNOUNCEMENT_2222_FINAL_DRAFT_2026-10-31.md`.
